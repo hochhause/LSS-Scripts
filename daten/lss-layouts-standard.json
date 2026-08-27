@@ -1,0 +1,264 @@
+{
+ "0": {
+  "pools": [
+   {
+    "key": "normal",
+    "label": "Normal",
+    "from": "level",
+    "bonus": {
+     "Großwache": 10
+    }
+   },
+   {
+    "key": "ab",
+    "label": "Abrollbehälter",
+    "from": "Abrollbehälter-Stellplatz",
+    "per": 1
+   },
+   {
+    "key": "anh",
+    "label": "Anhänger",
+    "from": "Anhänger-Stellplatz",
+    "per": 1
+   },
+   {
+    "key": "drohne",
+    "label": "Drohne",
+    "from": "Drohneneinheit",
+    "per": 1
+   },
+   {
+    "key": "vpfl",
+    "label": "Verpflegung",
+    "from": "Verpflegungsdienst",
+    "per": 2
+   },
+   {
+    "key": "bahn",
+    "label": "Bahnrettung",
+    "from": "Bahnrettung",
+    "per": 1
+   },
+   {
+    "key": "tier",
+    "label": "Tierrettung",
+    "from": "Tierrettung",
+    "per": 1
+   },
+   {
+    "key": "nea200",
+    "label": "NEA200",
+    "from": "Netzersatzanlage 200",
+    "per": 2
+   }
+  ]
+ },
+ "2": {
+  "pools": [
+   {
+    "key": "normal",
+    "label": "Stellplätze",
+    "from": "level",
+    "bonus": {
+     "Großwache": 10
+    }
+   }
+  ]
+ },
+ "6": {
+  "pools": [
+   {
+    "key": "normal",
+    "label": "Normal",
+    "from": "level",
+    "bonus": {
+     "Großwache": 10
+    }
+   },
+   {
+    "key": "hund",
+    "label": "Diensthunde",
+    "from": "Diensthundestaffel",
+    "per": 1
+   },
+   {
+    "key": "dgl",
+    "label": "DGL",
+    "from": "Dienstgruppenleitung",
+    "per": 1
+   },
+   {
+    "key": "motorrad",
+    "label": "Motorrad",
+    "from": "Motorradstaffel",
+    "per": 2
+   },
+   {
+    "key": "ap",
+    "label": "Autobahn",
+    "from": "Autobahnpolizei",
+    "per": 2
+   },
+   {
+    "key": "gefkw",
+    "label": "Gewahrsam",
+    "from": "Großgewahrsam",
+    "per": 1
+   }
+  ]
+ },
+ "9": {
+  "pools": [
+   {
+    "key": "gesamt",
+    "label": "Stellplätze",
+    "from": "fixed",
+    "base": 1,
+    "bonus": {
+     "1. Technischer Zug: Fachgruppe Notversorgung/Notinstandsetzung": 2,
+     "1. Technischer Zug: Zugtrupp": 1,
+     "2. Technischer Zug - Bergungsgruppe": 1,
+     "2. Technischer Zug: Fachgruppe Notversorgung/Notinstandsetzung": 2,
+     "2. Technischer Zug: Zugtrupp": 1,
+     "Fachgruppe Räumen": 4,
+     "Fachgruppe Wassergefahren": 5,
+     "Fachgruppe Ortung": 4,
+     "Fachgruppe Wasserschaden/Pumpen": 4,
+     "Fachgruppe Schwere Bergung": 1,
+     "Fachgruppe Elektroversorgung": 2,
+     "Ortsverbands-Mannschaftstransportwagen": 2,
+     "Trupp Unbemannte Luftfahrtsysteme": 1,
+     "Fachzug Führung und Kommunikation": 5,
+     "Fachgruppe Logistik-Verpflegung": 3,
+     "Fachgruppe Brückenbau": 3
+    }
+   }
+  ]
+ },
+ "11": {
+  "pools": [
+   {
+    "key": "gesamt",
+    "label": "Stellplätze",
+    "from": "fixed",
+    "base": 4,
+    "bonus": {
+     "2. Zug der 1. Hundertschaft": 4,
+     "3. Zug der 1. Hundertschaft": 5,
+     "Sonderfahrzeug: Gefangenenkraftwagen": 1,
+     "Technischer Zug: Wasserwerfer": 4,
+     "SEK: 1. Zug": 5,
+     "SEK: 2. Zug": 5,
+     "MEK: 1. Zug": 5,
+     "MEK: 2. Zug": 5,
+     "Diensthundestaffel": 3,
+     "Reiterstaffel": 6,
+     "Sonderfahrzeug: Lautsprecherkraftwagen": 1
+    }
+   }
+  ]
+ },
+ "12": {
+  "pools": [
+   {
+    "key": "gesamt",
+    "label": "Stellplätze",
+    "from": "fixed",
+    "base": 1,
+    "bonus": {
+     "Führung": 1,
+     "Sanitätsdienst": 4,
+     "Wasserrettung": 3,
+     "Rettungshundestaffel": 2,
+     "SEG Drohne": 1,
+     "Betreuungs- und Verpflegungsdienst": 10,
+     "Technik und Sicherheit": 6
+    }
+   }
+  ]
+ },
+ "15": {
+  "pools": [
+   {
+    "key": "normal",
+    "label": "Stellplätze",
+    "from": "level"
+   }
+  ]
+ },
+ "17": {
+  "pools": [
+   {
+    "key": "gesamt",
+    "label": "Stellplätze",
+    "from": "fixed",
+    "base": 0,
+    "bonus": {
+     "SEK: 1. Zug": 5,
+     "SEK: 2. Zug": 5,
+     "MEK: 1. Zug": 5,
+     "MEK: 2. Zug": 5,
+     "Diensthundestaffel": 3
+    }
+   }
+  ]
+ },
+ "21": {
+  "pools": [
+   {
+    "key": "normal",
+    "label": "Stellplätze",
+    "from": "level"
+   }
+  ]
+ },
+ "25": {
+  "pools": [
+   {
+    "key": "normal",
+    "label": "Normal",
+    "from": "level"
+   },
+   {
+    "key": "hoehe",
+    "label": "Höhenrettung",
+    "from": "Höhenrettung",
+    "per": 2
+   },
+   {
+    "key": "hunde",
+    "label": "Hundestaffel",
+    "from": "Rettungshundestaffel",
+    "per": 2
+   }
+  ]
+ },
+ "26": {
+  "pools": [
+   {
+    "key": "normal",
+    "label": "Stellplätze",
+    "from": "level"
+   }
+  ]
+ },
+ "28": {
+  "pools": [
+   {
+    "key": "normal",
+    "label": "Landeplatz",
+    "from": "fixed",
+    "base": 1
+   }
+  ]
+ },
+ "29": {
+  "pools": [
+   {
+    "key": "normal",
+    "label": "Stellplätze",
+    "from": "level"
+   }
+  ]
+ }
+}

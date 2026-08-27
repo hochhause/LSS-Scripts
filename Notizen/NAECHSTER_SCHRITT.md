@@ -1,0 +1,54 @@
+# Nächster Schritt
+
+Stand v0.49.0. Was hier steht, ist offen — alles darüber ist erledigt und in
+`DECISIONS.md` begründet.
+
+## Ungeprüft im laufenden Spiel
+
+Der Rechenkern ist mit `test-planung.js` abgedeckt, die Oberfläche nicht. Diese
+Dinge sind gebaut, aber noch nie im Spiel gesehen worden:
+
+- **Eigenes Fenster** (⇱ im Kopf). Popup-Blocker beim ersten Mal, und ob die
+  Themenfarben drüben stimmen.
+- **Hinweis auf der Wachenseite** (versuchsweise, im Übersichtsreiter
+  einzuschalten). Der Kasten wird an `#building_panel`, `.col-md-12`, `#content`
+  oder `.content` gehängt — geraten, weil kein HTML vorlag. Landet er falsch,
+  genügt ein Stück der Wachenseite.
+- **Ausbaukatalog lesen** über alle Gebäudearten.
+- **Zwei Leisten statt elf Reitern**: ob die sechs Gruppenknöpfe bei 520 px in
+  eine Zeile passen.
+
+## Offene Arbeit
+
+- **Profile inhaltlich durchgehen.** Feuerwache, Rettungswache, Polizeiwache und
+  THW sind aus dem Soll-Papier übernommen, aber nicht Stück für Stück besprochen.
+  Bei der SEG hat das eine Runde gebracht (D-44): der SEG-NEA50 war die teurere
+  Fassung eines Anhängers, den die Feuerwehr ohne Lehrgang fährt.
+- **Stellplätze der Gebäude ohne eigenen Bestand.** Für Rettungshundestaffel,
+  Bergrettung, Seenotrettung und Autobahnpolizei nennt das Papier die
+  Stellplatzzahl auf **Stufe 0**, die Fahrzeuge aber auf Vollausbau. Die
+  Formeln in `LAYOUTS_STANDARD` stammen von dort und sind für diese vier
+  ungeprüft.
+- **Hubschrauberstationen** (Typ 5 und 13) fehlen im Soll-Papier. Ihre Profile
+  stammen noch aus dem alten Auto-Export.
+- **Vier Lehrgangsnamen** fehlen, alle zur Seenotrettung: `coastal_rescue`,
+  `coastal_helicopter`, `coastal_helicopter_lift`,
+  `emergency_paramedic_water_rescue`.
+- **Werben mit eigenem Sollwert.** `personal-soll.js` setzt pauschal 400. Der
+  Planer kennt je Wache den genauen Bedarf (`staffSoll`) — er schreibt ihn nur
+  nicht. Gehört in den Werben-Reiter.
+- **Veröffentlichung.** `@downloadURL` und `@updateURL` fehlen; ohne sie bekommt
+  niemand eine Korrektur. Dazu README und Lizenz.
+
+## Entschiedene Regeln (gelten weiter)
+
+- Fahrzeug-Haken ab **Mindestbesetzung**, nicht ab Vollbesetzung.
+- „In Ausbildung" zählt wie fertig — **außer** beim FMS: solche Fahrzeuge
+  bekommen den Haken, bleiben aber auf Status 6.
+- Erweiterung aus, sobald **ein** zugehöriges Fahrzeug lahmt.
+- Über `min` hinaus wird aufgefüllt, aber nur mit Leuten, deren Lehrgang an
+  dieser Wache nirgends gebraucht wird.
+- Anhänger koppeln **vor** der Personalzuweisung.
+- 🟢 setzt der Planer, 🔴 schreibt der Mensch und schließt die Wache aus.
+- Keine zufälligen Verzögerungen zur Verschleierung. Fester Mindestabstand
+  (150 ms lesen, 350 ms schreiben) und Sichtbarkeitssperre genügen.

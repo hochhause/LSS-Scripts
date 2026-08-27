@@ -1,0 +1,687 @@
+{
+ "0": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "30": 6,
+     "2": 2,
+     "105": 3,
+     "46": 2,
+     "34": 1,
+     "18": 1,
+     "36": 1,
+     "12": 1,
+     "27": 1,
+     "53": 1,
+     "57": 1,
+     "47": 1,
+     "48": 1,
+     "49": 1,
+     "62": 1,
+     "117": 1,
+     "119": 1,
+     "108": 1,
+     "116": 1,
+     "169": 1,
+     "170": 1,
+     "142": 1,
+     "164": 1,
+     "78": 1,
+     "77": 1,
+     "111": 1,
+     "115": 1,
+     "143": 1,
+     "168": 1,
+     "186": 1,
+     "129": 1,
+     "139": 1,
+     "138": 1,
+     "163": 1,
+     "185": 1
+    },
+    "pools": {
+     "30": "normal",
+     "2": "normal",
+     "105": "normal",
+     "46": "normal",
+     "34": "normal",
+     "18": "normal",
+     "36": "normal",
+     "12": "normal",
+     "27": "normal",
+     "53": "normal",
+     "57": "normal",
+     "47": "ab",
+     "48": "ab",
+     "49": "ab",
+     "62": "ab",
+     "117": "ab",
+     "119": "ab",
+     "108": "ab",
+     "116": "ab",
+     "169": "ab",
+     "170": "ab",
+     "142": "ab",
+     "164": "ab",
+     "78": "ab",
+     "77": "ab",
+     "111": "anh",
+     "115": "anh",
+     "143": "anh",
+     "168": "anh",
+     "186": "anh",
+     "129": "drohne",
+     "139": "vpfl",
+     "138": "vpfl",
+     "163": "bahn",
+     "185": "tier"
+    },
+    "extensions": {
+     "Abrollbehälter-Stellplatz": 14,
+     "Anhänger-Stellplatz": 5,
+     "Netzersatzanlage 50": 1,
+     "Großlüfter": 1,
+     "Drohneneinheit": 1,
+     "Verpflegungsdienst": 1,
+     "Bahnrettung": 1,
+     "Tierrettung": 1
+    }
+   },
+   "standard-groß": {
+    "vehicles": {
+     "30": 6,
+     "105": 4,
+     "46": 3,
+     "2": 2,
+     "75": 2,
+     "34": 1,
+     "18": 1,
+     "36": 1,
+     "12": 1,
+     "27": 1,
+     "53": 1,
+     "57": 1,
+     "33": 1,
+     "76": 1,
+     "83": 1,
+     "84": 1,
+     "85": 1,
+     "86": 1,
+     "47": 1,
+     "48": 1,
+     "49": 1,
+     "62": 1,
+     "117": 1,
+     "119": 1,
+     "108": 1,
+     "116": 1,
+     "169": 1,
+     "170": 1,
+     "142": 1,
+     "164": 1,
+     "78": 1,
+     "77": 1,
+     "113": 1,
+     "180": 1,
+     "111": 1,
+     "115": 1,
+     "143": 1,
+     "168": 1,
+     "186": 1,
+     "129": 1,
+     "139": 1,
+     "138": 1,
+     "163": 1,
+     "185": 1
+    },
+    "pools": {
+     "30": "normal",
+     "105": "normal",
+     "46": "normal",
+     "2": "normal",
+     "75": "normal",
+     "34": "normal",
+     "18": "normal",
+     "36": "normal",
+     "12": "normal",
+     "27": "normal",
+     "53": "normal",
+     "57": "normal",
+     "33": "normal",
+     "76": "normal",
+     "83": "normal",
+     "84": "normal",
+     "85": "normal",
+     "86": "normal",
+     "47": "ab",
+     "48": "ab",
+     "49": "ab",
+     "62": "ab",
+     "117": "ab",
+     "119": "ab",
+     "108": "ab",
+     "116": "ab",
+     "169": "ab",
+     "170": "ab",
+     "142": "ab",
+     "164": "ab",
+     "78": "ab",
+     "77": "ab",
+     "113": "nea200",
+     "180": "nea200",
+     "111": "anh",
+     "115": "anh",
+     "143": "anh",
+     "168": "anh",
+     "186": "anh",
+     "129": "drohne",
+     "139": "vpfl",
+     "138": "vpfl",
+     "163": "bahn",
+     "185": "tier"
+    },
+    "extensions": {
+     "Abrollbehälter-Stellplatz": 14,
+     "Anhänger-Stellplatz": 5,
+     "Netzersatzanlage 50": 1,
+     "Großlüfter": 1,
+     "Drohneneinheit": 1,
+     "Verpflegungsdienst": 1,
+     "Bahnrettung": 1,
+     "Tierrettung": 1,
+     "Großwache": 1,
+     "Flughafenfeuerwehr": 1,
+     "Netzersatzanlage 200": 1,
+     "Werkfeuerwehr": 1
+    }
+   }
+  }
+ },
+ "2": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "28": 7,
+     "38": 2,
+     "29": 3,
+     "74": 1,
+     "55": 1,
+     "56": 1
+    },
+    "pools": {
+     "28": "normal",
+     "38": "normal",
+     "29": "normal",
+     "74": "normal",
+     "55": "normal",
+     "56": "normal"
+    },
+    "extensions": {}
+   },
+   "standard-groß": {
+    "vehicles": {
+     "28": 10,
+     "38": 4,
+     "29": 6,
+     "74": 1,
+     "73": 1,
+     "97": 1,
+     "55": 1,
+     "56": 1
+    },
+    "pools": {
+     "28": "normal",
+     "38": "normal",
+     "29": "normal",
+     "74": "normal",
+     "73": "normal",
+     "97": "normal",
+     "55": "normal",
+     "56": "normal"
+    },
+    "extensions": {
+     "Großwache": 1
+    }
+   }
+  }
+ },
+ "5": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "31": 1,
+     "157": 1
+    },
+    "pools": {
+     "31": "normal",
+     "157": "normal"
+    },
+    "extensions": {
+     "Windenrettung": 1
+    }
+   }
+  }
+ },
+ "6": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "32": 12,
+     "98": 3,
+     "94": 1,
+     "103": 1,
+     "95": 2,
+     "184": 2
+    },
+    "pools": {
+     "32": "normal",
+     "98": "normal",
+     "94": "hund",
+     "103": "dgl",
+     "95": "motorrad",
+     "184": "ap"
+    },
+    "extensions": {
+     "Zelle": 10,
+     "Diensthundestaffel": 1,
+     "Kriminalpolizei": 1,
+     "Dienstgruppenleitung": 1,
+     "Motorradstaffel": 1,
+     "Autobahnpolizei": 1
+    }
+   },
+   "standard-groß": {
+    "vehicles": {
+     "32": 20,
+     "98": 5,
+     "94": 1,
+     "103": 1,
+     "95": 2,
+     "184": 2,
+     "52": 1
+    },
+    "pools": {
+     "32": "normal",
+     "98": "normal",
+     "94": "hund",
+     "103": "dgl",
+     "95": "motorrad",
+     "184": "ap",
+     "52": "gefkw"
+    },
+    "extensions": {
+     "Zelle": 10,
+     "Diensthundestaffel": 1,
+     "Kriminalpolizei": 1,
+     "Dienstgruppenleitung": 1,
+     "Motorradstaffel": 1,
+     "Autobahnpolizei": 1,
+     "Großwache": 1,
+     "Großgewahrsam": 1
+    }
+   }
+  }
+ },
+ "9": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "39": 2,
+     "41": 2,
+     "110": 2,
+     "40": 2,
+     "124": 2,
+     "93": 2,
+     "92": 2,
+     "45": 1,
+     "42": 1,
+     "43": 1,
+     "44": 1,
+     "65": 1,
+     "66": 1,
+     "67": 1,
+     "68": 1,
+     "69": 1,
+     "100": 1,
+     "123": 1,
+     "101": 1,
+     "102": 1,
+     "109": 1,
+     "122": 1,
+     "112": 1,
+     "125": 1,
+     "144": 1,
+     "145": 1,
+     "146": 1,
+     "147": 1,
+     "148": 1,
+     "176": 1,
+     "177": 1,
+     "178": 1,
+     "181": 1,
+     "182": 1,
+     "183": 1
+    },
+    "pools": {
+     "39": "gesamt",
+     "41": "gesamt",
+     "110": "gesamt",
+     "40": "gesamt",
+     "124": "gesamt",
+     "93": "gesamt",
+     "92": "gesamt",
+     "45": "gesamt",
+     "42": "gesamt",
+     "43": "gesamt",
+     "44": "gesamt",
+     "65": "gesamt",
+     "66": "gesamt",
+     "67": "gesamt",
+     "68": "gesamt",
+     "69": "gesamt",
+     "100": "gesamt",
+     "123": "gesamt",
+     "101": "gesamt",
+     "102": "gesamt",
+     "109": "gesamt",
+     "122": "gesamt",
+     "112": "gesamt",
+     "125": "gesamt",
+     "144": "gesamt",
+     "145": "gesamt",
+     "146": "gesamt",
+     "147": "gesamt",
+     "148": "gesamt",
+     "176": "gesamt",
+     "177": "gesamt",
+     "178": "gesamt",
+     "181": "gesamt",
+     "182": "gesamt",
+     "183": "gesamt"
+    },
+    "extensions": {
+     "1. Technischer Zug: Fachgruppe Notversorgung/Notinstandsetzung": 1,
+     "1. Technischer Zug: Zugtrupp": 1,
+     "2. Technischer Zug - Bergungsgruppe": 1,
+     "2. Technischer Zug: Fachgruppe Notversorgung/Notinstandsetzung": 1,
+     "2. Technischer Zug: Zugtrupp": 1,
+     "Fachgruppe Räumen": 1,
+     "Fachgruppe Wassergefahren": 1,
+     "Fachgruppe Ortung": 1,
+     "Fachgruppe Wasserschaden/Pumpen": 1,
+     "Fachgruppe Schwere Bergung": 1,
+     "Fachgruppe Elektroversorgung": 1,
+     "Ortsverbands-Mannschaftstransportwagen": 1,
+     "Trupp Unbemannte Luftfahrtsysteme": 1,
+     "Fachzug Führung und Kommunikation": 1,
+     "Fachgruppe Logistik-Verpflegung": 1,
+     "Fachgruppe Brückenbau": 1
+    }
+   }
+  }
+ },
+ "11": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "50": 9,
+     "35": 4,
+     "51": 5,
+     "72": 3,
+     "52": 1,
+     "80": 2,
+     "79": 6,
+     "82": 2,
+     "81": 6,
+     "94": 3,
+     "135": 3,
+     "137": 3,
+     "165": 1
+    },
+    "pools": {
+     "50": "gesamt",
+     "35": "gesamt",
+     "51": "gesamt",
+     "72": "gesamt",
+     "52": "gesamt",
+     "80": "gesamt",
+     "79": "gesamt",
+     "82": "gesamt",
+     "81": "gesamt",
+     "94": "gesamt",
+     "135": "gesamt",
+     "137": "gesamt",
+     "165": "gesamt"
+    },
+    "extensions": {
+     "2. Zug der 1. Hundertschaft": 1,
+     "3. Zug der 1. Hundertschaft": 1,
+     "Sonderfahrzeug: Gefangenenkraftwagen": 1,
+     "Technischer Zug: Wasserwerfer": 1,
+     "SEK: 1. Zug": 1,
+     "SEK: 2. Zug": 1,
+     "MEK: 1. Zug": 1,
+     "MEK: 2. Zug": 1,
+     "Diensthundestaffel": 1,
+     "Reiterstaffel": 1,
+     "Sonderfahrzeug: Lautsprecherkraftwagen": 1
+    }
+   }
+  }
+ },
+ "12": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "59": 1,
+     "60": 1,
+     "28": 1,
+     "58": 3,
+     "64": 1,
+     "63": 1,
+     "70": 1,
+     "91": 2,
+     "127": 1,
+     "133": 4,
+     "132": 1,
+     "130": 2,
+     "131": 3,
+     "171": 3,
+     "173": 3
+    },
+    "pools": {
+     "59": "gesamt",
+     "60": "gesamt",
+     "28": "gesamt",
+     "58": "gesamt",
+     "64": "gesamt",
+     "63": "gesamt",
+     "70": "gesamt",
+     "91": "gesamt",
+     "127": "gesamt",
+     "133": "gesamt",
+     "132": "gesamt",
+     "130": "gesamt",
+     "131": "gesamt",
+     "171": "gesamt",
+     "173": "gesamt"
+    },
+    "extensions": {
+     "Führung": 1,
+     "Sanitätsdienst": 1,
+     "Wasserrettung": 1,
+     "Rettungshundestaffel": 1,
+     "SEG Drohne": 1,
+     "Betreuungs- und Verpflegungsdienst": 1,
+     "Technik und Sicherheit": 1
+    }
+   }
+  }
+ },
+ "13": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "61": 2,
+     "96": 1
+    },
+    "pools": {
+     "61": "normal",
+     "96": "normal"
+    },
+    "extensions": {
+     "Außenlastbehälter": 1,
+     "Windenrettung": 1
+    }
+   }
+  }
+ },
+ "15": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "64": 2,
+     "63": 2,
+     "70": 2
+    },
+    "pools": {
+     "64": "normal",
+     "63": "normal",
+     "70": "normal"
+    },
+    "extensions": {}
+   }
+  }
+ },
+ "17": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "51": 4,
+     "79": 6,
+     "80": 2,
+     "81": 6,
+     "82": 2,
+     "94": 3
+    },
+    "pools": {
+     "51": "gesamt",
+     "79": "gesamt",
+     "80": "gesamt",
+     "81": "gesamt",
+     "82": "gesamt",
+     "94": "gesamt"
+    },
+    "extensions": {
+     "SEK: 1. Zug": 1,
+     "SEK: 2. Zug": 1,
+     "MEK: 1. Zug": 1,
+     "MEK: 2. Zug": 1,
+     "Diensthundestaffel": 1
+    }
+   }
+  }
+ },
+ "21": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "91": 6
+    },
+    "pools": {
+     "91": "normal"
+    },
+    "extensions": {}
+   }
+  }
+ },
+ "25": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "150": 5,
+     "149": 4,
+     "151": 1,
+     "152": 3,
+     "154": 2,
+     "158": 1,
+     "155": 1,
+     "153": 2
+    },
+    "pools": {
+     "150": "normal",
+     "149": "normal",
+     "151": "normal",
+     "152": "normal",
+     "154": "normal",
+     "158": "hoehe",
+     "155": "hoehe",
+     "153": "hunde"
+    },
+    "extensions": {
+     "Höhenrettung": 1,
+     "Rettungshundestaffel": 1,
+     "Drohneneinheit": 1
+    }
+   }
+  }
+ },
+ "26": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "159": 2,
+     "160": 3
+    },
+    "pools": {
+     "159": "normal",
+     "160": "normal"
+    },
+    "extensions": {}
+   }
+  }
+ },
+ "28": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "161": 1
+    },
+    "pools": {
+     "161": "normal"
+    },
+    "extensions": {}
+   }
+  }
+ },
+ "29": {
+  "slotBonus": 0,
+  "profiles": {
+   "standard": {
+    "vehicles": {
+     "184": 10
+    },
+    "pools": {
+     "184": "normal"
+    },
+    "extensions": {
+     "Zelle": 10
+    }
+   }
+  }
+ }
+}
