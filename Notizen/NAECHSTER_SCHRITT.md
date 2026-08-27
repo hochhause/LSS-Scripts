@@ -1,6 +1,6 @@
 # Nächster Schritt
 
-Stand v0.49.0. Was hier steht, ist offen — alles darüber ist erledigt und in
+Stand v0.49.1. Was hier steht, ist offen — alles darüber ist erledigt und in
 `DECISIONS.md` begründet.
 
 ## Ungeprüft im laufenden Spiel
@@ -37,8 +37,6 @@ Dinge sind gebaut, aber noch nie im Spiel gesehen worden:
 - **Werben mit eigenem Sollwert.** `personal-soll.js` setzt pauschal 400. Der
   Planer kennt je Wache den genauen Bedarf (`staffSoll`) — er schreibt ihn nur
   nicht. Gehört in den Werben-Reiter.
-- **Veröffentlichung.** `@downloadURL` und `@updateURL` fehlen; ohne sie bekommt
-  niemand eine Korrektur. Dazu README und Lizenz.
 
 ## Entschiedene Regeln (gelten weiter)
 

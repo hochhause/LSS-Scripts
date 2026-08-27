@@ -806,3 +806,54 @@ Rechnen mit Wahrheitswerten in der Fahrzeugsortierung, zwei stumme
 `catch`-Blöcke. Wahlfreie Parameter (`frage`, `learnAllCourses`, `buildingList`)
 haben jetzt ausgeschriebene Vorgaben — sonst sieht ein Aufruf mit einem Argument
 aus wie ein vergessenes zweites, und genau das war D-58.
+
+## D-60 Veröffentlichung über GitHub, Aktualisierung vom Zweig `main` (v0.49.1)
+
+`@downloadURL` und `@updateURL` fehlten — ohne sie bekommt niemand eine
+Korrektur, auch der eigene Rechner nicht. Beide zeigen jetzt auf den Rohtext
+von `main`:
+
+```
+https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/<datei>
+```
+
+Verworfen wurden zwei Fassungen mit mehr Sicherheit:
+
+- **Ein Zweig `release`, in den nur Geprüftes wandert.** Sauberer, weil der
+  Planer ein echtes Konto verändert und ein Fehler Credits kostet. Aber ein
+  Zweig, den man von Hand nachzieht, wird vergessen — dann steht draußen eine
+  Fassung, deren Fehler hier längst behoben ist. Die Regel „Ungeprüftes gehört
+  nicht nach `main`" leistet dasselbe und kostet keinen zweiten Handgriff.
+- **GitHub-Releases mit Marke je Fassung.** Deutlichste Versionierung, aber die
+  URL im Skript müßte bei jeder Fassung mitwandern — eine weitere Stelle, die
+  auseinanderlaufen kann. Genau das ist bei `@version` gegen `const VERSION`
+  schon einmal passiert, weshalb `pruefer.js` es prüft.
+
+Bleibt: **jeder Push nach `main` wird jeder Installation angeboten.** Das steht
+so in `CLAUDE.md` und ist der Preis dieser Wahl.
+
+Dazu Lizenz **GPL-3.0**: Weitergabe ja, aber Änderungen bleiben offen. Für ein
+Skript, das andere an ihrem eigenen Konto arbeiten lassen, ist eine geschlossene
+Abwandlung das schlechtere Ergebnis.
+
+## D-61 Nach Zweck getrennte Ablage, Werkzeuge ohne festen Pfad (v0.49.1)
+
+Alles lag flach in einem Verzeichnis. Getrennt nach Zweck — `userscripts/`,
+`konsole/`, `werkzeuge/`, `daten/`, `Notizen/` —, weil sich die vier Arten in
+der Gefahr unterscheiden: was im Browser am Konto arbeitet, was einmal per Hand
+in die Konsole geht, was nur in node prüft, was nur nachgeschlagen wird.
+
+Ordnernamen deutsch wie der Inhalt; `userscripts/` bleibt englisch, weil
+Tampermonkey den Begriff selbst so führt.
+
+`pruefer.js` und `test-planung.js` suchten den Planer unter
+`/home/claude/lss/…` — einem Pfad, den es nur in der Werkstatt gab, in der sie
+entstanden sind. Jetzt hängt der Pfad an `__dirname`, nicht am
+Arbeitsverzeichnis, und ein Argument prüft eine andere Fassung. Am
+Arbeitsverzeichnis festgemacht wäre kürzer gewesen, hätte aber jeden Aufruf aus
+dem Wurzelverzeichnis ins Leere laufen lassen — und dort steht der Aufruf in
+`CLAUDE.md`.
+
+Die Tabellen in `daten/` sind **Auszüge**, nicht die Quelle. Gültig ist, was im
+Userscript steht; zwei Quellen für dieselbe Zahl laufen auseinander (D-47).
+

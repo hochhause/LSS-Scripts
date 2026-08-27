@@ -1,17 +1,21 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.49.0
+// @version      0.49.1
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
 // @grant        none
 // @run-at       document-idle
+// @homepageURL  https://github.com/hochhause/LSS-Scripts
+// @supportURL   https://github.com/hochhause/LSS-Scripts/issues
+// @downloadURL  https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-planer.user.js
+// @updateURL    https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-planer.user.js
 // ==/UserScript==
 
 (function () {
 'use strict';
-const VERSION = '0.49.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.49.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.

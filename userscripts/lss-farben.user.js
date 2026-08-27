@@ -1,11 +1,15 @@
 // ==UserScript==
 // @name         LSS Farben — fertig grün, Status 6 rot
 // @namespace    https://leitstellenspiel.de/
-// @version      0.1.0
+// @version      0.1.1
 // @description  Färbt fertige Wachen und Fahrzeuge grün und blendet den Markierungspunkt aus, Status 6 wird rot
 // @match        https://www.leitstellenspiel.de/*
 // @grant        none
 // @run-at       document-idle
+// @homepageURL  https://github.com/hochhause/LSS-Scripts
+// @supportURL   https://github.com/hochhause/LSS-Scripts/issues
+// @downloadURL  https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-farben.user.js
+// @updateURL    https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-farben.user.js
 // ==/UserScript==
 
 (function () {

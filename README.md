@@ -14,8 +14,12 @@ Firefox). Auf den Namen klicken, Tampermonkey fragt nach der Installation.
 
 | Skript | Fassung | Was es tut |
 |---|---|---|
-| [**LSS Planer**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-planer.user.js) | 0.49.0 | Vergleicht das hinterlegte Wunschbild mit dem Spielstand und setzt die Unterschiede um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge, Wachennamen. |
-| [**LSS Farben**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-farben.user.js) | 0.1.0 | Färbt fertige Wachen und Fahrzeuge grün, Status 6 rot, und nimmt den Markierungspunkt aus der Anzeige. |
+| [**LSS Planer**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-planer.user.js) | 0.49.1 | Vergleicht das hinterlegte Wunschbild mit dem Spielstand und setzt die Unterschiede um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge, Wachennamen. |
+| [**LSS Farben**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-farben.user.js) | 0.1.1 | Färbt fertige Wachen und Fahrzeuge grün, Status 6 rot, und nimmt den Markierungspunkt aus der Anzeige. |
+
+Beide Skripte tragen `@updateURL`. Tampermonkey fragt den Rohtext von `main`
+regelmäßig ab und bietet eine Korrektur von selbst an; von Hand geht es über
+*Dashboard → Hilfsprogramme → Alle Skripte aktualisieren*.
 
 ## Einmalskripte
 
