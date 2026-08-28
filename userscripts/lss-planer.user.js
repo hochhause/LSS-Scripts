@@ -4649,9 +4649,14 @@ function educationPage() {
     if (!selEdu) return;
     if (!S.buildings.length && !loadCached()) return;
 
-    // Einmal je Durchlauf rechnen, nicht je Option
-    // Nur Wachen, deren Personal diese Schule überhaupt ausbilden darf
-    const rows = courseTable(planWachen().filter(inReichweite));
+    /* Einmal je Durchlauf rechnen, nicht je Option. Nur Wachen, deren Personal
+       diese Schule überhaupt ausbilden darf — aber OHNE den roten Punkt
+       auszusortieren: auf der Lehrgangsseite zählt eine 🔴 Wache mit, und die
+       Beschriftung muß dieselbe Zahl nennen wie die Markierung an der Wache
+       daneben. Vorher stand hier `planWachen()`, das 🔴 herausfiltert — die
+       beiden Zahlen auf demselben Bildschirm widersprachen sich also.
+       Im Planer-Panel bleibt es beim Ausschluß (Sasha, 27.08.). */
+    const rows = courseTable(S.buildings.filter(inReichweite));
 
     for (const o of selEdu.querySelectorAll('option')) {
       if (!o.value.includes(':')) continue;
