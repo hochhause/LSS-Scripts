@@ -588,28 +588,39 @@ function ausbauAusBestand() {
 }
 
 /** Und die leeren Bauplätze von der Ausbauseite einer Wache. */
-async function ausbauKatalogLesen(b) {
-  const html = await getText(`/buildings/${b.id}/leitstelle-extensions`);
+async function ausbauKatalogLesen() {
+  /* Ein Abruf für alle Gebäudearten statt einer je Art.
+     Vorher holte diese Funktion `/buildings/<wache>/leitstelle-extensions` —
+     am Spiel nachgemessen antwortet dieser Pfad auf einer Wache mit HTTP 500.
+     Er gehört der Leitstelle, und dort steht er für ALLE eigenen Gebäude auf
+     einmal: 890 Zeilen, die Bauplatznummer am Verweis, die Gebäudeart über die
+     Gebäude-Id im selben Verweis. Der Katalog konnte also nie gelesen werden,
+     und der Reiter „Ausbauten" blieb hinter seiner Übernahmeseite stehen. */
+  const leit = S.buildings.find(x => x.leitstelle_building_id)?.leitstelle_building_id;
+  if (!leit) throw new Error('Leitstelle nicht bekannt — Bestand neu laden');
+  const html = await getText(`/buildings/${leit}/leitstelle-extensions`);
   const doc = new DOMParser().parseFromString(html, 'text/html');
   let neu = 0, gesehen = 0;
+  const proTyp = new Map();
   for (const tr of doc.querySelectorAll('tr')) {
     const cap = tr.querySelector('b')?.textContent.trim();
     if (!cap) continue;
-    /* Die Nummer steht im Verweis — beim Kaufknopf wie beim Umschalter
-       „Einsatzbereit“. Zeilen ohne Verweis sind fertig gebaute, mehrfach
-       vorhandene Ausbauten; die kennt bereits der Bestand. */
     const link = [...tr.querySelectorAll('a[href]')]
       .map(a => a.getAttribute('href'))
-      .map(h => h.match(/\/extension(?:_ready)?\/(?:credits\/|coins\/)?(\d+)/))
+      .map(h => h.match(/\/buildings\/(\d+)\/extension(?:_ready)?\/(?:credits\/|coins\/)?(\d+)/))
       .find(Boolean);
     if (!link) continue;
+    const wache = S.byId.get(Number(link[1]));
+    if (!wache) continue;                    // Gebäude nicht im eigenen Bestand
     gesehen++;
-    if (merkeAusbau(b.building_type, Number(link[1]), cap)) neu++;
+    proTyp.set(wache.building_type, (proTyp.get(wache.building_type) || 0) + 1);
+    if (merkeAusbau(wache.building_type, Number(link[2]), cap)) neu++;
   }
-  if (!gesehen) throw new Error('keine Bauplätze auf der Seite gefunden');
+  if (!gesehen) throw new Error('keine Bauplätze auf der Leitstellenseite gefunden');
   standNeu();
-  return { neu, gesehen };
+  return { neu, gesehen, proTyp };
 }
+
 
 /* ── Was an einer Wache überhaupt gekauft werden kann ─────────────────
    Der Katalog kennt 186 Fahrzeugtypen, aber an einer Rettungswache steht kein
@@ -646,12 +657,18 @@ function kaufbareTypen(btyp) {
     den, den der Planer zum Kaufen benutzt. Findet sich keiner, bleibt alles
     beim Alten statt etwas zu erfinden. */
 async function kaufbareLesen(b) {
-  const html = await getText(`/buildings/${b.id}`);
+  /* Die Kaufliste steht nicht auf der Wachenseite, sondern auf der Seite
+     „Fahrzeug kaufen". Am Spiel nachgemessen: /buildings/<id> enthält keinen
+     einzigen /vehicle/<id>/<typ>/credits-Verweis, /buildings/<id>/vehicles/new
+     enthält 99. Der Abruf ging also immer ins Leere und warf „keine Kaufliste
+     gefunden" — deshalb blieb `lssplaner.kaufbar` stets leer und die
+     Ersatzkette in `kaufbareTypen` trug die ganze Last. */
+  const html = await getText(`/buildings/${b.id}/vehicles/new`);
   const ids = new Set();
   const re = new RegExp(`/vehicle/${b.id}/(\\d+)/credits`, 'g');
   let m;
   while ((m = re.exec(html))) ids.add(m[1]);
-  if (!ids.size) throw new Error('keine Kaufliste auf der Wachenseite gefunden');
+  if (!ids.size) throw new Error('keine Kaufliste auf der Kaufseite gefunden');
   const alle = store.get(KEY_KAUFBAR, {});
   alle[String(b.building_type)] = [...ids];
   store.set(KEY_KAUFBAR, alle);
@@ -699,6 +716,8 @@ const slimBuilding = b => ({
      Protokoll „einsatzbereit" meldete. Die API liefert das Feld, es wurde beim
      Abmagern nur verworfen. */
   enabled: b.enabled,
+  // Für den Ausbaukatalog: die Sammelseite gehört der Leitstelle, nicht der Wache.
+  leitstelle_building_id: b.leitstelle_building_id,
   extensions: (b.extensions || []).map(e => ({
     type_id: e.type_id, caption: e.caption,
     available: e.available, enabled: e.enabled, available_at: e.available_at
@@ -3236,16 +3255,10 @@ function render() {
       <pre id="lssp-log"></pre>`;
     b.querySelector('#lssp-katalog').onclick = async ev => {
       ev.target.disabled = true;
-      const proTyp = new Map();
-      for (const w of planWachen()) if (!proTyp.has(w.building_type)) proTyp.set(w.building_type, w);
-      let i = 0;
-      for (const [t, w] of proTyp) {
-        schritt(i++, proTyp.size, T.btName(t));
-        try {
-          const r = await ausbauKatalogLesen(w);
-          log(`${T.btName(t)}: ${r.gesehen} Bauplätze, ${r.neu} neu.`, 'good');
-        } catch (e) { log(`${T.btName(t)}: ${e.message}`, 'warn'); }
-      }
+      try {
+        const r = await ausbauKatalogLesen();
+        log(`${r.gesehen} Bauplätze über ${r.proTyp.size} Gebäudearten gelesen, ${r.neu} neu.`, 'good');
+      } catch (e) { log(e.message, 'warn'); }
       fortAus(); ev.target.disabled = false; render();
     };
     log('');
@@ -3559,11 +3572,11 @@ function render() {
       } catch (e) { log('Nicht gelesen: ' + e.message, 'warn'); }
     });
     b.querySelector('#lssp-pausbau')?.addEventListener('click', async () => {
-      const wache = S.buildings.find(x => String(x.building_type) === planTyp);
-      if (!wache) return log('Keine eigene Wache dieses Typs — daraus läßt sich nichts lesen.', 'warn');
       try {
-        const r = await ausbauKatalogLesen(wache);
-        log(`${T.btName(planTyp)}: ${r.gesehen} Bauplätze gesehen, ${r.neu} neu gelernt.`, 'good');
+        // Die Sammelseite bringt alle Gebäudearten mit, nicht nur die gewählte.
+        const r = await ausbauKatalogLesen();
+        log(`${r.gesehen} Bauplätze über ${r.proTyp.size} Gebäudearten gelesen, ${r.neu} neu `
+          + `(davon ${r.proTyp.get(Number(planTyp)) || 0} bei ${T.btName(planTyp)}).`, 'good');
         render();
       } catch (e) { log('Nicht gelesen: ' + e.message, 'warn'); }
     });
@@ -3906,8 +3919,21 @@ function wachenSeite() {
     + (f.personal ? `<div style="margin:3px 0"><b style="color:#8a6d3b">Unterbesetzt:</b> ${f.personal} Fahrzeuge</div>` : '')
     + (f.anhaenger ? `<div style="margin:3px 0"><b style="color:#8a6d3b">Ohne Zugfahrzeug:</b> ${f.anhaenger} Anhänger</div>` : '');
 
-  const ziel = document.querySelector('#building_panel, .col-md-12, #content, .content');
-  if (!ziel) return;
+  /* Ein Selektor mit Komma nimmt NICHT den erstgenannten Treffer, sondern den
+     ersten in Dokumentreihenfolge — die gedachte Rangfolge war also wirkungslos,
+     und `.col-md-12` hätte fast jede Bootstrap-Spalte gewonnen. Am Spiel
+     nachgesehen: von den vier geratenen Ankern existiert **keiner**. Die Seite
+     hängt alles unter `#iframe-inside-container`. Deshalb der Reihe nach
+     probieren, den ersten Treffer nehmen und sagen, wenn keiner paßt — geraten
+     wird hier nicht mehr. */
+  const ANKER = ['#iframe-inside-container', '#building_panel', '#content', '.content'];
+  let ziel = null;
+  for (const sel of ANKER) { ziel = document.querySelector(sel); if (ziel) break; }
+  if (!ziel) {
+    log('Hinweis auf der Wachenseite: kein Platz gefunden — '
+      + `keiner dieser Anker existiert: ${ANKER.join(', ')}`, 'warn');
+    return;
+  }
   document.querySelector('#lssp-wache')?.remove();
   ziel.prepend(kasten);
   kasten.querySelector('#lssp-wache-zu').onclick = e => {

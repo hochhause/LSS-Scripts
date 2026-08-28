@@ -981,3 +981,58 @@ den fehlenden Lehrgang statt nur eine Kopfzahl.
 `test-planung.js` erreichbar. Probe 22 deckt es ab; gegen die alte Fassung
 (mind-Kanal ignoriert) fallen davon drei Proben um.
 
+## D-68 Drei Adressen am lebenden Spiel nachgemessen (v0.50.0)
+
+Alle drei Fehler waren aus der Quelle nicht zu sehen: der Code war schlüssig,
+nur die Seite dahinter eine andere. Nachgesehen wurde mit einem angemeldeten
+Browser, rein lesend.
+
+**Der Ausbaukatalog lag nie am richtigen Ort.**
+`ausbauKatalogLesen(b)` holte `/buildings/<wache>/leitstelle-extensions`. Dieser
+Pfad antwortet auf einer Wache mit **HTTP 500**; er gehört der **Leitstelle**.
+Dort steht er dafür für alle eigenen Gebäude auf einmal — 890 Zeilen, die
+Bauplatznummer am Verweis, die Gebäudeart über die Gebäude-Id im selben
+Verweis. Der Katalog konnte also nie gelesen werden, was erklärt, warum der
+Reiter „Ausbauten" hinter seiner Übernahmeseite feststeckte.
+
+Aus N vergeblichen Abrufen wird damit **ein** Abruf, der alle Gebäudearten
+trägt. `leitstelle_building_id` bleibt jetzt in `slimBuilding`, sonst ist die
+Adresse nicht bildbar.
+
+**Die Kaufliste steht nicht auf der Wachenseite.**
+`kaufbareLesen` suchte `/vehicle/<id>/<typ>/credits` in `/buildings/<id>`.
+Gemessen: dort **null** Treffer, auf `/buildings/<id>/vehicles/new` **99**. Der
+Abruf warf also immer „keine Kaufliste gefunden" — deshalb blieb
+`lssplaner.kaufbar` stets leer und die Ersatzkette in `kaufbareTypen` trug die
+ganze Last.
+
+**Die Anker des Wachen-Hinweises gibt es nicht.**
+Von `#building_panel`, `.col-md-12`, `#content`, `.content` existiert **keiner**;
+die Seite hängt alles unter `#iframe-inside-container`. Dazu ein zweiter Fehler
+in derselben Zeile: ein Selektor mit Komma nimmt nicht den erstgenannten
+Treffer, sondern den ersten in **Dokumentreihenfolge** — die gedachte Rangfolge
+war wirkungslos, und `.col-md-12` hätte fast jede Bootstrap-Spalte gewonnen.
+Jetzt wird der Reihe nach probiert, und wenn keiner paßt, wird das gesagt,
+statt stumm zurückzukehren.
+
+## D-69 Was die Messung NICHT bestätigt hat (v0.50.0)
+
+Der Vollständigkeit halber, weil ein zurückgezogener Befund mehr wert ist als
+ein stillschweigend fallengelassener:
+
+- **Das Spiel setzt weggelassene Formularfelder nicht zurück.** Zwei
+  Leerlauf-Schreibversuche (nur `building[name]`, nur `vehicle[caption]`) ließen
+  `personal_count_target`, `leitstelle_building_id`, `personal_max` und die
+  Dienstzeiten unberührt. Der Kommentar bei `umbenennenFahrzeug`, das Formular
+  müsse vollständig zurückgeschickt werden, ist damit **falsch** — der zweite
+  Abruf je Umbenennung kauft nichts. Nicht in dieser Runde geändert, weil er
+  nichts kaputtmacht; gehört in die Aufräumarbeit.
+- **`lehrgaenge()` liest richtig.** Die Übersicht `/schoolings` hat zwei
+  Tabellen: `#schooling_own_table` (laufende, Spalten Lehrgang · Spätestens
+  Fertig · Ausführer) und `#schooling_opened_table` (offene, mit **Freie
+  Plätze** als zweiter Spalte). Die Funktion prüft `t.id === 'schooling_opened_table'`
+  und rechnet nur dort — genau richtig. Eine erste Messung hatte die falsche
+  Tabelle erwischt und einen Fehler gemeldet, den es nicht gibt.
+- **`readRoster` stimmt in jedem Selektor**, ebenso die Kauf-URL (D-37 damit
+  geklärt) und die Behandlung von `building[name]` (D-20 bestätigt).
+
