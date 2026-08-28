@@ -86,8 +86,12 @@ wer dort etwas ändert, zieht den Auszug nach oder streicht ihn.
   kommt aus `/vehicles/<id>/zuweisung`, nicht aus der Schulauswahl — die ist
   unvollständig.
 - **Lehrgänge über Schlüssel**, nie über Klartext. Ein Schlüssel trägt mehrere
-  Namen, ein Name mehrere Schlüssel (`police_helicopter_lift` und
-  `rescue_helicopter_lift` heißen beide „Windenoperator").
+  Namen, ein Name mehrere Schlüssel: `police_helicopter_lift`,
+  `rescue_helicopter_lift` **und** `coastal_helicopter_lift` heißen alle drei
+  „Windenoperator". Und der Kursname der Schule ist nicht der Name in der
+  Personalliste — `emergency_paramedic_water_rescue` heißt dort
+  „Notfallsanitäter mit Wasserrettungsausbildung", in der Schule aber
+  „Wasserrettungsausbildung für Notfallsanitäter".
 - **Seiten nachmessen, nicht raten.** Was das Spiel liefert, steht in
   `Notizen/SPIELSEITEN.md` — aufgenommen mit einem angemeldeten Browser. Drei
   Adressen waren jahrelang falsch, ohne daß es auffiel, weil der Code

@@ -2268,6 +2268,11 @@ async function scanQuals(buildings, onProgress) {
    Was die Schulen später liefern, wird ergänzt und geht vor. */
 const KURSE_FEST = {
   highway_police: "Autobahnpolizei", railway_fire: "Bahnrettung",
+  // Seenotrettung, nachgetragen aus dem Kurskatalog des Spiels (Wiki + LSSM):
+  coastal_rescue: "Seenotretter",
+  coastal_helicopter: "Hubschrauberpilot (Seenotrettung)",
+  coastal_helicopter_lift: "Windenoperator",
+  emergency_paramedic_water_rescue: "Wasserrettungsausbildung für Notfallsanitäter",
   care_service: "Betreuungsdienst", police_firefighting: "Brandbekämpfung",
   dekon_p: "Dekon-P Lehrgang", police_service_group_leader: "Dienstgruppenleitung",
   fire_drone: "Drohnen-Schulung", seg_drone: "Drohnenoperator",
@@ -2342,8 +2347,14 @@ const istSchule = b => /schule|akademie|bundesschule|seefahrt/i
    sich die Zuordnung von selbst. Erst wenn keine Schule gelesen wurde, greift
    die Tabelle unten.
    ─────────────────────────────────────────────────────────────────────── */
-const SCHULE_NOTFALLS = {           // Schultyp → Gebäudearten, falls nichts gelesen
-  1: [0], 3: [2, 5, 12, 21, 25, 26, 28], 8: [6, 11, 13, 17, 29]
+/* Schultyp → Gebäudearten, falls nichts gelesen wurde.
+   Am Spiel nachgesehen (27.08.): die THW-Schule ist Gebäudeart **10** und
+   fehlte hier ganz — fünf Verbands-THW-Schulen hatten also gar keine
+   Ersatzzuordnung. Und die Wasserrettung (15) stand in keiner einzigen Liste,
+   obwohl `gw_wasserrettung` nachweislich an der Rettungsschule läuft. Beides
+   nachgetragen. */
+const SCHULE_NOTFALLS = {
+  1: [0], 3: [2, 5, 12, 15, 21, 25, 26, 28], 8: [6, 11, 13, 17, 29], 10: [9]
 };
 
 /** Gebäudearten, für die eine Schulart ausbilden darf. */
@@ -4086,10 +4097,51 @@ function educationPage() {
      Daraus folgt, für welche Wachen sie ausbilden darf — und nur deren
      Bedarf gehört in die Beschriftung. Bei einer Verbandsschule, die nicht
      im eigenen Bestand steht, bleibt es beim ungefilterten Gesamtbedarf. */
+  /* Welche Schulart ist das? Zwei Wege, weil zwei Adressen hierher führen:
+
+     Auf `/buildings/<id>` steht die Schule im Pfad. Sie steckt aber nur dann in
+     `S.byId`, wenn sie EIGEN ist — `S.byId` wird aus `/api/buildings` gebaut.
+     Von 28 Schulen dieses Kontos gehören 27 dem Verband, also war `schulTyp`
+     auf so gut wie jeder Schulseite `null`, `zustaendigFuer(null)` lieferte
+     nichts, und die Trennung nach Zweigen aus D-48 war abgeschaltet — genau der
+     Fall mit den 225 Verpflegungshelfern, den D-48 beheben sollte.
+
+     Auf `/schoolings/<id>` steht die Schule überhaupt nicht im Pfad. Dafür
+     nennt jedes Gebäude in `/api/buildings` und `/api/alliance_buildings` unter
+     `schoolings[]` die Kennungen seiner laufenden Kurse — darüber ist die
+     Schule zu finden. Das kostet einen Abruf, der ohnehin zwischengespeichert
+     ist, und läuft nachträglich: bis er zurück ist, wird ungefiltert gerechnet,
+     danach einmal neu gezeichnet. Lieber kurz ungefiltert als dauerhaft falsch. */
   const schulId = Number((location.pathname.match(/\/buildings\/(\d+)/) || [])[1]) || null;
-  const schulTyp = schulId != null ? S.byId.get(schulId)?.building_type ?? null : null;
-  const zustaendig = schulTyp != null ? zustaendigFuer(schulTyp) : null;
+  const kursId  = Number((location.pathname.match(/\/schoolings\/(\d+)/) || [])[1]) || null;
+  let zustaendig = null;
   const inReichweite = b => !zustaendig?.size || zustaendig.has(Number(b.building_type));
+
+  function setzeZustaendig(typ) {
+    if (typ == null) return false;
+    const neu2 = zustaendigFuer(typ);
+    if (!neu2?.size) return false;
+    zustaendig = neu2;
+    return true;
+  }
+  setzeZustaendig(schulId != null ? S.byId.get(schulId)?.building_type ?? null : null);
+
+  /** Schulart nachtragen, wenn sie aus dem eigenen Bestand nicht hervorging. */
+  async function schulartNachtragen() {
+    if (zustaendig?.size) return;
+    try {
+      const kandidaten = [...S.buildings];
+      const av = await apiGet('/api/alliance_buildings');
+      if (Array.isArray(av)) kandidaten.push(...av);
+      let typ = null;
+      if (schulId != null) typ = kandidaten.find(x => Number(x.id) === schulId)?.building_type ?? null;
+      if (typ == null && kursId != null)
+        typ = kandidaten.find(x => (x.schoolings || []).some(k => Number(k.id) === kursId))?.building_type ?? null;
+      if (setzeZustaendig(typ)) { refresh(); auswahlBeschriften(); }
+    } catch (e) {
+      log('Schulart nicht bestimmbar: ' + e.message, 'warn');
+    }
+  }
 
   // Zuordnung lernen, wo ein Auswahlfeld vorhanden ist
   const map = store.get(KEY_COURSE, {});
@@ -4105,7 +4157,12 @@ function educationPage() {
 
   // Wunschbild und Zuordnung kommen seit v0.32 aus eigenem Speicher; der
   // importierte Plan wird auf dieser Seite gar nicht mehr gebraucht (D-54).
-  const modell = S.modell, zuordnung = S.zuordnung;
+  /* `S.modell` fällt auf MODELL_STANDARD zurück, ist also NIE leer — die alte
+     Prüfung `Object.keys(modell).length` konnte deshalb nie zuschlagen, und der
+     rote Hinweis „Es gibt noch kein Wunschbild" war unerreichbar. Gefragt ist
+     nicht, ob ein Wunschbild im Speicher steht, sondern ob je eines angelegt
+     wurde — sonst wird gegen fremde Vorgaben gebucht. */
+  const eigenesWunschbild = () => !!store.get(KEY_MODELL, null);
   let handKey = null;              // vom Nutzer gewählt, falls nicht erkennbar
 
   /** Um welchen Lehrgang geht es auf dieser Seite? Mehrere Wege, weil die
@@ -4166,37 +4223,73 @@ function educationPage() {
   const panels = () => [...document.querySelectorAll('.building_list[building_id]')];
   const idOf   = el => Number(el.getAttribute('building_id'));
   const typeOf = el => Number(el.getAttribute('building_type_id'));
-  const sichtbar = el => !el.classList.contains('hidden-by-dispatch')
+  /* Gefiltert wird auf dieser Seite NICHT vom Spiel — ein Suchfeld gibt es dort
+     gar nicht —, sondern vom LSS-Manager. Am Spiel nachgesehen heißt seine
+     Klasse `lssmv4-buildingListFilter-filter-hidden`; keiner der drei bisher
+     geratenen Namen kommt vor. Eine im Manager ausgefilterte Wache galt damit
+     als sichtbar und wurde mitangehakt. Die alten Namen bleiben stehen, falls
+     das Spiel doch einmal selbst filtert. */
+  const sichtbar = el => !el.classList.contains('lssmv4-buildingListFilter-filter-hidden')
+                      && !el.classList.contains('hidden-by-dispatch')
                       && !el.classList.contains('building-filtered-by-search')
                       && !el.classList.contains('hidden');
+  const nameVon = el => el.getAttribute('search_attribute') || idOf(el);
 
-  /** Freie Plätze: 10 je genutztem Klassenraum, abzüglich schon Angehakter. */
+  /* Der grüne Punkt schützt auch gegen Ausbildung (Sasha, 27.08.): ein Lehrgang
+     zieht die Person für Tage vom Fahrzeug, und D-27 sagt, Grünes wird nicht
+     angetastet. Von dieser Seite aus ist allerdings nicht zu sehen, WER auf
+     welchem Fahrzeug sitzt — die Ankreuzfelder nennen nur die Wache. Zu
+     entscheiden ist hier also nur der eindeutige Fall: steht an einer Wache
+     ausschließlich Grünes, ist dort jede Besatzung geschützt, und die Wache
+     wird übergangen. Bei gemischten Wachen bleibt eine Lücke; sie ist in
+     NAECHSTER_SCHRITT.md notiert und braucht die Zuweisungsseite. */
+  const nurGruen = el => {
+    const fz = (S.byBuilding?.get(Number(idOf(el))) || []).filter(v => T.veh(v.vehicle_type)?.max);
+    return fz.length > 0 && fz.every(v => geschuetzt(v));
+  };
+
+  /** Freie Plätze — oder null, wenn die Seite es nicht sagt. */
   const freiePlaetze = () => {
-    const n = Number((document.querySelector('#schooling_free')?.textContent || '').replace(/\D+/g, ''));
-    if (Number.isFinite(n) && document.querySelector('#schooling_free')) return n;
+    const feld = document.querySelector('#schooling_free');
+    if (feld) {
+      const n = Number((feld.textContent || '').replace(/\D+/g, ''));
+      if (Number.isFinite(n)) return n;
+    }
     // Auf Lehrgangsseiten ohne eigenen Zähler steht die Zahl im Text
     const m = document.body.textContent.match(/(?:Freie|freie)\s+Pl[äa]tze[^0-9]{0,12}(\d+)/);
     if (m) return Number(m[1]) - document.querySelectorAll('.schooling_checkbox:checked').length;
-    const raeume = Number(document.querySelector('#building_rooms_use')?.value) || 1;
-    return 10 * raeume - document.querySelectorAll('.schooling_checkbox:checked').length;
+    /* Hier wurde früher „10 je Klassenraum" geraten. Auf der Seite eines
+       LAUFENDEN Lehrgangs gibt es aber weder Zähler noch Wachenliste — geraten
+       wurden dann zehn freie Plätze für einen Kurs, der niemanden mehr aufnimmt,
+       und die Absage nannte anschließend den Filter des Spiels als Grund.
+       Lieber eine Lücke melden als eine Vermutung einsetzen. */
+    return null;
   };
 
+  /** Läuft dieser Lehrgang schon? Dann zeigt die Seite weder Zähler noch
+      Wachenliste, und es kann niemand mehr dazukommen. */
+  const laeuftSchon = () => !document.querySelector('#schooling_free') && !panels().length;
+;
+
   /** Soll dieser Wache für den gewählten Lehrgang, aus dem Plan. */
+  /* Rechnet nicht mehr selbst, sondern fragt den geprüften Kern.
+     Die eigene Rechnung hier war die dritte Fassung derselben Formel und die
+     einzige ohne `anhaengerZaehlt` — sie zählte die Besatzung eines Anhängers
+     doppelt, einmal am Anhänger und einmal am Zugfahrzeug, das dieselben Leute
+     fährt. Nachgerechnet über alle 89 Kurs/Profil-Paare des eingebauten
+     Wunschbilds weichen genau zwei ab, beide beim `gw_wasserrettung`:
+     Wasserrettung 20 statt 12 (min 10 statt 2), SEG 10 statt 6 (min 5 statt 1).
+     Der erste Durchgang von `fill()` rechnet über `sollMin` — dort buchte er
+     also das Fünffache. Das ist die Regel aus D-19, die auf diesem Weg nie
+     ankam; `test-planung.js` hält sie in Probe 17 fest.
+
+     Nebenwirkung, gewollt: `T.target` geht über `T.profiles` und damit über
+     NICHT_PLANEN (D-40), und es liest `S.modell` frisch statt die Kopie, die
+     beim Seitenaufbau gezogen wurde und nie nachzieht. */
   function needFor(buildingId, buildingType, feld = 'max') {
     if (!inReichweite({ building_type: buildingType })) return 0;
-    // Das Wunschbild steht im eigenen Speicher, nicht mehr im Plan
-    const ps = (modell[buildingType]?.profiles) || {};
-    const a  = zuordnung[buildingId];
-    const prof = (a && ps[a]) ? ps[a] : ps[Object.keys(ps)[0]];
-    if (!prof) return 0;
     const key = curKey(); if (!key) return 0;
-    let seats = 0;
-    for (const [id, n] of Object.entries(prof.vehicles || {})) {
-      const meta = T.veh(id);
-      if (!meta?.kurse?.some(k => k.k === key)) continue;
-      seats += sitzeFuerKurs(meta, feld) * (Number(n) || 0);
-    }
-    return seats;
+    return bedarfDerWache({ id: buildingId, building_type: buildingType }, key)[feld] || 0;
   }
 
   /* Einmal ermittelte Zahlen bleiben gültig, auch wenn die Wache wieder
@@ -4338,92 +4431,142 @@ function educationPage() {
 
   /** Hakt so viele Personen an, wie in den Lehrgang passen — nach Bedarf
       sortiert, und nur bei Wachen, die auch wirklich welche brauchen. */
+  /** Darf diese schon ausgebildete Person in einen weiteren Lehrgang?
+      Regel (Sasha, 27.08.): ja, aber nur wenn der Lehrgang, den sie bereits
+      hat, an dieser Wache um mindestens die Hälfte über dem liegt, was die
+      Fahrzeuge brauchen, die ihn fordern. Sonst reißt die Ausbildung ein Loch
+      in eine Besetzung, die gerade steht — und der Grund gehört genannt.
+      Ungelernte gehen immer zuerst; das ist D-07 und bleibt. */
+  function darfInDenKurs(el, c) {
+    const eigene = [...c.attributes].filter(a => a.value === 'true').map(a => a.name);
+    if (!eigene.length) return { ok: true };
+    const id = idOf(el), typ = typeOf(el);
+    for (const k of eigene) {
+      const noetig = bedarfDerWache({ id, building_type: typ }, k).max;
+      if (!noetig) continue;                       // hier gar nicht verlangt
+      const da = trainedAt(id, k);
+      if (da === null) return { ok: false, grund: `${kursNamen(k)[0] || k} nicht erfaßt` };
+      if (da < noetig * 1.5)
+        return { ok: false, grund: `${kursNamen(k)[0] || k} ${da}/${noetig} — keine 50 % Überdeckung` };
+    }
+    return { ok: true };
+  }
+
   /** Öffnet eine Wache bei Bedarf und hakt bis zum Ziel an.
-      Gibt zurück, wie viele gesetzt wurden. */
-  async function fuelleWache(el, ziel, key, frei, geoeffnet, wiederZu) {
+      Gibt zurück, wie viele gesetzt wurden; Übergangenes wandert mit Begründung
+      nach `uebergangen`, damit am Ende nicht „nichts gefunden" dasteht, wo in
+      Wirklichkeit die Liste nicht geladen hat. */
+  async function fuelleWache(el, ziel, key, frei, geoeffnet, wiederZu, uebergangen) {
     if (ziel <= 0 || frei <= 0) return 0;
     const id = idOf(el);
     const body = el.querySelector(`.panel-body[building_id="${id}"]`);
     if (body && body.classList.contains('hidden')) {
-      alertBar(`Lade Personal von ${el.getAttribute('search_attribute') || id} …`);
-      el.querySelector('.personal-select-heading')?.click();
+      alertBar(`Lade Personal von ${nameVon(el)} …`);
+      const kopf = el.querySelector('.personal-select-heading');
+      if (!kopf) { uebergangen.push(`${nameVon(el)}: Kopfzeile zum Aufklappen nicht gefunden`); return 0; }
+      kopf.click();
       wiederZu.push(el);
       geoeffnet.n++;
       for (let i = 0; i < 20 && !body.querySelector('.schooling_checkbox'); i++) await sleep(150);
     }
     const boxes = [...(body?.querySelectorAll('.schooling_checkbox') || [])];
-    if (!boxes.length) return 0;
+    if (!boxes.length) {
+      uebergangen.push(`${nameVon(el)}: Personalliste nicht geladen`);
+      return 0;
+    }
 
     let offen = Math.max(0, ziel - boxes.filter(c => c.checked).length);
-    // Erst Ungelernte, damit Fachkräfte für ihre Fahrzeuge frei bleiben
+    /* Ungelernt oder nicht — erkannt am Ankreuzfeld selbst. Es trägt jeden
+       Lehrgangsschlüssel als Wahrheitswert. Früher wurde dafür
+       `#school_personal_education_<id>` befragt; das Element steht zwar da, ist
+       aber leer, also landeten ALLE im Topf „ungelernt" und die Reihenfolge,
+       für die D-07 geschrieben wurde, war wirkungslos. */
     const ohne = [], mit = [];
     for (const c of boxes) {
       if (c.checked || c.disabled || c.getAttribute(key) === 'true') continue;
-      const cell = document.querySelector('#school_personal_education_' + c.value);
-      ((cell && cell.textContent.trim()) ? mit : ohne).push(c);
+      ([...c.attributes].some(a => a.value === 'true') ? mit : ohne).push(c);
     }
+
     let gesetzt = 0;
-    for (const c of ohne.concat(mit)) {
+    for (const c of ohne) {
       if (!offen || frei - gesetzt <= 0) break;
+      c.checked = true; offen--; gesetzt++;
+    }
+    for (const c of mit) {
+      if (!offen || frei - gesetzt <= 0) break;
+      const urteil = darfInDenKurs(el, c);
+      if (!urteil.ok) { uebergangen.push(`${nameVon(el)}: übergangen — ${urteil.grund}`); continue; }
       c.checked = true; offen--; gesetzt++;
     }
     return gesetzt;
   }
+
 
   /** Hakt so viele Personen an, wie in den Lehrgang passen.
       Erst kommen alle Wachen auf die Mindestbesatzung, danach erst wird
       auf die volle Besatzung aufgefüllt. */
   async function fill() {
     if (!curKey()) { alertBar('Bitte oben zuerst einen Lehrgang auswählen.'); return 0; }
-    if (!Object.keys(modell).length) { alertBar('Kein Wunschbild vorhanden — im Planer unter „Plan“ anlegen.'); return 0; }
-
-    let frei = freiePlaetze();
-    if (frei <= 0) { alertBar('Keine freien Plätze. Mehr Klassenräume wählen oder Häkchen entfernen.'); return 0; }
-
-    const key = curKey();
-    const kandidaten = panels()
-      .filter(sichtbar)
-      /* Ohne den Schlüssel gibt `bedarf()` null zurück — und null hieß dann
-         „nichts offen“. Deshalb meldete „Bedarf anhaken“ alles als gedeckt,
-         während oben hundert fehlende Personen standen. */
-      .map(el => ({ el, d: bedarf(el, key) }))
-      .filter(x => x.d && x.d.soll > 0 && (x.d.offen === null || x.d.offen > 0));
-
-    if (!kandidaten.length) {
-      /* Zwei sehr verschiedene Gründe, früher unter einer Meldung: hier ist
-         wirklich nichts offen — oder es steht schlicht keine Wache im Bild,
-         etwa weil die Suche des Spiels filtert. */
-      const sichtbareWachen = panels().filter(sichtbar).length;
-      const ohneStand = panels().filter(sichtbar)
-        .filter(el => bedarf(el, key)?.vorhanden === null).length;
-      alertBar(!sichtbareWachen
-        ? 'Keine Wache sichtbar — Filter oder Suche des Spiels zurücksetzen.'
-        : ohneStand === sichtbareWachen
-          ? 'Der Ausbildungsstand dieser Wachen ist nicht erfaßt — im Planer unter „Ausbildung“ erfassen.'
-          : `Für ${kursNamen(key)[0] || key} ist bei allen ${sichtbareWachen} sichtbaren Wachen der Bedarf gedeckt.`);
+    if (!eigenesWunschbild()) {
+      alertBar('Kein eigenes Wunschbild angelegt — es gälte sonst die eingebaute Vorlage, '
+        + 'und die ist eine fremde Meinung. Im Planer unter „Plan“ anlegen oder die Vorlage dort übernehmen.');
       return 0;
     }
 
-    const geoeffnet = { n: 0 }, wiederZu = [];
+    let frei = freiePlaetze();
+    if (frei === null) {
+      alertBar(laeuftSchon()
+        ? 'Dieser Lehrgang läuft bereits — es kann niemand mehr dazukommen.'
+        : 'Die Zahl der freien Plätze steht nicht auf der Seite. Nichts angehakt.');
+      return 0;
+    }
+    if (frei <= 0) { alertBar('Keine freien Plätze. Mehr Klassenräume wählen oder Häkchen entfernen.'); return 0; }
+
+    const key = curKey();
+    /* Ohne den Schlüssel gibt `bedarf()` null zurück — und null hieß einmal
+       „nichts offen“ (D-58). Es heißt aber „nicht gemessen“, und danach wird
+       nicht gebucht: wer den Ausbildungsstand nicht kennt, bucht sonst das
+       volle Ziel, als wäre niemand ausgebildet. Diese Wachen werden benannt
+       und übersprungen (Sasha, 27.08.: „erst erfassen"). */
+    const alle = panels().filter(sichtbar).map(el => ({ el, d: bedarf(el, key) }));
+    const gefragt  = alle.filter(x => x.d && x.d.soll > 0);
+    const ohneStand = gefragt.filter(x => x.d.offen === null);
+    const gruen = gefragt.filter(x => x.d.offen !== null && x.d.offen > 0 && nurGruen(x.el));
+    const kandidaten = gefragt.filter(x => x.d.offen !== null && x.d.offen > 0 && !nurGruen(x.el));
+
+    if (!kandidaten.length) {
+      const sichtbareWachen = alle.length;
+      alertBar(!sichtbareWachen
+        ? 'Keine Wache sichtbar — Filter des LSS-Managers zurücksetzen.'
+        : ohneStand.length === gefragt.length && gefragt.length
+          ? `Der Ausbildungsstand dieser ${ohneStand.length} Wachen ist nicht erfaßt — `
+            + 'im Planer unter „Ausbildung“ erfassen, dann noch einmal.'
+          : gruen.length
+            ? `${gruen.length} Wachen tragen überall den grünen Punkt — deren Besatzung wird `
+              + 'nicht in Lehrgänge geschickt. Zum Ändern den Punkt dort entfernen.'
+            : `Für ${kursNamen(key)[0] || key} ist bei allen ${sichtbareWachen} sichtbaren Wachen der Bedarf gedeckt.`);
+      return 0;
+    }
+
+    const geoeffnet = { n: 0 }, wiederZu = [], uebergangen = [];
     let gesetzt = 0;
 
     // Durchgang 1: überall die Mindestbesatzung sicherstellen
     const rundeMin = kandidaten
-      .filter(x => (x.d.offenMin ?? x.d.sollMin) > 0)
-      .sort((a, b2) => (b2.d.offenMin ?? b2.d.sollMin) - (a.d.offenMin ?? a.d.sollMin));
+      .filter(x => x.d.offenMin > 0)
+      .sort((a2, b2) => b2.d.offenMin - a2.d.offenMin);
     for (const { el, d } of rundeMin) {
       if (frei <= 0) break;
-      const n = await fuelleWache(el, Math.min(d.offenMin ?? d.sollMin, frei), key, frei, geoeffnet, wiederZu);
+      const n = await fuelleWache(el, Math.min(d.offenMin, frei), key, frei, geoeffnet, wiederZu, uebergangen);
       frei -= n; gesetzt += n;
     }
 
     // Durchgang 2: auf die volle Besatzung auffüllen
     if (frei > 0) {
-      const rundeMax = kandidaten.slice()
-        .sort((a, b2) => (b2.d.offen ?? b2.d.soll) - (a.d.offen ?? a.d.soll));
+      const rundeMax = kandidaten.slice().sort((a2, b2) => b2.d.offen - a2.d.offen);
       for (const { el, d } of rundeMax) {
         if (frei <= 0) break;
-        const n = await fuelleWache(el, Math.min(d.offen ?? d.soll, frei), key, frei, geoeffnet, wiederZu);
+        const n = await fuelleWache(el, Math.min(d.offen, frei), key, frei, geoeffnet, wiederZu, uebergangen);
         frei -= n; gesetzt += n;
       }
     }
@@ -4438,12 +4581,24 @@ function educationPage() {
     const fr = document.querySelector('#schooling_free');
     if (fr) fr.textContent = String(Math.max(0, frei));
     refresh();
+
+    /* Die Meldung sagt den Grund, nicht nur das Ergebnis: wie viele Wachen
+       aufgeklappt wurden, wie viele übersprungen und warum. `geoeffnet` wurde
+       bisher gezählt und nie gelesen. */
+    const anhang = []
+      .concat(ohneStand.length ? [`${ohneStand.length} ohne erfaßten Stand übersprungen`] : [])
+      .concat(gruen.length ? [`${gruen.length} ganz grün, Besatzung geschützt`] : [])
+      .concat(uebergangen.length ? [`${uebergangen.length} übergangen`] : [])
+      .concat(geoeffnet.n ? [`${geoeffnet.n} Wachen aufgeklappt`] : []);
+    const schwanz = anhang.length ? ` (${anhang.join(', ')})` : '';
+    if (uebergangen.length) uebergangen.slice(0, 12).forEach(g => log(g, 'warn'));
     alertBar(gesetzt
-      ? `${gesetzt} Personen angehakt, ${Math.max(0, frei)} Plätze frei. `
+      ? `${gesetzt} Personen angehakt, ${Math.max(0, frei)} Plätze frei${schwanz}. `
         + `Jetzt unten auf „Ausbilden“ drücken.`
-      : 'Nichts angehakt — kein freier Platz oder keine passende Person gefunden.');
+      : `Nichts angehakt${schwanz || ' — keine passende Person gefunden'}.`);
     return gesetzt;
   }
+
 
   // Werkzeugleiste unter die Lehrgangsauswahl
   const bar = document.createElement('div');
@@ -4476,8 +4631,8 @@ function educationPage() {
       <b>Planer:</b> Wähle oben einen Lehrgang. Bei jeder Wache steht dann, wie viele Personen dort
       noch ausgebildet werden müssen. <b>Bedarf anhaken</b> füllt die freien Plätze des Lehrgangs
       — größter Bedarf zuerst. Abgeschickt wird nichts, das machst du selbst mit „Ausbilden“.
-      ${Object.keys(modell).length ? '' : '<br><b style="color:#a94442">Es gibt noch kein Wunschbild.</b> '
-        + 'Öffne den Planer im Hauptfenster, Reiter „Plan“.'}
+      ${eigenesWunschbild() ? '' : '<br><b style="color:#a94442">Es gibt noch kein eigenes Wunschbild.</b> '
+        + 'Bis dahin gälte die eingebaute Vorlage. Öffne den Planer im Hauptfenster, Reiter „Plan“.'}
       ${Object.keys(inAus).length ? '' :
         '<br><b style="color:#a94442">Laufende Ausbildungen sind nicht erfaßt.</b> '
         + 'Die Zahl steht auf der Zuweisungsseite jeder Wache, nicht hier — lass einmal '
@@ -4572,6 +4727,7 @@ function educationPage() {
      nicht durch nachgeladene Panels. Sie gehört deshalb nicht in refresh(),
      sondern an die wenigen Stellen, an denen sich der Bedarf ändern kann. */
   auswahlBeschriften();
+  schulartNachtragen();   // trägt die Schulart nach, wenn der Bestand sie nicht hergab
   addEventListener('storage', e => {
     if (e.key === KEY_QUAL || e.key === KEY_PLAN) { reloadQuals(true); auswahlBeschriften(); }
   });

@@ -1,6 +1,6 @@
 # Nächster Schritt
 
-Stand v0.49.1. Was hier steht, ist offen — alles darüber ist erledigt und in
+Stand v0.50.0. Was hier steht, ist offen — alles darüber ist erledigt und in
 `DECISIONS.md` begründet.
 
 ## Ungeprüft im laufenden Spiel
@@ -31,9 +31,11 @@ Dinge sind gebaut, aber noch nie im Spiel gesehen worden:
   ungeprüft.
 - **Hubschrauberstationen** (Typ 5 und 13) fehlen im Soll-Papier. Ihre Profile
   stammen noch aus dem alten Auto-Export.
-- **Vier Lehrgangsnamen** fehlen, alle zur Seenotrettung: `coastal_rescue`,
-  `coastal_helicopter`, `coastal_helicopter_lift`,
-  `emergency_paramedic_water_rescue`.
+- **Grüner Punkt und Ausbildung, der gemischte Fall.** „Bedarf anhaken"
+  übergeht eine Wache, die überall den Punkt trägt. Bei gemischten Wachen ist
+  von der Lehrgangsseite aus nicht zu sehen, wer auf einem grünen Fahrzeug
+  sitzt — die Ankreuzfelder nennen nur die Wache. Dafür müßte die
+  Zuweisungsseite je Person das Fahrzeug festhalten (D-71).
 - **Werben mit eigenem Sollwert.** `personal-soll.js` setzt pauschal 400. Der
   Planer kennt je Wache den genauen Bedarf (`staffSoll`) — er schreibt ihn nur
   nicht. Gehört in den Werben-Reiter.

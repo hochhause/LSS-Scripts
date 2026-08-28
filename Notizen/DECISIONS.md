@@ -1036,3 +1036,107 @@ ein stillschweigend fallengelassener:
 - **`readRoster` stimmt in jedem Selektor**, ebenso die Kauf-URL (D-37 damit
   geklärt) und die Behandlung von `building[name]` (D-20 bestätigt).
 
+## D-70 „Bedarf anhaken" rechnet über den geprüften Kern (v0.50.0)
+
+`needFor()` war die dritte Fassung derselben Formel und die einzige ohne
+`anhaengerZaehlt`. Sie zählte die Besatzung eines Anhängers doppelt — einmal am
+Anhänger, einmal am Zugfahrzeug, das dieselben Leute fährt.
+
+Nachgerechnet über alle 89 Kurs/Profil-Paare des eingebauten Wunschbilds weichen
+genau zwei ab, beide beim `gw_wasserrettung`:
+
+| Gebäudeart | needFor max | courseNeed max | needFor min | courseNeed min |
+|---|---|---|---|---|
+| 15 Wasserrettung | 20 | 12 | 10 | **2** |
+| 12 SEG | 10 | 6 | 5 | **1** |
+
+Die `min`-Spalte ist die teure: der erste Durchgang von `fill()` rechnet über
+`sollMin` und buchte an einer Wasserrettungswache also das **Fünffache**. Das
+Konto hat zehn solche Wachen.
+
+`needFor` fragt jetzt `bedarfDerWache` — dieselbe Funktion, die `test-planung.js`
+in Probe 17 auf 12 festnagelt. Mitgenommen: `T.target` geht über `T.profiles`
+und damit über NICHT_PLANEN (D-40), und es liest `S.modell` frisch statt der
+Kopie, die beim Seitenaufbau gezogen wurde und nie nachzog.
+
+## D-71 Nicht gemessen heißt nicht gebucht (v0.50.0)
+
+`offen === null` heißt „Ausbildungsstand nie erfaßt". `fill()` nahm solche
+Wachen als Kandidaten und setzte über `offen ?? soll` **das volle Ziel** an, als
+wäre dort niemand ausgebildet. Für einen frischen Stand ist das der Normalfall,
+und die Beschriftung sagte dazu nur „Stand unbekannt".
+
+Sasha, 27.08., auf die Frage: *erst erfassen*. Diese Wachen werden jetzt
+übersprungen, gezählt und benannt.
+
+Zwei weitere Auskünfte aus derselben Runde sind eingebaut:
+
+- **Ausgebildete dürfen in einen weiteren Lehrgang, aber nur bei mindestens
+  50 % Überdeckung** ihres bisherigen Kurses an dieser Wache — gemessen an dem,
+  was die Fahrzeuge brauchen, die ihn fordern. Sonst wird übersprungen und der
+  Grund genannt. Ungelernte gehen weiterhin zuerst (D-07).
+- **Der grüne Punkt schützt auch gegen Ausbildung.** Ein Lehrgang zieht die
+  Person für Tage vom Fahrzeug, und D-27 sagt, Grünes wird nicht angetastet.
+  Von der Lehrgangsseite aus ist allerdings nicht zu sehen, WER auf welchem
+  Fahrzeug sitzt — die Ankreuzfelder nennen nur die Wache. Entschieden wird
+  deshalb nur der eindeutige Fall: trägt eine Wache **überall** den Punkt, wird
+  sie übergangen. Die gemischte Wache bleibt offen und steht in
+  `NAECHSTER_SCHRITT.md`; sie braucht die Zuweisungsseite.
+
+## D-72 Was die Lehrgangsseite wirklich hergibt (v0.50.0)
+
+Vier Fehler, die erst am geöffneten Spiel sichtbar wurden — alle in
+`Notizen/SPIELSEITEN.md` belegt.
+
+**Der Filter ist nicht der des Spiels.** Auf `/schoolings/<id>` gibt es gar kein
+Suchfeld; gefiltert wird vom LSS-Manager, Klasse
+`lssmv4-buildingListFilter-filter-hidden`. `sichtbar()` prüfte drei geratene
+Namen, von denen keiner vorkommt — eine im Manager ausgeblendete Wache wurde
+also mitangehakt.
+
+**Ungelernt war nicht erkennbar.** Die Trennung lief über
+`#school_personal_education_<id>`; das Element steht da, ist aber **leer**, also
+galten alle als ungelernt und die Reihenfolge aus D-07 war wirkungslos. Die
+Ankreuzfelder tragen jeden Lehrgangsschlüssel selbst als Wahrheitswert — daraus
+ergibt sich der Stand ohne Umweg, und daraus rechnet auch die 50-%-Regel.
+
+**Zehn erfundene Plätze.** Fehlten Zähler und Wachenliste, riet `freiePlaetze()`
+„10 je Klassenraum". Genau so sieht die Seite eines **laufenden** Lehrgangs aus:
+der Knopf meldete zehn freie Plätze für einen Kurs, der niemanden mehr aufnimmt,
+und schob es anschließend auf den Filter des Spiels. Jetzt gibt die Funktion
+`null` zurück, und `fill()` nennt den wahren Grund.
+
+**Die Schulart war fast nie bekannt.** `S.byId` wird aus `/api/buildings`
+gebaut, enthält also nur eigene Gebäude — von 28 Schulen dieses Kontos gehören
+27 dem Verband. `schulTyp` war damit auf so gut wie jeder Schulseite `null` und
+die Zweigtrennung aus D-48 abgeschaltet: der Fall mit den 225
+Verpflegungshelfern, dauerhaft. Auf `/schoolings/<id>` steht die Schule
+überhaupt nicht im Pfad.
+
+Beides über `/api/alliance_buildings` gelöst: jedes Gebäude nennt unter
+`schoolings[]` die Kennungen seiner laufenden Kurse, darüber ist die Schule zu
+einem Lehrgang zu finden. Der Abruf läuft nach und zeichnet einmal neu — bis
+dahin wird ungefiltert gerechnet. Lieber kurz ungefiltert als dauerhaft falsch.
+
+Dazu die Ersatztabelle `SCHULE_NOTFALLS`: die THW-Schule ist Gebäudeart **10**
+und fehlte ganz, die Wasserrettung (15) stand in keiner Liste, obwohl
+`gw_wasserrettung` nachweislich an der Rettungsschule läuft. Beides nachgetragen.
+
+## D-73 Die vier Seenotrettungs-Lehrgänge (v0.50.0)
+
+`NAECHSTER_SCHRITT.md` führte vier fehlende Klartextnamen. Aus dem Kurskatalog
+des Spiels (Wiki, gegengeprüft mit der Übersetzungsdatei des LSS-Managers):
+
+| Schlüssel | Kursname | Name in der Personalliste |
+|---|---|---|
+| `coastal_rescue` | Seenotretter | Seenotretter |
+| `coastal_helicopter` | Hubschrauberpilot (Seenotrettung) | dito |
+| `coastal_helicopter_lift` | Windenoperator | dito |
+| `emergency_paramedic_water_rescue` | Wasserrettungsausbildung für Notfallsanitäter | **Notfallsanitäter mit Wasserrettungsausbildung** |
+
+Zwei Dinge, die in `CLAUDE.md` nachgezogen wurden: „Windenoperator" heißt jetzt
+**drei** Schlüssel, nicht zwei — `coastal_helicopter_lift` kommt dazu. Und der
+Kursname der Schule ist nicht der Name in der Personalliste; beim letzten der
+vier stehen die Wörter sogar in umgekehrter Reihenfolge. Gerechnet wird ohnehin
+über Schlüssel (D-09), die Namen sind Beschriftung.
+
