@@ -857,3 +857,318 @@ dem Wurzelverzeichnis ins Leere laufen lassen — und dort steht der Aufruf in
 Die Tabellen in `daten/` sind **Auszüge**, nicht die Quelle. Gültig ist, was im
 Userscript steht; zwei Quellen für dieselbe Zahl laufen auseinander (D-47).
 
+## D-62 Der Abbruch muß sichtbar bleiben (v0.50.0)
+
+`laufStoppen()` setzte `lauf = null`. Damit war die einzige Spur des Abbruchs
+gelöscht: `abgebrochen()` liest `lauf?.signal.aborted` und meldete danach für
+immer „läuft weiter", und `queued()` nimmt `sig = lauf?.signal` beim Aufruf ab —
+also bekam jede folgende Anfrage gar kein Signal mehr mit.
+
+Der Stoppknopf brach damit genau **eine** laufende Anfrage ab; der Lauf ging
+weiter und schrieb den Rest der Wachen durch. Bei einem Haken-Lauf ist das
+besonders unangenehm: der abgebrochene Lesevorgang landet im stummen `catch`,
+`fertig` bleibt leer, und das Umbenennen nimmt allen übrigen Fahrzeugen den
+grünen Punkt wieder ab. Dazu setzte `laufStoppen` auch noch `S.busy = false`,
+das Panel sah also untätig aus, während es weiterschrieb.
+
+Der Regler bleibt jetzt stehen. Ersetzt wird er in `laufStarten()` — dort stand
+schon immer `lauf?.abort()` vor der Neuanlage, ein zweites Nullen war nie nötig.
+
+Verworfen: ein eigenes Abbruch-Flag neben dem Controller. Zwei Quellen für
+dieselbe Aussage sind genau die Falle, vor der CLAUDE.md warnt; der Controller
+weiß es bereits.
+
+## D-63 Die Vorschau darf sich nichts vormerken (v0.50.0)
+
+`setzeFms()` rief `merkeWarte()` vor der `dry`-Sperre und `loescheWarte()`
+dahinter. Eine Vorschau schrieb also in `lssplaner.fmsWarte` und löschte daraus.
+
+Zusammen mit dem Nachhol-Durchgang am Anfang von `assignStaff()`, der über
+**alle** Vormerkungen lief statt über die gewählten Wachen, ergab das den
+schlimmsten Fall, den dieses Werkzeug kennt: eine Vorschau an Wache A merkt
+Umschaltungen vor, ein scharfer Lauf an Wache B holt sie nach — an einer Wache,
+die der Mensch nie angehakt hat.
+
+Beides geändert: Vormerken und Löschen nur noch im scharfen Lauf, und der
+Nachhol-Durchgang bleibt in der Auswahl. Die Vorschau sagt jetzt „wäre
+vorgemerkt" statt „vorgemerkt", damit der Unterschied auch im Protokoll steht.
+
+## D-64 „SCHARF" muß sofort erscheinen (v0.50.0)
+
+Der Rahmen und die Marke „SCHARF" wurden nur in `render()` berechnet. Das
+Häkchen „Nur Vorschau" schrieb aber bloß `S.opts.dry` und zeichnete nicht neu —
+der Nachbar daneben („Grüne freigeben") ruft `render()` auf, dieses nicht.
+
+Damit war der übliche Ablauf genau der, den D-35 verhindern sollte: Reiter
+wählen, Häkchen entfernen, Knopf drücken. Rahmen grau, keine Marke, Credits weg.
+Sichtbar wurde es nur, wenn zufällig etwas anderes ein `render()` auslöste.
+
+`scharfZeigen()` ist jetzt eine eigene Funktion, die beide Wege aufrufen. Sie
+bleibt eine `function`-Deklaration, damit `pruefer.js` sie sieht (D-59).
+
+Nicht geändert, aber notiert: der Knopf trägt in beiden Fassungen dieselbe
+Aufschrift. Das gehört zur Oberflächenarbeit, nicht zu dieser Sperre.
+
+## D-65 Einsatzbereitschaft wird gelesen, nicht geraten (v0.50.0)
+
+`slimBuilding` warf `enabled` weg. `b.enabled` war damit nach jedem Laden
+`undefined`, und `undefined !== soll` ist immer wahr — `pflegeAusbauten` schickte
+also bei **jedem** scharfen Personallauf einen Umschalter an **jede** Wache mit
+Fahrzeugen im Grundtopf.
+
+`/buildings/<id>/active` kennt kein Ziel, es kippt nur — anders als
+`/set_fms/<ziel>` drei Zeilen weiter. Die Hälfte dieser Anfragen nahm also eine
+einsatzbereite Wache aus dem Dienst, während das Protokoll „einsatzbereit"
+meldete. Danach schrieb Zeile 1610 den geglaubten Wert lokal fest, und beim
+nächsten Bestandsladen fing es von vorn an.
+
+Am lebenden Spiel nachgesehen: `/api/buildings` **liefert** `enabled` mit
+`true`/`false`. Das Feld wurde nur beim Abmagern verworfen. Es steht jetzt in
+`slimBuilding`.
+
+Dazu eine Sperre: ist der Ist-Zustand kein Wahrheitswert, wird **nicht**
+geschaltet, sondern gemeldet. Bei einem Endpunkt, der kippt statt zu setzen,
+trifft eine Vermutung in der Hälfte der Fälle das Gegenteil — und niemand merkt
+es, weil danach der geglaubte Wert dasteht.
+
+## D-66 Belegte Bauplätze werden nicht ein zweites Mal gekauft (v0.50.0)
+
+Zwei Fehler in `analyseIntern`, beide kosten Credits und sind nicht rückholbar.
+
+Die Liste hieß `free` und war es nicht: sie enthielt **jede** Katalogstelle mit
+der gesuchten Bezeichnung, auch längst bebaute. `buildExtensions` nimmt davon
+die ersten `n` — also wurde auf besetzte Plätze bestellt. Bei einer Bezeichnung
+auf den Plätzen 4-7, von denen 4 und 5 stehen, ging die Bestellung an 4 und 5.
+
+Und gerechnet wurde gegen `builtExtensions`, das noch im Bau befindliche
+Ausbauten überspringt. Das ist für die Stellplatzzahl richtig — ein unfertiger
+Ausbau bringt keine Plätze — für die **Bestellung** aber falsch: eine Stunde
+später wurde derselbe Ausbau noch einmal gekauft.
+
+Deshalb jetzt zwei Sichten statt eines Schalters: `builtExtensions` bleibt, wie
+es ist, und `belegteAusbauten` zählt alles, was einen Platz besetzt — gebaut, im
+Bau oder abgeschaltet. Gefiltert wird nur dort, wo eine Bezeichnung **mehrere
+eigene** Katalogstellen hat; mehrfach baubare Ausbauten wie die „Zelle" teilen
+sich eine einzige Nummer, dort bliebe sonst keine Stelle übrig.
+
+Bewußt **nicht** mitgeändert: `Math.min(e.n, e.ids.length)` in
+`buildExtensions` deckelt mehrfach baubare Ausbauten weiterhin auf einen Kauf je
+Lauf. Zehn Zellen brauchen zehn Läufe. Das ist lästig, aber es kauft nichts
+Falsches — und es gehört in dieselbe Arbeit wie die Oberfläche, nicht in eine
+Sperre.
+
+## D-67 Der Haken prüft beide Anforderungskanäle (v0.50.0)
+
+`anforderung()` liefert zwei getrennte Forderungen: `alle` verlangt einen
+Lehrgang von **jedem** Sitz, `mind` verlangt eine **Anzahl** je Lehrgang.
+`hakenAbgleichen` prüfte nur `alle` und zählte danach Köpfe gegen
+`mindestBedarf`.
+
+Ein Dekon-P kam damit mit einer ungelernten Person auf den Haken: `alle` ist
+dort leer, ein Kopf reicht für `min 1`. `planeWache` verlangt für dasselbe
+Fahrzeug 6× `dekon_p` — zwei Antworten auf dieselbe Frage, und die falsche
+gewann, weil sie den Punkt setzt. Über `geschuetzt()` fror sie den falschen
+Zustand dann fest: genau der Lauf, der die Besatzung richten würde, meldete
+„grüne Fahrzeuge unangetastet".
+
+Neu ist `fehltAn(v, besatzung)`. Es prüft Kopfzahl, `alle` und `mind` in dieser
+Reihenfolge und liefert **den Grund als Text** — dieselbe Funktion beantwortet
+also „hat es den Haken verdient?" und „warum nicht?". Zwei Quellen für eine
+Aussage können damit nicht wieder auseinanderlaufen, und die Meldung nennt jetzt
+den fehlenden Lehrgang statt nur eine Kopfzahl.
+
+`fehltAn` liegt innerhalb der dritten Schnittmarke, ist also von
+`test-planung.js` erreichbar. Probe 22 deckt es ab; gegen die alte Fassung
+(mind-Kanal ignoriert) fallen davon drei Proben um.
+
+## D-68 Drei Adressen am lebenden Spiel nachgemessen (v0.50.0)
+
+Alle drei Fehler waren aus der Quelle nicht zu sehen: der Code war schlüssig,
+nur die Seite dahinter eine andere. Nachgesehen wurde mit einem angemeldeten
+Browser, rein lesend.
+
+**Der Ausbaukatalog lag nie am richtigen Ort.**
+`ausbauKatalogLesen(b)` holte `/buildings/<wache>/leitstelle-extensions`. Dieser
+Pfad antwortet auf einer Wache mit **HTTP 500**; er gehört der **Leitstelle**.
+Dort steht er dafür für alle eigenen Gebäude auf einmal — 890 Zeilen, die
+Bauplatznummer am Verweis, die Gebäudeart über die Gebäude-Id im selben
+Verweis. Der Katalog konnte also nie gelesen werden, was erklärt, warum der
+Reiter „Ausbauten" hinter seiner Übernahmeseite feststeckte.
+
+Aus N vergeblichen Abrufen wird damit **ein** Abruf, der alle Gebäudearten
+trägt. `leitstelle_building_id` bleibt jetzt in `slimBuilding`, sonst ist die
+Adresse nicht bildbar.
+
+**Die Kaufliste steht nicht auf der Wachenseite.**
+`kaufbareLesen` suchte `/vehicle/<id>/<typ>/credits` in `/buildings/<id>`.
+Gemessen: dort **null** Treffer, auf `/buildings/<id>/vehicles/new` **99**. Der
+Abruf warf also immer „keine Kaufliste gefunden" — deshalb blieb
+`lssplaner.kaufbar` stets leer und die Ersatzkette in `kaufbareTypen` trug die
+ganze Last.
+
+**Die Anker des Wachen-Hinweises gibt es nicht.**
+Von `#building_panel`, `.col-md-12`, `#content`, `.content` existiert **keiner**;
+die Seite hängt alles unter `#iframe-inside-container`. Dazu ein zweiter Fehler
+in derselben Zeile: ein Selektor mit Komma nimmt nicht den erstgenannten
+Treffer, sondern den ersten in **Dokumentreihenfolge** — die gedachte Rangfolge
+war wirkungslos, und `.col-md-12` hätte fast jede Bootstrap-Spalte gewonnen.
+Jetzt wird der Reihe nach probiert, und wenn keiner paßt, wird das gesagt,
+statt stumm zurückzukehren.
+
+## D-69 Was die Messung NICHT bestätigt hat (v0.50.0)
+
+Der Vollständigkeit halber, weil ein zurückgezogener Befund mehr wert ist als
+ein stillschweigend fallengelassener:
+
+- **Das Spiel setzt weggelassene Formularfelder nicht zurück.** Zwei
+  Leerlauf-Schreibversuche (nur `building[name]`, nur `vehicle[caption]`) ließen
+  `personal_count_target`, `leitstelle_building_id`, `personal_max` und die
+  Dienstzeiten unberührt. Der Kommentar bei `umbenennenFahrzeug`, das Formular
+  müsse vollständig zurückgeschickt werden, ist damit **falsch** — der zweite
+  Abruf je Umbenennung kauft nichts. Nicht in dieser Runde geändert, weil er
+  nichts kaputtmacht; gehört in die Aufräumarbeit.
+- **`lehrgaenge()` liest richtig.** Die Übersicht `/schoolings` hat zwei
+  Tabellen: `#schooling_own_table` (laufende, Spalten Lehrgang · Spätestens
+  Fertig · Ausführer) und `#schooling_opened_table` (offene, mit **Freie
+  Plätze** als zweiter Spalte). Die Funktion prüft `t.id === 'schooling_opened_table'`
+  und rechnet nur dort — genau richtig. Eine erste Messung hatte die falsche
+  Tabelle erwischt und einen Fehler gemeldet, den es nicht gibt.
+- **`readRoster` stimmt in jedem Selektor**, ebenso die Kauf-URL (D-37 damit
+  geklärt) und die Behandlung von `building[name]` (D-20 bestätigt).
+
+## D-70 „Bedarf anhaken" rechnet über den geprüften Kern (v0.50.0)
+
+`needFor()` war die dritte Fassung derselben Formel und die einzige ohne
+`anhaengerZaehlt`. Sie zählte die Besatzung eines Anhängers doppelt — einmal am
+Anhänger, einmal am Zugfahrzeug, das dieselben Leute fährt.
+
+Nachgerechnet über alle 89 Kurs/Profil-Paare des eingebauten Wunschbilds weichen
+genau zwei ab, beide beim `gw_wasserrettung`:
+
+| Gebäudeart | needFor max | courseNeed max | needFor min | courseNeed min |
+|---|---|---|---|---|
+| 15 Wasserrettung | 20 | 12 | 10 | **2** |
+| 12 SEG | 10 | 6 | 5 | **1** |
+
+Die `min`-Spalte ist die teure: der erste Durchgang von `fill()` rechnet über
+`sollMin` und buchte an einer Wasserrettungswache also das **Fünffache**. Das
+Konto hat zehn solche Wachen.
+
+`needFor` fragt jetzt `bedarfDerWache` — dieselbe Funktion, die `test-planung.js`
+in Probe 17 auf 12 festnagelt. Mitgenommen: `T.target` geht über `T.profiles`
+und damit über NICHT_PLANEN (D-40), und es liest `S.modell` frisch statt der
+Kopie, die beim Seitenaufbau gezogen wurde und nie nachzog.
+
+## D-71 Nicht gemessen heißt nicht gebucht (v0.50.0)
+
+`offen === null` heißt „Ausbildungsstand nie erfaßt". `fill()` nahm solche
+Wachen als Kandidaten und setzte über `offen ?? soll` **das volle Ziel** an, als
+wäre dort niemand ausgebildet. Für einen frischen Stand ist das der Normalfall,
+und die Beschriftung sagte dazu nur „Stand unbekannt".
+
+Sasha, 27.08., auf die Frage: *erst erfassen*. Diese Wachen werden jetzt
+übersprungen, gezählt und benannt.
+
+Zwei weitere Auskünfte aus derselben Runde sind eingebaut:
+
+- **Ausgebildete dürfen in einen weiteren Lehrgang, aber nur bei mindestens
+  50 % Überdeckung** ihres bisherigen Kurses an dieser Wache — gemessen an dem,
+  was die Fahrzeuge brauchen, die ihn fordern. Sonst wird übersprungen und der
+  Grund genannt. Ungelernte gehen weiterhin zuerst (D-07).
+- **Der grüne Punkt schützt auch gegen Ausbildung.** Ein Lehrgang zieht die
+  Person für Tage vom Fahrzeug, und D-27 sagt, Grünes wird nicht angetastet.
+  Von der Lehrgangsseite aus ist allerdings nicht zu sehen, WER auf welchem
+  Fahrzeug sitzt — die Ankreuzfelder nennen nur die Wache. Entschieden wird
+  deshalb nur der eindeutige Fall: trägt eine Wache **überall** den Punkt, wird
+  sie übergangen. Die gemischte Wache bleibt offen und steht in
+  `NAECHSTER_SCHRITT.md`; sie braucht die Zuweisungsseite.
+
+## D-72 Was die Lehrgangsseite wirklich hergibt (v0.50.0)
+
+Vier Fehler, die erst am geöffneten Spiel sichtbar wurden — alle in
+`Notizen/SPIELSEITEN.md` belegt.
+
+**Der Filter ist nicht der des Spiels.** Auf `/schoolings/<id>` gibt es gar kein
+Suchfeld; gefiltert wird vom LSS-Manager, Klasse
+`lssmv4-buildingListFilter-filter-hidden`. `sichtbar()` prüfte drei geratene
+Namen, von denen keiner vorkommt — eine im Manager ausgeblendete Wache wurde
+also mitangehakt.
+
+**Ungelernt war nicht erkennbar.** Die Trennung lief über
+`#school_personal_education_<id>`; das Element steht da, ist aber **leer**, also
+galten alle als ungelernt und die Reihenfolge aus D-07 war wirkungslos. Die
+Ankreuzfelder tragen jeden Lehrgangsschlüssel selbst als Wahrheitswert — daraus
+ergibt sich der Stand ohne Umweg, und daraus rechnet auch die 50-%-Regel.
+
+**Zehn erfundene Plätze.** Fehlten Zähler und Wachenliste, riet `freiePlaetze()`
+„10 je Klassenraum". Genau so sieht die Seite eines **laufenden** Lehrgangs aus:
+der Knopf meldete zehn freie Plätze für einen Kurs, der niemanden mehr aufnimmt,
+und schob es anschließend auf den Filter des Spiels. Jetzt gibt die Funktion
+`null` zurück, und `fill()` nennt den wahren Grund.
+
+**Die Schulart war fast nie bekannt.** `S.byId` wird aus `/api/buildings`
+gebaut, enthält also nur eigene Gebäude — von 28 Schulen dieses Kontos gehören
+27 dem Verband. `schulTyp` war damit auf so gut wie jeder Schulseite `null` und
+die Zweigtrennung aus D-48 abgeschaltet: der Fall mit den 225
+Verpflegungshelfern, dauerhaft. Auf `/schoolings/<id>` steht die Schule
+überhaupt nicht im Pfad.
+
+Beides über `/api/alliance_buildings` gelöst: jedes Gebäude nennt unter
+`schoolings[]` die Kennungen seiner laufenden Kurse, darüber ist die Schule zu
+einem Lehrgang zu finden. Der Abruf läuft nach und zeichnet einmal neu — bis
+dahin wird ungefiltert gerechnet. Lieber kurz ungefiltert als dauerhaft falsch.
+
+Dazu die Ersatztabelle `SCHULE_NOTFALLS`: die THW-Schule ist Gebäudeart **10**
+und fehlte ganz, die Wasserrettung (15) stand in keiner Liste, obwohl
+`gw_wasserrettung` nachweislich an der Rettungsschule läuft. Beides nachgetragen.
+
+## D-73 Die vier Seenotrettungs-Lehrgänge (v0.50.0)
+
+`NAECHSTER_SCHRITT.md` führte vier fehlende Klartextnamen. Aus dem Kurskatalog
+des Spiels (Wiki, gegengeprüft mit der Übersetzungsdatei des LSS-Managers):
+
+| Schlüssel | Kursname | Name in der Personalliste |
+|---|---|---|
+| `coastal_rescue` | Seenotretter | Seenotretter |
+| `coastal_helicopter` | Hubschrauberpilot (Seenotrettung) | dito |
+| `coastal_helicopter_lift` | Windenoperator | dito |
+| `emergency_paramedic_water_rescue` | Wasserrettungsausbildung für Notfallsanitäter | **Notfallsanitäter mit Wasserrettungsausbildung** |
+
+Zwei Dinge, die in `CLAUDE.md` nachgezogen wurden: „Windenoperator" heißt jetzt
+**drei** Schlüssel, nicht zwei — `coastal_helicopter_lift` kommt dazu. Und der
+Kursname der Schule ist nicht der Name in der Personalliste; beim letzten der
+vier stehen die Wörter sogar in umgekehrter Reihenfolge. Gerechnet wird ohnehin
+über Schlüssel (D-09), die Namen sind Beschriftung.
+
+## D-74 Vor dem Ausliefern im Spiel angesehen (v0.50.0)
+
+`CLAUDE.md` verlangt es, und bei 526 geänderten Zeilen im Planer wäre alles
+andere leichtsinnig: die Oberfläche hat keine Testabdeckung, und `main` wird
+jeder Installation als Aktualisierung angeboten.
+
+Angesehen wurde mit einem angemeldeten Browser, das Skript wie von Tampermonkey
+eingespielt. Schreibende Anfragen waren dabei auf Netzebene **abgeschaltet** —
+ein Rauchtest darf das Konto nicht anfassen, auch nicht versehentlich.
+
+Ergebnis (`Notizen/rauchtest-0.50.0.txt`):
+
+- Panel zeichnet, alle sechs Gruppen und elf Reiter mit Inhalt, kein leerer Rumpf.
+- Bestand lädt in ~12 s über drei Abrufe; die Zeiger-Blätterung (`after=…`)
+  greift, danach `/api/alliance_buildings` für die Schulnamen.
+- **Häkchen „Nur Vorschau" abgewählt → Rahmen scharf, Marke sichtbar; wieder
+  angehakt → zurück.** Damit ist D-64 im Spiel bestätigt, nicht nur im Code.
+- Ein Lauf „Personal zuweisen" mit Vorschau: 112 Aktionen angekündigt, 16
+  Fahrzeuge wegen des grünen Punktes übergangen.
+- **Null Schreibversuche, null Skriptfehler.** Die Vorschau schreibt also
+  wirklich nichts mehr — D-63 im Spiel bestätigt.
+
+Nebenbei aufgefallen und mitgenommen: die Schutzmeldung schickte den Menschen
+„in die Kopfzeile", wo der Schalter nie war. Er sitzt unten neben „Nur
+Vorschau". Das ist die Meldung, die genau dann erscheint, wenn ein Lauf weniger
+getan hat als erwartet — die falsche Wegbeschreibung darin ist teurer als sie
+aussieht.
+
+Nicht abgedeckt und weiterhin offen: der scharfe Lauf selbst, das eigene Fenster
+(⇱), der Hinweis auf der Wachenseite und die Lehrgangsseite im Lightbox-Rahmen.
+Die stehen in `NAECHSTER_SCHRITT.md`.
+

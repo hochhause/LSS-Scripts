@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.49.1
+// @version      0.50.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.49.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.50.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -49,7 +49,13 @@ let chain = Promise.resolve();
    Ohne das lief eine angefangene Kette über hunderte Wachen weiter. */
 let lauf = null;
 const laufStarten = () => { lauf?.abort(); lauf = new AbortController(); return lauf.signal; };
-const laufStoppen = () => { lauf?.abort(); lauf = null; S.busy = false; };
+/* Der Regler bleibt stehen, auch nachdem abgebrochen wurde. Wer ihn hier auf
+   null setzt, löscht die einzige Spur des Abbruchs: `abgebrochen()` meldete
+   danach für immer „läuft weiter", und `queued` gab jeder folgenden Anfrage
+   gar kein Signal mehr mit. Der Stoppknopf brach dann genau eine Anfrage ab
+   und der Lauf schrieb den Rest der Wachen durch. Ersetzt wird der Regler in
+   `laufStarten`, nicht hier. */
+const laufStoppen = () => { lauf?.abort(); S.busy = false; };
 const abgebrochen = () => !!lauf?.signal.aborted;
 
 /* Kurzes Wegklicken soll nichts anhalten. Erst wenn der Tab länger als eine
@@ -582,28 +588,39 @@ function ausbauAusBestand() {
 }
 
 /** Und die leeren Bauplätze von der Ausbauseite einer Wache. */
-async function ausbauKatalogLesen(b) {
-  const html = await getText(`/buildings/${b.id}/leitstelle-extensions`);
+async function ausbauKatalogLesen() {
+  /* Ein Abruf für alle Gebäudearten statt einer je Art.
+     Vorher holte diese Funktion `/buildings/<wache>/leitstelle-extensions` —
+     am Spiel nachgemessen antwortet dieser Pfad auf einer Wache mit HTTP 500.
+     Er gehört der Leitstelle, und dort steht er für ALLE eigenen Gebäude auf
+     einmal: 890 Zeilen, die Bauplatznummer am Verweis, die Gebäudeart über die
+     Gebäude-Id im selben Verweis. Der Katalog konnte also nie gelesen werden,
+     und der Reiter „Ausbauten" blieb hinter seiner Übernahmeseite stehen. */
+  const leit = S.buildings.find(x => x.leitstelle_building_id)?.leitstelle_building_id;
+  if (!leit) throw new Error('Leitstelle nicht bekannt — Bestand neu laden');
+  const html = await getText(`/buildings/${leit}/leitstelle-extensions`);
   const doc = new DOMParser().parseFromString(html, 'text/html');
   let neu = 0, gesehen = 0;
+  const proTyp = new Map();
   for (const tr of doc.querySelectorAll('tr')) {
     const cap = tr.querySelector('b')?.textContent.trim();
     if (!cap) continue;
-    /* Die Nummer steht im Verweis — beim Kaufknopf wie beim Umschalter
-       „Einsatzbereit“. Zeilen ohne Verweis sind fertig gebaute, mehrfach
-       vorhandene Ausbauten; die kennt bereits der Bestand. */
     const link = [...tr.querySelectorAll('a[href]')]
       .map(a => a.getAttribute('href'))
-      .map(h => h.match(/\/extension(?:_ready)?\/(?:credits\/|coins\/)?(\d+)/))
+      .map(h => h.match(/\/buildings\/(\d+)\/extension(?:_ready)?\/(?:credits\/|coins\/)?(\d+)/))
       .find(Boolean);
     if (!link) continue;
+    const wache = S.byId.get(Number(link[1]));
+    if (!wache) continue;                    // Gebäude nicht im eigenen Bestand
     gesehen++;
-    if (merkeAusbau(b.building_type, Number(link[1]), cap)) neu++;
+    proTyp.set(wache.building_type, (proTyp.get(wache.building_type) || 0) + 1);
+    if (merkeAusbau(wache.building_type, Number(link[2]), cap)) neu++;
   }
-  if (!gesehen) throw new Error('keine Bauplätze auf der Seite gefunden');
+  if (!gesehen) throw new Error('keine Bauplätze auf der Leitstellenseite gefunden');
   standNeu();
-  return { neu, gesehen };
+  return { neu, gesehen, proTyp };
 }
+
 
 /* ── Was an einer Wache überhaupt gekauft werden kann ─────────────────
    Der Katalog kennt 186 Fahrzeugtypen, aber an einer Rettungswache steht kein
@@ -640,12 +657,18 @@ function kaufbareTypen(btyp) {
     den, den der Planer zum Kaufen benutzt. Findet sich keiner, bleibt alles
     beim Alten statt etwas zu erfinden. */
 async function kaufbareLesen(b) {
-  const html = await getText(`/buildings/${b.id}`);
+  /* Die Kaufliste steht nicht auf der Wachenseite, sondern auf der Seite
+     „Fahrzeug kaufen". Am Spiel nachgemessen: /buildings/<id> enthält keinen
+     einzigen /vehicle/<id>/<typ>/credits-Verweis, /buildings/<id>/vehicles/new
+     enthält 99. Der Abruf ging also immer ins Leere und warf „keine Kaufliste
+     gefunden" — deshalb blieb `lssplaner.kaufbar` stets leer und die
+     Ersatzkette in `kaufbareTypen` trug die ganze Last. */
+  const html = await getText(`/buildings/${b.id}/vehicles/new`);
   const ids = new Set();
   const re = new RegExp(`/vehicle/${b.id}/(\\d+)/credits`, 'g');
   let m;
   while ((m = re.exec(html))) ids.add(m[1]);
-  if (!ids.size) throw new Error('keine Kaufliste auf der Wachenseite gefunden');
+  if (!ids.size) throw new Error('keine Kaufliste auf der Kaufseite gefunden');
   const alle = store.get(KEY_KAUFBAR, {});
   alle[String(b.building_type)] = [...ids];
   store.set(KEY_KAUFBAR, alle);
@@ -685,6 +708,16 @@ const T = {
 const slimBuilding = b => ({
   id: b.id, caption: b.caption, building_type: b.building_type,
   level: b.level, personal_count: b.personal_count,
+  /* Einsatzbereitschaft der Wache. Ohne dieses Feld war `b.enabled` nach jedem
+     Laden `undefined`, und `undefined !== soll` ist immer wahr — pflegeAusbauten
+     schickte also bei jedem scharfen Personallauf einen Umschalter an jede
+     Wache. `/buildings/<id>/active` kennt kein Ziel, es kippt nur; die Hälfte
+     dieser Anfragen nahm eine einsatzbereite Wache aus dem Dienst, während das
+     Protokoll „einsatzbereit" meldete. Die API liefert das Feld, es wurde beim
+     Abmagern nur verworfen. */
+  enabled: b.enabled,
+  // Für den Ausbaukatalog: die Sammelseite gehört der Leitstelle, nicht der Wache.
+  leitstelle_building_id: b.leitstelle_building_id,
   extensions: (b.extensions || []).map(e => ({
     type_id: e.type_id, caption: e.caption,
     available: e.available, enabled: e.enabled, available_at: e.available_at
@@ -811,6 +844,24 @@ function builtExtensions(b) {
   return m;
 }
 
+/* Was einen Bauplatz belegt — gebaut, noch im Bau oder abgeschaltet.
+   `builtExtensions` zählt absichtlich nur, was Stellplätze bringt, und
+   überspringt deshalb den Bau und das Abgeschaltete. Für die Bestellung ist
+   genau das falsch: ein Platz, auf dem schon etwas steht oder entsteht, darf
+   kein zweites Mal gekauft werden. Beide Sichten werden gebraucht, deshalb
+   zwei Funktionen statt eines Schalters.
+   `nummern` sind Bauplatznummern (der Index im Katalog), nicht Stückzahlen. */
+function belegteAusbauten(b) {
+  const proName = {}, nummern = new Set();
+  for (const e of b.extensions || []) {
+    if (!e) continue;
+    const cap = e.caption || T.extCat(b.building_type)[e.type_id] || `Ausbau ${e.type_id}`;
+    proName[cap] = (proName[cap] || 0) + 1;
+    if (e.type_id != null) nummern.add(Number(e.type_id));
+  }
+  return { proName, nummern };
+}
+
 /* Welche Ausbauten bringen Stellplätze? Aus den Pool-Definitionen des Layouts. */
 function slotGivingCaptions(bt) {
   const hit = memoG.get(bt);
@@ -906,15 +957,28 @@ function analyseIntern(b) {
     if (n > soll) res.vehSurplus.push({ id, n: n - soll, name: T.vehName(id) });
   }
 
-  const built = builtExtensions(b), cat = T.extCat(b.building_type), giving = slotGivingCaptions(b.building_type);
+  const cat = T.extCat(b.building_type), giving = slotGivingCaptions(b.building_type);
   const repeatable = {};
   cat.forEach(c => { if (c) repeatable[c] = (repeatable[c] || 0) + 1; });
+  const belegt = belegteAusbauten(b);
   for (const [cap, n] of Object.entries(tgt.extensions || {})) {
-    const d = (Number(n) || 0) - (built[cap] || 0);
+    /* Gegen das Belegte rechnen, nicht gegen das Fertige: sonst wird ein
+       Ausbau, der gerade gebaut wird, eine Stunde später ein zweites Mal
+       bestellt — bezahlt und nicht rückholbar. */
+    const d = (Number(n) || 0) - (belegt.proName[cap] || 0);
     if (d <= 0) continue;
-    const free = cat.map((c, i) => [c, i]).filter(([c]) => c === cap).map(([, i]) => i);
+    /* Die Liste hieß „free" und war es nicht: sie enthielt jede Katalogstelle
+       mit dieser Bezeichnung, auch die längst bebauten. buildExtensions nimmt
+       davon die ersten `n` — also wurde auf besetzte Plätze gekauft.
+       Mehrfach baubare Ausbauten (die „Zelle" 10×) teilen sich EINE
+       Katalognummer; dort darf nicht gefiltert werden, sonst bleibt keine
+       Stelle übrig. Gefiltert wird deshalb nur, wo eine Bezeichnung mehrere
+       eigene Plätze hat. */
+    const stellen = cat.map((c, i) => [c, i]).filter(([c]) => c === cap).map(([, i]) => i);
+    const frei = stellen.length > 1 ? stellen.filter(i => !belegt.nummern.has(i)) : stellen;
+    if (!frei.length) continue;                       // alles belegt, nichts zu bestellen
     res.extMissing.push({
-      caption: cap, n: d, ids: free,
+      caption: cap, n: d, ids: frei,
       rank: repeatable[cap] > 1 ? 2 : (giving.has(cap) ? 0 : 1)   // Stellplatz → sonstige → wiederholbar
     });
   }
@@ -1028,7 +1092,7 @@ const schutzZaehlen = () => { uebergangen++; };
 function schutzMelden() {
   if (!uebergangen) return;
   log(`${uebergangen}x übergangen, weil grün markiert — `
-    + `zum Ändern in der Kopfzeile „Grüne freigeben“ ankreuzen`, 'warn');
+    + `zum Ändern unten neben „Nur Vorschau“ das Häkchen „Grüne freigeben“ setzen`, 'warn');
   uebergangen = 0;
 }
 
@@ -1135,22 +1199,26 @@ async function hakenAbgleichen(sel, dry) {
     try { roster = await readRoster(b); } catch { /* dann eben ohne */ }
     if (roster) {
       const eigene = new Map(mineOf(b).map(v => [String(v.id), v]));
-      const drauf = new Map();
+      /* Je Fahrzeug die Lehrgänge seiner Leute sammeln. Vorher wurde hier
+         schon gefiltert und nur noch gezählt — damit ging verloren, WER was
+         kann, und `mind` ließ sich gar nicht mehr prüfen. */
+      const besatzung = new Map();
       for (const p of roster.people) {
         if (!p.assignedTo || !eigene.has(p.assignedTo)) continue;
         const v = eigene.get(p.assignedTo);
         // „In Ausbildung“ zählt hier wie fertig — nur der FMS-Status wartet.
         const kann = new Set([...p.quals, ...(p.inAusbildung || [])]);
-        const a = anforderung(v);
-        if (a.alle.length && !a.alle.every(k => kann.has(k))) continue;
-        drauf.set(v.id, (drauf.get(v.id) || 0) + 1);
+        if (!besatzung.has(v.id)) besatzung.set(v.id, []);
+        besatzung.get(v.id).push(kann);
       }
       /* Der Haken gilt ab Mindestbesetzung, nicht ab vollem Fahrzeug. */
-      const fertig = new Map();
+      const fertig = new Map(), mangel = new Map();
       for (const v of echteVon(b)) {
         const meta = T.veh(v.vehicle_type);
         if (!meta || !meta.max) continue;
-        fertig.set(v.id, (drauf.get(v.id) || 0) >= mindestBedarf(v));
+        const fehlt = fehltAn(v, besatzung.get(v.id) || []);
+        mangel.set(v.id, fehlt);
+        fertig.set(v.id, !fehlt);
       }
       const ohnePunkt = [];
       for (const v of echteVon(b)) {
@@ -1171,7 +1239,7 @@ async function hakenAbgleichen(sel, dry) {
           ohnePunkt.push(`${ohneHaken(v.caption)}: ` + (!meta.max
             ? (!v.zugfahrzeug ? 'kein Zugfahrzeug'
                : `${zug ? ohneHaken(zug.caption) : 'Zugfahrzeug'} hat keine Mindestbesetzung`)
-            : `${drauf.get(v.id) || 0} von ${mindestBedarf(v)} mit passendem Lehrgang`));
+            : (mangel.get(v.id) || 'nicht besetzbar')));
         }
 
         const kern = ohneHaken(v.caption);
@@ -1553,6 +1621,32 @@ function mindestBedarf(v) {
   return T.veh(v.vehicle_type) ? anforderung(v).min : 0;
 }
 
+/** Was dieser Besatzung zum Haken fehlt — leerer Text heißt: nichts.
+    `besatzung` ist je Person die Menge ihrer Lehrgänge (fertige und laufende).
+
+    Zwei Kanäle sind zu decken, und der Haken prüfte bisher nur den ersten:
+    `alle` verlangt einen Lehrgang von JEDEM Sitz, `mind` verlangt eine Anzahl
+    je Lehrgang. Ein Dekon-P mit einer ungelernten Person kam deshalb auf den
+    Haken — `alle` ist dort leer, und gezählt wurden nur Köpfe —, während
+    planeWache für dasselbe Fahrzeug 6× dekon_p verlangt. Der Punkt fror diesen
+    falschen Zustand über geschuetzt() dann fest, und genau der Lauf, der die
+    Besatzung richten würde, meldete „grüne Fahrzeuge unangetastet".
+
+    Dieselbe Funktion liefert die Begründung, damit Haken und Meldung nicht
+    wieder auseinanderlaufen können. */
+function fehltAn(v, besatzung) {
+  const a = anforderung(v);
+  const min = mindestBedarf(v);
+  if (besatzung.length < min) return `${besatzung.length} von ${min} Personen`;
+  const ohne = a.alle.filter(k => !besatzung.every(kann => kann.has(k)));
+  if (ohne.length) return `nicht alle haben ${ohne.map(k => kursNamen(k)[0] || k).join(', ')}`;
+  for (const [k, noetig] of a.mind) {
+    const da = besatzung.filter(kann => kann.has(k)).length;
+    if (da < noetig) return `${da} von ${noetig} mit ${kursNamen(k)[0] || k}`;
+  }
+  return '';
+}
+
 /* Umschaltungen, die gerade nicht möglich waren, weil das Fahrzeug
    unterwegs ist. Werden beim nächsten Personallauf nachgeholt. */
 const warte = store.get(KEY_WARTE, {});
@@ -1562,8 +1656,12 @@ const loescheWarte = id => { delete warte[id]; store.set(KEY_WARTE, warte); };
 /** Setzt den FMS-Status. Nur aus Status 2 heraus möglich. */
 async function setzeFms(v, ziel, dry) {
   if (v.fms_real !== 2 && ziel === 6) {
-    merkeWarte(v.id, ziel);
-    log(`   ${v.caption}: steht auf Status ${v.fms_real} — Umschaltung vorgemerkt`, 'warn');
+    /* Nur ein scharfer Lauf darf sich etwas vormerken. Stand das Merken
+       außerhalb dieser Sperre, schrieb schon die Vorschau in `fmsWarte` —
+       und der nächste scharfe Lauf holte die Umschaltung an einer Wache
+       nach, die gar nicht ausgewählt war. */
+    if (!dry) merkeWarte(v.id, ziel);
+    log(`   ${v.caption}: steht auf Status ${v.fms_real} — Umschaltung ${dry ? 'wäre vorgemerkt' : 'vorgemerkt'}`, 'warn');
     return false;
   }
   log(`   ${v.caption}: Status ${v.fms_real} → ${ziel}`);
@@ -1571,8 +1669,10 @@ async function setzeFms(v, ziel, dry) {
     await getAction(`/vehicles/${v.id}/set_fms/${ziel}`);
     v.fms_real = v.fms_show = ziel;
     merkeAenderung();
+    // Erledigt ist erst, was auch abgeschickt wurde — sonst löscht die
+    // Vorschau eine Vormerkung, die nie ausgeführt wurde.
+    loescheWarte(v.id);
   }
-  loescheWarte(v.id);
   return true;
 }
 
@@ -1605,7 +1705,14 @@ async function pflegeAusbauten(b, dry) {
   const grund = lay.pools.find(p => p.from === 'level' || p.from === 'fixed');
   if (grund) {
     const soll = bereit(proTopf.get(grund.key) || []);
-    if (b.enabled !== soll && (proTopf.get(grund.key) || []).length) {
+    /* Ein unbekannter Ist-Zustand ist kein Grund zu schalten. Der Endpunkt
+       kippt nur, er setzt nicht — wer aus Unwissen kippt, trifft in der Hälfte
+       der Fälle das Gegenteil und merkt es nie, weil danach der geglaubte Wert
+       lokal steht. Lieber eine Lücke melden als eine Vermutung einsetzen. */
+    if (typeof b.enabled !== 'boolean') {
+      log(`   Wache ${b.caption}: Einsatzbereitschaft nicht bekannt — nicht angefaßt `
+        + `(Bestand neu laden)`, 'warn');
+    } else if (b.enabled !== soll && (proTopf.get(grund.key) || []).length) {
       log(`   Wache ${b.caption}: ${soll ? 'einsatzbereit' : 'nicht einsatzbereit'}`);
       if (!dry) { await getAction(`/buildings/${b.id}/active`); b.enabled = soll; merkeAenderung(); }
       n++;
@@ -1915,10 +2022,16 @@ async function assignStaff(sel, dry) {
   let n = 0, unterwegs = 0;
   const ueberzaehlig = [];
 
-  // Vorgemerkte Umschaltungen nachholen, sofern das Fahrzeug daheim ist
+  /* Vorgemerkte Umschaltungen nachholen, sofern das Fahrzeug daheim ist —
+     aber nur an den Wachen, die für diesen Lauf gewählt sind. Ohne diese
+     Schranke arbeitete ein Lauf über Wache B die Vormerkungen von Wache A
+     mit ab, und der Mensch sah eine Änderung an einer Wache, die er gar
+     nicht angehakt hatte. */
+  const gewaehlteWachen = new Set(sel.map(b => String(b.id)));
   for (const [id, w] of Object.entries(warte)) {
     const v = S.vehicles.find(x => String(x.id) === String(id));
     if (!v) { loescheWarte(id); continue; }
+    if (!gewaehlteWachen.has(String(v.building_id))) continue;
     if (v.fms_real !== 2) continue;
     log(`Nachgeholt: ${v.caption}`);
     if (await setzeFms(v, w.ziel, dry)) n++;
@@ -2155,6 +2268,11 @@ async function scanQuals(buildings, onProgress) {
    Was die Schulen später liefern, wird ergänzt und geht vor. */
 const KURSE_FEST = {
   highway_police: "Autobahnpolizei", railway_fire: "Bahnrettung",
+  // Seenotrettung, nachgetragen aus dem Kurskatalog des Spiels (Wiki + LSSM):
+  coastal_rescue: "Seenotretter",
+  coastal_helicopter: "Hubschrauberpilot (Seenotrettung)",
+  coastal_helicopter_lift: "Windenoperator",
+  emergency_paramedic_water_rescue: "Wasserrettungsausbildung für Notfallsanitäter",
   care_service: "Betreuungsdienst", police_firefighting: "Brandbekämpfung",
   dekon_p: "Dekon-P Lehrgang", police_service_group_leader: "Dienstgruppenleitung",
   fire_drone: "Drohnen-Schulung", seg_drone: "Drohnenoperator",
@@ -2229,8 +2347,14 @@ const istSchule = b => /schule|akademie|bundesschule|seefahrt/i
    sich die Zuordnung von selbst. Erst wenn keine Schule gelesen wurde, greift
    die Tabelle unten.
    ─────────────────────────────────────────────────────────────────────── */
-const SCHULE_NOTFALLS = {           // Schultyp → Gebäudearten, falls nichts gelesen
-  1: [0], 3: [2, 5, 12, 21, 25, 26, 28], 8: [6, 11, 13, 17, 29]
+/* Schultyp → Gebäudearten, falls nichts gelesen wurde.
+   Am Spiel nachgesehen (27.08.): die THW-Schule ist Gebäudeart **10** und
+   fehlte hier ganz — fünf Verbands-THW-Schulen hatten also gar keine
+   Ersatzzuordnung. Und die Wasserrettung (15) stand in keiner einzigen Liste,
+   obwohl `gw_wasserrettung` nachweislich an der Rettungsschule läuft. Beides
+   nachgetragen. */
+const SCHULE_NOTFALLS = {
+  1: [0], 3: [2, 5, 12, 15, 21, 25, 26, 28], 8: [6, 11, 13, 17, 29], 10: [9]
 };
 
 /** Gebäudearten, für die eine Schulart ausbilden darf. */
@@ -3099,6 +3223,20 @@ function buildingList(filterFn = null) {
       wort ? 'Keine Wache paßt zur Suche.' : 'Alles erledigt.'}</div>`}</div>`;
 }
 
+/** Zeigt am Rahmen und im Kopf, ob der nächste Druck das Spiel verändert.
+    Eigene Funktion, weil das Häkchen „Nur Vorschau“ sie ebenfalls aufrufen
+    muß: es schrieb bisher nur `S.opts.dry` und zeichnete nicht neu, also
+    blieb der Rahmen grau und „SCHARF“ verborgen, bis irgendein anderer
+    Handler ein render() auslöste. Genau den Fall sollte D-35 verhindern. */
+function scharfZeigen() {
+  if (!el) return false;
+  const scharf = S.opts.dry === false && !['ueber', 'plan', 'lehrgang'].includes(tab);
+  el.classList.toggle('scharf', scharf);
+  const marke = el.querySelector('#lssp-scharf');
+  if (marke) marke.style.display = scharf ? '' : 'none';
+  return scharf;
+}
+
 function render() {
   if (!el) return;
   const b = el.querySelector('.body');
@@ -3107,10 +3245,7 @@ function render() {
   queueMicrotask(() => logKopfBinden(b));
   /* Scharf heißt: der nächste Druck verändert das Spiel. Das gehört an den
      Rahmen, nicht nur an ein Häkchen weiter unten. */
-  const scharf = S.opts.dry === false && !['ueber', 'plan', 'lehrgang'].includes(tab);
-  el.classList.toggle('scharf', scharf);
-  const marke = el.querySelector('#lssp-scharf');
-  if (marke) marke.style.display = scharf ? '' : 'none';
+  scharfZeigen();
 
   /* Ohne importierten Plan lief bisher gar nichts — obwohl seit v0.32 nur noch
      zwei Dinge daraus kommen: die Stellplatz-Töpfe und der Ausbaukatalog. Alles
@@ -3131,16 +3266,10 @@ function render() {
       <pre id="lssp-log"></pre>`;
     b.querySelector('#lssp-katalog').onclick = async ev => {
       ev.target.disabled = true;
-      const proTyp = new Map();
-      for (const w of planWachen()) if (!proTyp.has(w.building_type)) proTyp.set(w.building_type, w);
-      let i = 0;
-      for (const [t, w] of proTyp) {
-        schritt(i++, proTyp.size, T.btName(t));
-        try {
-          const r = await ausbauKatalogLesen(w);
-          log(`${T.btName(t)}: ${r.gesehen} Bauplätze, ${r.neu} neu.`, 'good');
-        } catch (e) { log(`${T.btName(t)}: ${e.message}`, 'warn'); }
-      }
+      try {
+        const r = await ausbauKatalogLesen();
+        log(`${r.gesehen} Bauplätze über ${r.proTyp.size} Gebäudearten gelesen, ${r.neu} neu.`, 'good');
+      } catch (e) { log(e.message, 'warn'); }
       fortAus(); ev.target.disabled = false; render();
     };
     log('');
@@ -3454,11 +3583,11 @@ function render() {
       } catch (e) { log('Nicht gelesen: ' + e.message, 'warn'); }
     });
     b.querySelector('#lssp-pausbau')?.addEventListener('click', async () => {
-      const wache = S.buildings.find(x => String(x.building_type) === planTyp);
-      if (!wache) return log('Keine eigene Wache dieses Typs — daraus läßt sich nichts lesen.', 'warn');
       try {
-        const r = await ausbauKatalogLesen(wache);
-        log(`${T.btName(planTyp)}: ${r.gesehen} Bauplätze gesehen, ${r.neu} neu gelernt.`, 'good');
+        // Die Sammelseite bringt alle Gebäudearten mit, nicht nur die gewählte.
+        const r = await ausbauKatalogLesen();
+        log(`${r.gesehen} Bauplätze über ${r.proTyp.size} Gebäudearten gelesen, ${r.neu} neu `
+          + `(davon ${r.proTyp.get(Number(planTyp)) || 0} bei ${T.btName(planTyp)}).`, 'good');
         render();
       } catch (e) { log('Nicht gelesen: ' + e.message, 'warn'); }
     });
@@ -3721,7 +3850,11 @@ function render() {
   });
   auswahlBinden(b);
   einzelBinden(b);
-  b.querySelector('#lssp-dry').onchange = e => { S.opts.dry = e.target.checked; store.set(KEY_OPTS, S.opts); };
+  b.querySelector('#lssp-dry').onchange = e => {
+    S.opts.dry = e.target.checked;
+    store.set(KEY_OPTS, S.opts);
+    scharfZeigen();               // sonst bleibt der rote Rahmen aus, bis etwas anderes neu zeichnet
+  };
   b.querySelector('#lssp-gruen')?.addEventListener('change', e => {
     S.opts.gruenFrei = e.target.checked;
     store.set(KEY_OPTS, S.opts);
@@ -3797,8 +3930,21 @@ function wachenSeite() {
     + (f.personal ? `<div style="margin:3px 0"><b style="color:#8a6d3b">Unterbesetzt:</b> ${f.personal} Fahrzeuge</div>` : '')
     + (f.anhaenger ? `<div style="margin:3px 0"><b style="color:#8a6d3b">Ohne Zugfahrzeug:</b> ${f.anhaenger} Anhänger</div>` : '');
 
-  const ziel = document.querySelector('#building_panel, .col-md-12, #content, .content');
-  if (!ziel) return;
+  /* Ein Selektor mit Komma nimmt NICHT den erstgenannten Treffer, sondern den
+     ersten in Dokumentreihenfolge — die gedachte Rangfolge war also wirkungslos,
+     und `.col-md-12` hätte fast jede Bootstrap-Spalte gewonnen. Am Spiel
+     nachgesehen: von den vier geratenen Ankern existiert **keiner**. Die Seite
+     hängt alles unter `#iframe-inside-container`. Deshalb der Reihe nach
+     probieren, den ersten Treffer nehmen und sagen, wenn keiner paßt — geraten
+     wird hier nicht mehr. */
+  const ANKER = ['#iframe-inside-container', '#building_panel', '#content', '.content'];
+  let ziel = null;
+  for (const sel of ANKER) { ziel = document.querySelector(sel); if (ziel) break; }
+  if (!ziel) {
+    log('Hinweis auf der Wachenseite: kein Platz gefunden — '
+      + `keiner dieser Anker existiert: ${ANKER.join(', ')}`, 'warn');
+    return;
+  }
   document.querySelector('#lssp-wache')?.remove();
   ziel.prepend(kasten);
   kasten.querySelector('#lssp-wache-zu').onclick = e => {
@@ -3951,10 +4097,51 @@ function educationPage() {
      Daraus folgt, für welche Wachen sie ausbilden darf — und nur deren
      Bedarf gehört in die Beschriftung. Bei einer Verbandsschule, die nicht
      im eigenen Bestand steht, bleibt es beim ungefilterten Gesamtbedarf. */
+  /* Welche Schulart ist das? Zwei Wege, weil zwei Adressen hierher führen:
+
+     Auf `/buildings/<id>` steht die Schule im Pfad. Sie steckt aber nur dann in
+     `S.byId`, wenn sie EIGEN ist — `S.byId` wird aus `/api/buildings` gebaut.
+     Von 28 Schulen dieses Kontos gehören 27 dem Verband, also war `schulTyp`
+     auf so gut wie jeder Schulseite `null`, `zustaendigFuer(null)` lieferte
+     nichts, und die Trennung nach Zweigen aus D-48 war abgeschaltet — genau der
+     Fall mit den 225 Verpflegungshelfern, den D-48 beheben sollte.
+
+     Auf `/schoolings/<id>` steht die Schule überhaupt nicht im Pfad. Dafür
+     nennt jedes Gebäude in `/api/buildings` und `/api/alliance_buildings` unter
+     `schoolings[]` die Kennungen seiner laufenden Kurse — darüber ist die
+     Schule zu finden. Das kostet einen Abruf, der ohnehin zwischengespeichert
+     ist, und läuft nachträglich: bis er zurück ist, wird ungefiltert gerechnet,
+     danach einmal neu gezeichnet. Lieber kurz ungefiltert als dauerhaft falsch. */
   const schulId = Number((location.pathname.match(/\/buildings\/(\d+)/) || [])[1]) || null;
-  const schulTyp = schulId != null ? S.byId.get(schulId)?.building_type ?? null : null;
-  const zustaendig = schulTyp != null ? zustaendigFuer(schulTyp) : null;
+  const kursId  = Number((location.pathname.match(/\/schoolings\/(\d+)/) || [])[1]) || null;
+  let zustaendig = null;
   const inReichweite = b => !zustaendig?.size || zustaendig.has(Number(b.building_type));
+
+  function setzeZustaendig(typ) {
+    if (typ == null) return false;
+    const neu2 = zustaendigFuer(typ);
+    if (!neu2?.size) return false;
+    zustaendig = neu2;
+    return true;
+  }
+  setzeZustaendig(schulId != null ? S.byId.get(schulId)?.building_type ?? null : null);
+
+  /** Schulart nachtragen, wenn sie aus dem eigenen Bestand nicht hervorging. */
+  async function schulartNachtragen() {
+    if (zustaendig?.size) return;
+    try {
+      const kandidaten = [...S.buildings];
+      const av = await apiGet('/api/alliance_buildings');
+      if (Array.isArray(av)) kandidaten.push(...av);
+      let typ = null;
+      if (schulId != null) typ = kandidaten.find(x => Number(x.id) === schulId)?.building_type ?? null;
+      if (typ == null && kursId != null)
+        typ = kandidaten.find(x => (x.schoolings || []).some(k => Number(k.id) === kursId))?.building_type ?? null;
+      if (setzeZustaendig(typ)) { refresh(); auswahlBeschriften(); }
+    } catch (e) {
+      log('Schulart nicht bestimmbar: ' + e.message, 'warn');
+    }
+  }
 
   // Zuordnung lernen, wo ein Auswahlfeld vorhanden ist
   const map = store.get(KEY_COURSE, {});
@@ -3970,7 +4157,12 @@ function educationPage() {
 
   // Wunschbild und Zuordnung kommen seit v0.32 aus eigenem Speicher; der
   // importierte Plan wird auf dieser Seite gar nicht mehr gebraucht (D-54).
-  const modell = S.modell, zuordnung = S.zuordnung;
+  /* `S.modell` fällt auf MODELL_STANDARD zurück, ist also NIE leer — die alte
+     Prüfung `Object.keys(modell).length` konnte deshalb nie zuschlagen, und der
+     rote Hinweis „Es gibt noch kein Wunschbild" war unerreichbar. Gefragt ist
+     nicht, ob ein Wunschbild im Speicher steht, sondern ob je eines angelegt
+     wurde — sonst wird gegen fremde Vorgaben gebucht. */
+  const eigenesWunschbild = () => !!store.get(KEY_MODELL, null);
   let handKey = null;              // vom Nutzer gewählt, falls nicht erkennbar
 
   /** Um welchen Lehrgang geht es auf dieser Seite? Mehrere Wege, weil die
@@ -4031,37 +4223,73 @@ function educationPage() {
   const panels = () => [...document.querySelectorAll('.building_list[building_id]')];
   const idOf   = el => Number(el.getAttribute('building_id'));
   const typeOf = el => Number(el.getAttribute('building_type_id'));
-  const sichtbar = el => !el.classList.contains('hidden-by-dispatch')
+  /* Gefiltert wird auf dieser Seite NICHT vom Spiel — ein Suchfeld gibt es dort
+     gar nicht —, sondern vom LSS-Manager. Am Spiel nachgesehen heißt seine
+     Klasse `lssmv4-buildingListFilter-filter-hidden`; keiner der drei bisher
+     geratenen Namen kommt vor. Eine im Manager ausgefilterte Wache galt damit
+     als sichtbar und wurde mitangehakt. Die alten Namen bleiben stehen, falls
+     das Spiel doch einmal selbst filtert. */
+  const sichtbar = el => !el.classList.contains('lssmv4-buildingListFilter-filter-hidden')
+                      && !el.classList.contains('hidden-by-dispatch')
                       && !el.classList.contains('building-filtered-by-search')
                       && !el.classList.contains('hidden');
+  const nameVon = el => el.getAttribute('search_attribute') || idOf(el);
 
-  /** Freie Plätze: 10 je genutztem Klassenraum, abzüglich schon Angehakter. */
+  /* Der grüne Punkt schützt auch gegen Ausbildung (Sasha, 27.08.): ein Lehrgang
+     zieht die Person für Tage vom Fahrzeug, und D-27 sagt, Grünes wird nicht
+     angetastet. Von dieser Seite aus ist allerdings nicht zu sehen, WER auf
+     welchem Fahrzeug sitzt — die Ankreuzfelder nennen nur die Wache. Zu
+     entscheiden ist hier also nur der eindeutige Fall: steht an einer Wache
+     ausschließlich Grünes, ist dort jede Besatzung geschützt, und die Wache
+     wird übergangen. Bei gemischten Wachen bleibt eine Lücke; sie ist in
+     NAECHSTER_SCHRITT.md notiert und braucht die Zuweisungsseite. */
+  const nurGruen = el => {
+    const fz = (S.byBuilding?.get(Number(idOf(el))) || []).filter(v => T.veh(v.vehicle_type)?.max);
+    return fz.length > 0 && fz.every(v => geschuetzt(v));
+  };
+
+  /** Freie Plätze — oder null, wenn die Seite es nicht sagt. */
   const freiePlaetze = () => {
-    const n = Number((document.querySelector('#schooling_free')?.textContent || '').replace(/\D+/g, ''));
-    if (Number.isFinite(n) && document.querySelector('#schooling_free')) return n;
+    const feld = document.querySelector('#schooling_free');
+    if (feld) {
+      const n = Number((feld.textContent || '').replace(/\D+/g, ''));
+      if (Number.isFinite(n)) return n;
+    }
     // Auf Lehrgangsseiten ohne eigenen Zähler steht die Zahl im Text
     const m = document.body.textContent.match(/(?:Freie|freie)\s+Pl[äa]tze[^0-9]{0,12}(\d+)/);
     if (m) return Number(m[1]) - document.querySelectorAll('.schooling_checkbox:checked').length;
-    const raeume = Number(document.querySelector('#building_rooms_use')?.value) || 1;
-    return 10 * raeume - document.querySelectorAll('.schooling_checkbox:checked').length;
+    /* Hier wurde früher „10 je Klassenraum" geraten. Auf der Seite eines
+       LAUFENDEN Lehrgangs gibt es aber weder Zähler noch Wachenliste — geraten
+       wurden dann zehn freie Plätze für einen Kurs, der niemanden mehr aufnimmt,
+       und die Absage nannte anschließend den Filter des Spiels als Grund.
+       Lieber eine Lücke melden als eine Vermutung einsetzen. */
+    return null;
   };
 
+  /** Läuft dieser Lehrgang schon? Dann zeigt die Seite weder Zähler noch
+      Wachenliste, und es kann niemand mehr dazukommen. */
+  const laeuftSchon = () => !document.querySelector('#schooling_free') && !panels().length;
+;
+
   /** Soll dieser Wache für den gewählten Lehrgang, aus dem Plan. */
+  /* Rechnet nicht mehr selbst, sondern fragt den geprüften Kern.
+     Die eigene Rechnung hier war die dritte Fassung derselben Formel und die
+     einzige ohne `anhaengerZaehlt` — sie zählte die Besatzung eines Anhängers
+     doppelt, einmal am Anhänger und einmal am Zugfahrzeug, das dieselben Leute
+     fährt. Nachgerechnet über alle 89 Kurs/Profil-Paare des eingebauten
+     Wunschbilds weichen genau zwei ab, beide beim `gw_wasserrettung`:
+     Wasserrettung 20 statt 12 (min 10 statt 2), SEG 10 statt 6 (min 5 statt 1).
+     Der erste Durchgang von `fill()` rechnet über `sollMin` — dort buchte er
+     also das Fünffache. Das ist die Regel aus D-19, die auf diesem Weg nie
+     ankam; `test-planung.js` hält sie in Probe 17 fest.
+
+     Nebenwirkung, gewollt: `T.target` geht über `T.profiles` und damit über
+     NICHT_PLANEN (D-40), und es liest `S.modell` frisch statt die Kopie, die
+     beim Seitenaufbau gezogen wurde und nie nachzieht. */
   function needFor(buildingId, buildingType, feld = 'max') {
     if (!inReichweite({ building_type: buildingType })) return 0;
-    // Das Wunschbild steht im eigenen Speicher, nicht mehr im Plan
-    const ps = (modell[buildingType]?.profiles) || {};
-    const a  = zuordnung[buildingId];
-    const prof = (a && ps[a]) ? ps[a] : ps[Object.keys(ps)[0]];
-    if (!prof) return 0;
     const key = curKey(); if (!key) return 0;
-    let seats = 0;
-    for (const [id, n] of Object.entries(prof.vehicles || {})) {
-      const meta = T.veh(id);
-      if (!meta?.kurse?.some(k => k.k === key)) continue;
-      seats += sitzeFuerKurs(meta, feld) * (Number(n) || 0);
-    }
-    return seats;
+    return bedarfDerWache({ id: buildingId, building_type: buildingType }, key)[feld] || 0;
   }
 
   /* Einmal ermittelte Zahlen bleiben gültig, auch wenn die Wache wieder
@@ -4203,92 +4431,142 @@ function educationPage() {
 
   /** Hakt so viele Personen an, wie in den Lehrgang passen — nach Bedarf
       sortiert, und nur bei Wachen, die auch wirklich welche brauchen. */
+  /** Darf diese schon ausgebildete Person in einen weiteren Lehrgang?
+      Regel (Sasha, 27.08.): ja, aber nur wenn der Lehrgang, den sie bereits
+      hat, an dieser Wache um mindestens die Hälfte über dem liegt, was die
+      Fahrzeuge brauchen, die ihn fordern. Sonst reißt die Ausbildung ein Loch
+      in eine Besetzung, die gerade steht — und der Grund gehört genannt.
+      Ungelernte gehen immer zuerst; das ist D-07 und bleibt. */
+  function darfInDenKurs(el, c) {
+    const eigene = [...c.attributes].filter(a => a.value === 'true').map(a => a.name);
+    if (!eigene.length) return { ok: true };
+    const id = idOf(el), typ = typeOf(el);
+    for (const k of eigene) {
+      const noetig = bedarfDerWache({ id, building_type: typ }, k).max;
+      if (!noetig) continue;                       // hier gar nicht verlangt
+      const da = trainedAt(id, k);
+      if (da === null) return { ok: false, grund: `${kursNamen(k)[0] || k} nicht erfaßt` };
+      if (da < noetig * 1.5)
+        return { ok: false, grund: `${kursNamen(k)[0] || k} ${da}/${noetig} — keine 50 % Überdeckung` };
+    }
+    return { ok: true };
+  }
+
   /** Öffnet eine Wache bei Bedarf und hakt bis zum Ziel an.
-      Gibt zurück, wie viele gesetzt wurden. */
-  async function fuelleWache(el, ziel, key, frei, geoeffnet, wiederZu) {
+      Gibt zurück, wie viele gesetzt wurden; Übergangenes wandert mit Begründung
+      nach `uebergangen`, damit am Ende nicht „nichts gefunden" dasteht, wo in
+      Wirklichkeit die Liste nicht geladen hat. */
+  async function fuelleWache(el, ziel, key, frei, geoeffnet, wiederZu, uebergangen) {
     if (ziel <= 0 || frei <= 0) return 0;
     const id = idOf(el);
     const body = el.querySelector(`.panel-body[building_id="${id}"]`);
     if (body && body.classList.contains('hidden')) {
-      alertBar(`Lade Personal von ${el.getAttribute('search_attribute') || id} …`);
-      el.querySelector('.personal-select-heading')?.click();
+      alertBar(`Lade Personal von ${nameVon(el)} …`);
+      const kopf = el.querySelector('.personal-select-heading');
+      if (!kopf) { uebergangen.push(`${nameVon(el)}: Kopfzeile zum Aufklappen nicht gefunden`); return 0; }
+      kopf.click();
       wiederZu.push(el);
       geoeffnet.n++;
       for (let i = 0; i < 20 && !body.querySelector('.schooling_checkbox'); i++) await sleep(150);
     }
     const boxes = [...(body?.querySelectorAll('.schooling_checkbox') || [])];
-    if (!boxes.length) return 0;
+    if (!boxes.length) {
+      uebergangen.push(`${nameVon(el)}: Personalliste nicht geladen`);
+      return 0;
+    }
 
     let offen = Math.max(0, ziel - boxes.filter(c => c.checked).length);
-    // Erst Ungelernte, damit Fachkräfte für ihre Fahrzeuge frei bleiben
+    /* Ungelernt oder nicht — erkannt am Ankreuzfeld selbst. Es trägt jeden
+       Lehrgangsschlüssel als Wahrheitswert. Früher wurde dafür
+       `#school_personal_education_<id>` befragt; das Element steht zwar da, ist
+       aber leer, also landeten ALLE im Topf „ungelernt" und die Reihenfolge,
+       für die D-07 geschrieben wurde, war wirkungslos. */
     const ohne = [], mit = [];
     for (const c of boxes) {
       if (c.checked || c.disabled || c.getAttribute(key) === 'true') continue;
-      const cell = document.querySelector('#school_personal_education_' + c.value);
-      ((cell && cell.textContent.trim()) ? mit : ohne).push(c);
+      ([...c.attributes].some(a => a.value === 'true') ? mit : ohne).push(c);
     }
+
     let gesetzt = 0;
-    for (const c of ohne.concat(mit)) {
+    for (const c of ohne) {
       if (!offen || frei - gesetzt <= 0) break;
+      c.checked = true; offen--; gesetzt++;
+    }
+    for (const c of mit) {
+      if (!offen || frei - gesetzt <= 0) break;
+      const urteil = darfInDenKurs(el, c);
+      if (!urteil.ok) { uebergangen.push(`${nameVon(el)}: übergangen — ${urteil.grund}`); continue; }
       c.checked = true; offen--; gesetzt++;
     }
     return gesetzt;
   }
+
 
   /** Hakt so viele Personen an, wie in den Lehrgang passen.
       Erst kommen alle Wachen auf die Mindestbesatzung, danach erst wird
       auf die volle Besatzung aufgefüllt. */
   async function fill() {
     if (!curKey()) { alertBar('Bitte oben zuerst einen Lehrgang auswählen.'); return 0; }
-    if (!Object.keys(modell).length) { alertBar('Kein Wunschbild vorhanden — im Planer unter „Plan“ anlegen.'); return 0; }
-
-    let frei = freiePlaetze();
-    if (frei <= 0) { alertBar('Keine freien Plätze. Mehr Klassenräume wählen oder Häkchen entfernen.'); return 0; }
-
-    const key = curKey();
-    const kandidaten = panels()
-      .filter(sichtbar)
-      /* Ohne den Schlüssel gibt `bedarf()` null zurück — und null hieß dann
-         „nichts offen“. Deshalb meldete „Bedarf anhaken“ alles als gedeckt,
-         während oben hundert fehlende Personen standen. */
-      .map(el => ({ el, d: bedarf(el, key) }))
-      .filter(x => x.d && x.d.soll > 0 && (x.d.offen === null || x.d.offen > 0));
-
-    if (!kandidaten.length) {
-      /* Zwei sehr verschiedene Gründe, früher unter einer Meldung: hier ist
-         wirklich nichts offen — oder es steht schlicht keine Wache im Bild,
-         etwa weil die Suche des Spiels filtert. */
-      const sichtbareWachen = panels().filter(sichtbar).length;
-      const ohneStand = panels().filter(sichtbar)
-        .filter(el => bedarf(el, key)?.vorhanden === null).length;
-      alertBar(!sichtbareWachen
-        ? 'Keine Wache sichtbar — Filter oder Suche des Spiels zurücksetzen.'
-        : ohneStand === sichtbareWachen
-          ? 'Der Ausbildungsstand dieser Wachen ist nicht erfaßt — im Planer unter „Ausbildung“ erfassen.'
-          : `Für ${kursNamen(key)[0] || key} ist bei allen ${sichtbareWachen} sichtbaren Wachen der Bedarf gedeckt.`);
+    if (!eigenesWunschbild()) {
+      alertBar('Kein eigenes Wunschbild angelegt — es gälte sonst die eingebaute Vorlage, '
+        + 'und die ist eine fremde Meinung. Im Planer unter „Plan“ anlegen oder die Vorlage dort übernehmen.');
       return 0;
     }
 
-    const geoeffnet = { n: 0 }, wiederZu = [];
+    let frei = freiePlaetze();
+    if (frei === null) {
+      alertBar(laeuftSchon()
+        ? 'Dieser Lehrgang läuft bereits — es kann niemand mehr dazukommen.'
+        : 'Die Zahl der freien Plätze steht nicht auf der Seite. Nichts angehakt.');
+      return 0;
+    }
+    if (frei <= 0) { alertBar('Keine freien Plätze. Mehr Klassenräume wählen oder Häkchen entfernen.'); return 0; }
+
+    const key = curKey();
+    /* Ohne den Schlüssel gibt `bedarf()` null zurück — und null hieß einmal
+       „nichts offen“ (D-58). Es heißt aber „nicht gemessen“, und danach wird
+       nicht gebucht: wer den Ausbildungsstand nicht kennt, bucht sonst das
+       volle Ziel, als wäre niemand ausgebildet. Diese Wachen werden benannt
+       und übersprungen (Sasha, 27.08.: „erst erfassen"). */
+    const alle = panels().filter(sichtbar).map(el => ({ el, d: bedarf(el, key) }));
+    const gefragt  = alle.filter(x => x.d && x.d.soll > 0);
+    const ohneStand = gefragt.filter(x => x.d.offen === null);
+    const gruen = gefragt.filter(x => x.d.offen !== null && x.d.offen > 0 && nurGruen(x.el));
+    const kandidaten = gefragt.filter(x => x.d.offen !== null && x.d.offen > 0 && !nurGruen(x.el));
+
+    if (!kandidaten.length) {
+      const sichtbareWachen = alle.length;
+      alertBar(!sichtbareWachen
+        ? 'Keine Wache sichtbar — Filter des LSS-Managers zurücksetzen.'
+        : ohneStand.length === gefragt.length && gefragt.length
+          ? `Der Ausbildungsstand dieser ${ohneStand.length} Wachen ist nicht erfaßt — `
+            + 'im Planer unter „Ausbildung“ erfassen, dann noch einmal.'
+          : gruen.length
+            ? `${gruen.length} Wachen tragen überall den grünen Punkt — deren Besatzung wird `
+              + 'nicht in Lehrgänge geschickt. Zum Ändern den Punkt dort entfernen.'
+            : `Für ${kursNamen(key)[0] || key} ist bei allen ${sichtbareWachen} sichtbaren Wachen der Bedarf gedeckt.`);
+      return 0;
+    }
+
+    const geoeffnet = { n: 0 }, wiederZu = [], uebergangen = [];
     let gesetzt = 0;
 
     // Durchgang 1: überall die Mindestbesatzung sicherstellen
     const rundeMin = kandidaten
-      .filter(x => (x.d.offenMin ?? x.d.sollMin) > 0)
-      .sort((a, b2) => (b2.d.offenMin ?? b2.d.sollMin) - (a.d.offenMin ?? a.d.sollMin));
+      .filter(x => x.d.offenMin > 0)
+      .sort((a2, b2) => b2.d.offenMin - a2.d.offenMin);
     for (const { el, d } of rundeMin) {
       if (frei <= 0) break;
-      const n = await fuelleWache(el, Math.min(d.offenMin ?? d.sollMin, frei), key, frei, geoeffnet, wiederZu);
+      const n = await fuelleWache(el, Math.min(d.offenMin, frei), key, frei, geoeffnet, wiederZu, uebergangen);
       frei -= n; gesetzt += n;
     }
 
     // Durchgang 2: auf die volle Besatzung auffüllen
     if (frei > 0) {
-      const rundeMax = kandidaten.slice()
-        .sort((a, b2) => (b2.d.offen ?? b2.d.soll) - (a.d.offen ?? a.d.soll));
+      const rundeMax = kandidaten.slice().sort((a2, b2) => b2.d.offen - a2.d.offen);
       for (const { el, d } of rundeMax) {
         if (frei <= 0) break;
-        const n = await fuelleWache(el, Math.min(d.offen ?? d.soll, frei), key, frei, geoeffnet, wiederZu);
+        const n = await fuelleWache(el, Math.min(d.offen, frei), key, frei, geoeffnet, wiederZu, uebergangen);
         frei -= n; gesetzt += n;
       }
     }
@@ -4303,12 +4581,24 @@ function educationPage() {
     const fr = document.querySelector('#schooling_free');
     if (fr) fr.textContent = String(Math.max(0, frei));
     refresh();
+
+    /* Die Meldung sagt den Grund, nicht nur das Ergebnis: wie viele Wachen
+       aufgeklappt wurden, wie viele übersprungen und warum. `geoeffnet` wurde
+       bisher gezählt und nie gelesen. */
+    const anhang = []
+      .concat(ohneStand.length ? [`${ohneStand.length} ohne erfaßten Stand übersprungen`] : [])
+      .concat(gruen.length ? [`${gruen.length} ganz grün, Besatzung geschützt`] : [])
+      .concat(uebergangen.length ? [`${uebergangen.length} übergangen`] : [])
+      .concat(geoeffnet.n ? [`${geoeffnet.n} Wachen aufgeklappt`] : []);
+    const schwanz = anhang.length ? ` (${anhang.join(', ')})` : '';
+    if (uebergangen.length) uebergangen.slice(0, 12).forEach(g => log(g, 'warn'));
     alertBar(gesetzt
-      ? `${gesetzt} Personen angehakt, ${Math.max(0, frei)} Plätze frei. `
+      ? `${gesetzt} Personen angehakt, ${Math.max(0, frei)} Plätze frei${schwanz}. `
         + `Jetzt unten auf „Ausbilden“ drücken.`
-      : 'Nichts angehakt — kein freier Platz oder keine passende Person gefunden.');
+      : `Nichts angehakt${schwanz || ' — keine passende Person gefunden'}.`);
     return gesetzt;
   }
+
 
   // Werkzeugleiste unter die Lehrgangsauswahl
   const bar = document.createElement('div');
@@ -4341,8 +4631,8 @@ function educationPage() {
       <b>Planer:</b> Wähle oben einen Lehrgang. Bei jeder Wache steht dann, wie viele Personen dort
       noch ausgebildet werden müssen. <b>Bedarf anhaken</b> füllt die freien Plätze des Lehrgangs
       — größter Bedarf zuerst. Abgeschickt wird nichts, das machst du selbst mit „Ausbilden“.
-      ${Object.keys(modell).length ? '' : '<br><b style="color:#a94442">Es gibt noch kein Wunschbild.</b> '
-        + 'Öffne den Planer im Hauptfenster, Reiter „Plan“.'}
+      ${eigenesWunschbild() ? '' : '<br><b style="color:#a94442">Es gibt noch kein eigenes Wunschbild.</b> '
+        + 'Bis dahin gälte die eingebaute Vorlage. Öffne den Planer im Hauptfenster, Reiter „Plan“.'}
       ${Object.keys(inAus).length ? '' :
         '<br><b style="color:#a94442">Laufende Ausbildungen sind nicht erfaßt.</b> '
         + 'Die Zahl steht auf der Zuweisungsseite jeder Wache, nicht hier — lass einmal '
@@ -4359,9 +4649,14 @@ function educationPage() {
     if (!selEdu) return;
     if (!S.buildings.length && !loadCached()) return;
 
-    // Einmal je Durchlauf rechnen, nicht je Option
-    // Nur Wachen, deren Personal diese Schule überhaupt ausbilden darf
-    const rows = courseTable(planWachen().filter(inReichweite));
+    /* Einmal je Durchlauf rechnen, nicht je Option. Nur Wachen, deren Personal
+       diese Schule überhaupt ausbilden darf — aber OHNE den roten Punkt
+       auszusortieren: auf der Lehrgangsseite zählt eine 🔴 Wache mit, und die
+       Beschriftung muß dieselbe Zahl nennen wie die Markierung an der Wache
+       daneben. Vorher stand hier `planWachen()`, das 🔴 herausfiltert — die
+       beiden Zahlen auf demselben Bildschirm widersprachen sich also.
+       Im Planer-Panel bleibt es beim Ausschluß (Sasha, 27.08.). */
+    const rows = courseTable(S.buildings.filter(inReichweite));
 
     for (const o of selEdu.querySelectorAll('option')) {
       if (!o.value.includes(':')) continue;
@@ -4437,6 +4732,7 @@ function educationPage() {
      nicht durch nachgeladene Panels. Sie gehört deshalb nicht in refresh(),
      sondern an die wenigen Stellen, an denen sich der Bedarf ändern kann. */
   auswahlBeschriften();
+  schulartNachtragen();   // trägt die Schulart nach, wenn der Bestand sie nicht hergab
   addEventListener('storage', e => {
     if (e.key === KEY_QUAL || e.key === KEY_PLAN) { reloadQuals(true); auswahlBeschriften(); }
   });
