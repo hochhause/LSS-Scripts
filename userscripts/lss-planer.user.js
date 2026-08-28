@@ -49,7 +49,13 @@ let chain = Promise.resolve();
    Ohne das lief eine angefangene Kette über hunderte Wachen weiter. */
 let lauf = null;
 const laufStarten = () => { lauf?.abort(); lauf = new AbortController(); return lauf.signal; };
-const laufStoppen = () => { lauf?.abort(); lauf = null; S.busy = false; };
+/* Der Regler bleibt stehen, auch nachdem abgebrochen wurde. Wer ihn hier auf
+   null setzt, löscht die einzige Spur des Abbruchs: `abgebrochen()` meldete
+   danach für immer „läuft weiter", und `queued` gab jeder folgenden Anfrage
+   gar kein Signal mehr mit. Der Stoppknopf brach dann genau eine Anfrage ab
+   und der Lauf schrieb den Rest der Wachen durch. Ersetzt wird der Regler in
+   `laufStarten`, nicht hier. */
+const laufStoppen = () => { lauf?.abort(); S.busy = false; };
 const abgebrochen = () => !!lauf?.signal.aborted;
 
 /* Kurzes Wegklicken soll nichts anhalten. Erst wenn der Tab länger als eine
@@ -1562,8 +1568,12 @@ const loescheWarte = id => { delete warte[id]; store.set(KEY_WARTE, warte); };
 /** Setzt den FMS-Status. Nur aus Status 2 heraus möglich. */
 async function setzeFms(v, ziel, dry) {
   if (v.fms_real !== 2 && ziel === 6) {
-    merkeWarte(v.id, ziel);
-    log(`   ${v.caption}: steht auf Status ${v.fms_real} — Umschaltung vorgemerkt`, 'warn');
+    /* Nur ein scharfer Lauf darf sich etwas vormerken. Stand das Merken
+       außerhalb dieser Sperre, schrieb schon die Vorschau in `fmsWarte` —
+       und der nächste scharfe Lauf holte die Umschaltung an einer Wache
+       nach, die gar nicht ausgewählt war. */
+    if (!dry) merkeWarte(v.id, ziel);
+    log(`   ${v.caption}: steht auf Status ${v.fms_real} — Umschaltung ${dry ? 'wäre vorgemerkt' : 'vorgemerkt'}`, 'warn');
     return false;
   }
   log(`   ${v.caption}: Status ${v.fms_real} → ${ziel}`);
@@ -1571,8 +1581,10 @@ async function setzeFms(v, ziel, dry) {
     await getAction(`/vehicles/${v.id}/set_fms/${ziel}`);
     v.fms_real = v.fms_show = ziel;
     merkeAenderung();
+    // Erledigt ist erst, was auch abgeschickt wurde — sonst löscht die
+    // Vorschau eine Vormerkung, die nie ausgeführt wurde.
+    loescheWarte(v.id);
   }
-  loescheWarte(v.id);
   return true;
 }
 
@@ -1915,10 +1927,16 @@ async function assignStaff(sel, dry) {
   let n = 0, unterwegs = 0;
   const ueberzaehlig = [];
 
-  // Vorgemerkte Umschaltungen nachholen, sofern das Fahrzeug daheim ist
+  /* Vorgemerkte Umschaltungen nachholen, sofern das Fahrzeug daheim ist —
+     aber nur an den Wachen, die für diesen Lauf gewählt sind. Ohne diese
+     Schranke arbeitete ein Lauf über Wache B die Vormerkungen von Wache A
+     mit ab, und der Mensch sah eine Änderung an einer Wache, die er gar
+     nicht angehakt hatte. */
+  const gewaehlteWachen = new Set(sel.map(b => String(b.id)));
   for (const [id, w] of Object.entries(warte)) {
     const v = S.vehicles.find(x => String(x.id) === String(id));
     if (!v) { loescheWarte(id); continue; }
+    if (!gewaehlteWachen.has(String(v.building_id))) continue;
     if (v.fms_real !== 2) continue;
     log(`Nachgeholt: ${v.caption}`);
     if (await setzeFms(v, w.ziel, dry)) n++;
@@ -3099,6 +3117,20 @@ function buildingList(filterFn = null) {
       wort ? 'Keine Wache paßt zur Suche.' : 'Alles erledigt.'}</div>`}</div>`;
 }
 
+/** Zeigt am Rahmen und im Kopf, ob der nächste Druck das Spiel verändert.
+    Eigene Funktion, weil das Häkchen „Nur Vorschau“ sie ebenfalls aufrufen
+    muß: es schrieb bisher nur `S.opts.dry` und zeichnete nicht neu, also
+    blieb der Rahmen grau und „SCHARF“ verborgen, bis irgendein anderer
+    Handler ein render() auslöste. Genau den Fall sollte D-35 verhindern. */
+function scharfZeigen() {
+  if (!el) return false;
+  const scharf = S.opts.dry === false && !['ueber', 'plan', 'lehrgang'].includes(tab);
+  el.classList.toggle('scharf', scharf);
+  const marke = el.querySelector('#lssp-scharf');
+  if (marke) marke.style.display = scharf ? '' : 'none';
+  return scharf;
+}
+
 function render() {
   if (!el) return;
   const b = el.querySelector('.body');
@@ -3107,10 +3139,7 @@ function render() {
   queueMicrotask(() => logKopfBinden(b));
   /* Scharf heißt: der nächste Druck verändert das Spiel. Das gehört an den
      Rahmen, nicht nur an ein Häkchen weiter unten. */
-  const scharf = S.opts.dry === false && !['ueber', 'plan', 'lehrgang'].includes(tab);
-  el.classList.toggle('scharf', scharf);
-  const marke = el.querySelector('#lssp-scharf');
-  if (marke) marke.style.display = scharf ? '' : 'none';
+  scharfZeigen();
 
   /* Ohne importierten Plan lief bisher gar nichts — obwohl seit v0.32 nur noch
      zwei Dinge daraus kommen: die Stellplatz-Töpfe und der Ausbaukatalog. Alles
@@ -3721,7 +3750,11 @@ function render() {
   });
   auswahlBinden(b);
   einzelBinden(b);
-  b.querySelector('#lssp-dry').onchange = e => { S.opts.dry = e.target.checked; store.set(KEY_OPTS, S.opts); };
+  b.querySelector('#lssp-dry').onchange = e => {
+    S.opts.dry = e.target.checked;
+    store.set(KEY_OPTS, S.opts);
+    scharfZeigen();               // sonst bleibt der rote Rahmen aus, bis etwas anderes neu zeichnet
+  };
   b.querySelector('#lssp-gruen')?.addEventListener('change', e => {
     S.opts.gruenFrei = e.target.checked;
     store.set(KEY_OPTS, S.opts);

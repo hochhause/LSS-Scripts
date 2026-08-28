@@ -857,3 +857,55 @@ dem Wurzelverzeichnis ins Leere laufen lassen — und dort steht der Aufruf in
 Die Tabellen in `daten/` sind **Auszüge**, nicht die Quelle. Gültig ist, was im
 Userscript steht; zwei Quellen für dieselbe Zahl laufen auseinander (D-47).
 
+## D-62 Der Abbruch muß sichtbar bleiben (v0.50.0)
+
+`laufStoppen()` setzte `lauf = null`. Damit war die einzige Spur des Abbruchs
+gelöscht: `abgebrochen()` liest `lauf?.signal.aborted` und meldete danach für
+immer „läuft weiter", und `queued()` nimmt `sig = lauf?.signal` beim Aufruf ab —
+also bekam jede folgende Anfrage gar kein Signal mehr mit.
+
+Der Stoppknopf brach damit genau **eine** laufende Anfrage ab; der Lauf ging
+weiter und schrieb den Rest der Wachen durch. Bei einem Haken-Lauf ist das
+besonders unangenehm: der abgebrochene Lesevorgang landet im stummen `catch`,
+`fertig` bleibt leer, und das Umbenennen nimmt allen übrigen Fahrzeugen den
+grünen Punkt wieder ab. Dazu setzte `laufStoppen` auch noch `S.busy = false`,
+das Panel sah also untätig aus, während es weiterschrieb.
+
+Der Regler bleibt jetzt stehen. Ersetzt wird er in `laufStarten()` — dort stand
+schon immer `lauf?.abort()` vor der Neuanlage, ein zweites Nullen war nie nötig.
+
+Verworfen: ein eigenes Abbruch-Flag neben dem Controller. Zwei Quellen für
+dieselbe Aussage sind genau die Falle, vor der CLAUDE.md warnt; der Controller
+weiß es bereits.
+
+## D-63 Die Vorschau darf sich nichts vormerken (v0.50.0)
+
+`setzeFms()` rief `merkeWarte()` vor der `dry`-Sperre und `loescheWarte()`
+dahinter. Eine Vorschau schrieb also in `lssplaner.fmsWarte` und löschte daraus.
+
+Zusammen mit dem Nachhol-Durchgang am Anfang von `assignStaff()`, der über
+**alle** Vormerkungen lief statt über die gewählten Wachen, ergab das den
+schlimmsten Fall, den dieses Werkzeug kennt: eine Vorschau an Wache A merkt
+Umschaltungen vor, ein scharfer Lauf an Wache B holt sie nach — an einer Wache,
+die der Mensch nie angehakt hat.
+
+Beides geändert: Vormerken und Löschen nur noch im scharfen Lauf, und der
+Nachhol-Durchgang bleibt in der Auswahl. Die Vorschau sagt jetzt „wäre
+vorgemerkt" statt „vorgemerkt", damit der Unterschied auch im Protokoll steht.
+
+## D-64 „SCHARF" muß sofort erscheinen (v0.50.0)
+
+Der Rahmen und die Marke „SCHARF" wurden nur in `render()` berechnet. Das
+Häkchen „Nur Vorschau" schrieb aber bloß `S.opts.dry` und zeichnete nicht neu —
+der Nachbar daneben („Grüne freigeben") ruft `render()` auf, dieses nicht.
+
+Damit war der übliche Ablauf genau der, den D-35 verhindern sollte: Reiter
+wählen, Häkchen entfernen, Knopf drücken. Rahmen grau, keine Marke, Credits weg.
+Sichtbar wurde es nur, wenn zufällig etwas anderes ein `render()` auslöste.
+
+`scharfZeigen()` ist jetzt eine eigene Funktion, die beide Wege aufrufen. Sie
+bleibt eine `function`-Deklaration, damit `pruefer.js` sie sieht (D-59).
+
+Nicht geändert, aber notiert: der Knopf trägt in beiden Fassungen dieselbe
+Aufschrift. Das gehört zur Oberflächenarbeit, nicht zu dieser Sperre.
+
