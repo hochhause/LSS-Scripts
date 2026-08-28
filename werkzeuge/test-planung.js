@@ -56,10 +56,10 @@ const echteVon = b => mineOf(b).filter(v => !istPlatzhalter(v));
 
 const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
            bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
-           courseNeed, bedarfDerWache, memoK };`)();
+           courseNeed, bedarfDerWache, memoK, fehltAn };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
-        courseNeed, bedarfDerWache, memoK } = kern;
+        courseNeed, bedarfDerWache, memoK, fehltAn } = kern;
 
 let fehler = 0;
 const pruefe = (name, ist, soll) => {
@@ -624,6 +624,36 @@ console.log('\n21. Einzelqualifizierte');
                 box(3, 'criminal_investigation')]);
   pruefe('beide Motorradfahrer gezählt', quals.by[1].police_motorcycle, 2);
   pruefe('der Dritte ebenfalls', quals.by[1].criminal_investigation, 1);
+}
+
+console.log('\n22. Haken: beide Anforderungskanäle, nicht nur Köpfe');
+{
+  /* Der Haken prüfte früher nur `alle` und zählte danach Köpfe. Ein Dekon-P
+     (Typ 53: min 1, est 6, dekon_p als `min`-Anforderung) galt damit mit einer
+     ungelernten Person als fertig -- und der grüne Punkt fror das fest. */
+  const kann = (...k) => new Set(k);
+  const dekon = fz(53);
+  S.byBuilding = new Map([[1, [dekon]]]);
+
+  pruefe('Dekon-P mit einem Ungelernten ist NICHT fertig',
+         !!fehltAn(dekon, [kann()]), true);
+  pruefe('Grund nennt den fehlenden Lehrgang',
+         /dekon_p/.test(fehltAn(dekon, [kann()])), true);
+  pruefe('sechs Ungelernte reichen auch nicht',
+         !!fehltAn(dekon, Array.from({ length: 6 }, () => kann())), true);
+  pruefe('sechs mit dekon_p sind fertig',
+         fehltAn(dekon, Array.from({ length: 6 }, () => kann('dekon_p'))), '');
+
+  // `alle` gilt für jeden Sitz: eine Person ohne den Kurs kippt das Fahrzeug
+  const gwW = fz(64);
+  S.byBuilding = new Map([[1, [gwW]]]);
+  const noetig = mindestBedarf(gwW);
+  const voll = Array.from({ length: noetig }, () => kann('gw_wasserrettung'));
+  pruefe('GW-Wasserrettung voll ausgebildet ist fertig', fehltAn(gwW, voll), '');
+  pruefe('einer ohne Lehrgang genügt zum Nein',
+         !!fehltAn(gwW, voll.slice(0, -1).concat([kann()])), true);
+  pruefe('zu wenige Personen wird zuerst gemeldet',
+         /von \d+ Personen/.test(fehltAn(gwW, [])), true);
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');

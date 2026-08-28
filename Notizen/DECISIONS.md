@@ -909,3 +909,75 @@ bleibt eine `function`-Deklaration, damit `pruefer.js` sie sieht (D-59).
 Nicht geändert, aber notiert: der Knopf trägt in beiden Fassungen dieselbe
 Aufschrift. Das gehört zur Oberflächenarbeit, nicht zu dieser Sperre.
 
+## D-65 Einsatzbereitschaft wird gelesen, nicht geraten (v0.50.0)
+
+`slimBuilding` warf `enabled` weg. `b.enabled` war damit nach jedem Laden
+`undefined`, und `undefined !== soll` ist immer wahr — `pflegeAusbauten` schickte
+also bei **jedem** scharfen Personallauf einen Umschalter an **jede** Wache mit
+Fahrzeugen im Grundtopf.
+
+`/buildings/<id>/active` kennt kein Ziel, es kippt nur — anders als
+`/set_fms/<ziel>` drei Zeilen weiter. Die Hälfte dieser Anfragen nahm also eine
+einsatzbereite Wache aus dem Dienst, während das Protokoll „einsatzbereit"
+meldete. Danach schrieb Zeile 1610 den geglaubten Wert lokal fest, und beim
+nächsten Bestandsladen fing es von vorn an.
+
+Am lebenden Spiel nachgesehen: `/api/buildings` **liefert** `enabled` mit
+`true`/`false`. Das Feld wurde nur beim Abmagern verworfen. Es steht jetzt in
+`slimBuilding`.
+
+Dazu eine Sperre: ist der Ist-Zustand kein Wahrheitswert, wird **nicht**
+geschaltet, sondern gemeldet. Bei einem Endpunkt, der kippt statt zu setzen,
+trifft eine Vermutung in der Hälfte der Fälle das Gegenteil — und niemand merkt
+es, weil danach der geglaubte Wert dasteht.
+
+## D-66 Belegte Bauplätze werden nicht ein zweites Mal gekauft (v0.50.0)
+
+Zwei Fehler in `analyseIntern`, beide kosten Credits und sind nicht rückholbar.
+
+Die Liste hieß `free` und war es nicht: sie enthielt **jede** Katalogstelle mit
+der gesuchten Bezeichnung, auch längst bebaute. `buildExtensions` nimmt davon
+die ersten `n` — also wurde auf besetzte Plätze bestellt. Bei einer Bezeichnung
+auf den Plätzen 4-7, von denen 4 und 5 stehen, ging die Bestellung an 4 und 5.
+
+Und gerechnet wurde gegen `builtExtensions`, das noch im Bau befindliche
+Ausbauten überspringt. Das ist für die Stellplatzzahl richtig — ein unfertiger
+Ausbau bringt keine Plätze — für die **Bestellung** aber falsch: eine Stunde
+später wurde derselbe Ausbau noch einmal gekauft.
+
+Deshalb jetzt zwei Sichten statt eines Schalters: `builtExtensions` bleibt, wie
+es ist, und `belegteAusbauten` zählt alles, was einen Platz besetzt — gebaut, im
+Bau oder abgeschaltet. Gefiltert wird nur dort, wo eine Bezeichnung **mehrere
+eigene** Katalogstellen hat; mehrfach baubare Ausbauten wie die „Zelle" teilen
+sich eine einzige Nummer, dort bliebe sonst keine Stelle übrig.
+
+Bewußt **nicht** mitgeändert: `Math.min(e.n, e.ids.length)` in
+`buildExtensions` deckelt mehrfach baubare Ausbauten weiterhin auf einen Kauf je
+Lauf. Zehn Zellen brauchen zehn Läufe. Das ist lästig, aber es kauft nichts
+Falsches — und es gehört in dieselbe Arbeit wie die Oberfläche, nicht in eine
+Sperre.
+
+## D-67 Der Haken prüft beide Anforderungskanäle (v0.50.0)
+
+`anforderung()` liefert zwei getrennte Forderungen: `alle` verlangt einen
+Lehrgang von **jedem** Sitz, `mind` verlangt eine **Anzahl** je Lehrgang.
+`hakenAbgleichen` prüfte nur `alle` und zählte danach Köpfe gegen
+`mindestBedarf`.
+
+Ein Dekon-P kam damit mit einer ungelernten Person auf den Haken: `alle` ist
+dort leer, ein Kopf reicht für `min 1`. `planeWache` verlangt für dasselbe
+Fahrzeug 6× `dekon_p` — zwei Antworten auf dieselbe Frage, und die falsche
+gewann, weil sie den Punkt setzt. Über `geschuetzt()` fror sie den falschen
+Zustand dann fest: genau der Lauf, der die Besatzung richten würde, meldete
+„grüne Fahrzeuge unangetastet".
+
+Neu ist `fehltAn(v, besatzung)`. Es prüft Kopfzahl, `alle` und `mind` in dieser
+Reihenfolge und liefert **den Grund als Text** — dieselbe Funktion beantwortet
+also „hat es den Haken verdient?" und „warum nicht?". Zwei Quellen für eine
+Aussage können damit nicht wieder auseinanderlaufen, und die Meldung nennt jetzt
+den fehlenden Lehrgang statt nur eine Kopfzahl.
+
+`fehltAn` liegt innerhalb der dritten Schnittmarke, ist also von
+`test-planung.js` erreichbar. Probe 22 deckt es ab; gegen die alte Fassung
+(mind-Kanal ignoriert) fallen davon drei Proben um.
+

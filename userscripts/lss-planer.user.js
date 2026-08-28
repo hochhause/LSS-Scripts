@@ -691,6 +691,14 @@ const T = {
 const slimBuilding = b => ({
   id: b.id, caption: b.caption, building_type: b.building_type,
   level: b.level, personal_count: b.personal_count,
+  /* Einsatzbereitschaft der Wache. Ohne dieses Feld war `b.enabled` nach jedem
+     Laden `undefined`, und `undefined !== soll` ist immer wahr — pflegeAusbauten
+     schickte also bei jedem scharfen Personallauf einen Umschalter an jede
+     Wache. `/buildings/<id>/active` kennt kein Ziel, es kippt nur; die Hälfte
+     dieser Anfragen nahm eine einsatzbereite Wache aus dem Dienst, während das
+     Protokoll „einsatzbereit" meldete. Die API liefert das Feld, es wurde beim
+     Abmagern nur verworfen. */
+  enabled: b.enabled,
   extensions: (b.extensions || []).map(e => ({
     type_id: e.type_id, caption: e.caption,
     available: e.available, enabled: e.enabled, available_at: e.available_at
@@ -817,6 +825,24 @@ function builtExtensions(b) {
   return m;
 }
 
+/* Was einen Bauplatz belegt — gebaut, noch im Bau oder abgeschaltet.
+   `builtExtensions` zählt absichtlich nur, was Stellplätze bringt, und
+   überspringt deshalb den Bau und das Abgeschaltete. Für die Bestellung ist
+   genau das falsch: ein Platz, auf dem schon etwas steht oder entsteht, darf
+   kein zweites Mal gekauft werden. Beide Sichten werden gebraucht, deshalb
+   zwei Funktionen statt eines Schalters.
+   `nummern` sind Bauplatznummern (der Index im Katalog), nicht Stückzahlen. */
+function belegteAusbauten(b) {
+  const proName = {}, nummern = new Set();
+  for (const e of b.extensions || []) {
+    if (!e) continue;
+    const cap = e.caption || T.extCat(b.building_type)[e.type_id] || `Ausbau ${e.type_id}`;
+    proName[cap] = (proName[cap] || 0) + 1;
+    if (e.type_id != null) nummern.add(Number(e.type_id));
+  }
+  return { proName, nummern };
+}
+
 /* Welche Ausbauten bringen Stellplätze? Aus den Pool-Definitionen des Layouts. */
 function slotGivingCaptions(bt) {
   const hit = memoG.get(bt);
@@ -912,15 +938,28 @@ function analyseIntern(b) {
     if (n > soll) res.vehSurplus.push({ id, n: n - soll, name: T.vehName(id) });
   }
 
-  const built = builtExtensions(b), cat = T.extCat(b.building_type), giving = slotGivingCaptions(b.building_type);
+  const cat = T.extCat(b.building_type), giving = slotGivingCaptions(b.building_type);
   const repeatable = {};
   cat.forEach(c => { if (c) repeatable[c] = (repeatable[c] || 0) + 1; });
+  const belegt = belegteAusbauten(b);
   for (const [cap, n] of Object.entries(tgt.extensions || {})) {
-    const d = (Number(n) || 0) - (built[cap] || 0);
+    /* Gegen das Belegte rechnen, nicht gegen das Fertige: sonst wird ein
+       Ausbau, der gerade gebaut wird, eine Stunde später ein zweites Mal
+       bestellt — bezahlt und nicht rückholbar. */
+    const d = (Number(n) || 0) - (belegt.proName[cap] || 0);
     if (d <= 0) continue;
-    const free = cat.map((c, i) => [c, i]).filter(([c]) => c === cap).map(([, i]) => i);
+    /* Die Liste hieß „free" und war es nicht: sie enthielt jede Katalogstelle
+       mit dieser Bezeichnung, auch die längst bebauten. buildExtensions nimmt
+       davon die ersten `n` — also wurde auf besetzte Plätze gekauft.
+       Mehrfach baubare Ausbauten (die „Zelle" 10×) teilen sich EINE
+       Katalognummer; dort darf nicht gefiltert werden, sonst bleibt keine
+       Stelle übrig. Gefiltert wird deshalb nur, wo eine Bezeichnung mehrere
+       eigene Plätze hat. */
+    const stellen = cat.map((c, i) => [c, i]).filter(([c]) => c === cap).map(([, i]) => i);
+    const frei = stellen.length > 1 ? stellen.filter(i => !belegt.nummern.has(i)) : stellen;
+    if (!frei.length) continue;                       // alles belegt, nichts zu bestellen
     res.extMissing.push({
-      caption: cap, n: d, ids: free,
+      caption: cap, n: d, ids: frei,
       rank: repeatable[cap] > 1 ? 2 : (giving.has(cap) ? 0 : 1)   // Stellplatz → sonstige → wiederholbar
     });
   }
@@ -1141,22 +1180,26 @@ async function hakenAbgleichen(sel, dry) {
     try { roster = await readRoster(b); } catch { /* dann eben ohne */ }
     if (roster) {
       const eigene = new Map(mineOf(b).map(v => [String(v.id), v]));
-      const drauf = new Map();
+      /* Je Fahrzeug die Lehrgänge seiner Leute sammeln. Vorher wurde hier
+         schon gefiltert und nur noch gezählt — damit ging verloren, WER was
+         kann, und `mind` ließ sich gar nicht mehr prüfen. */
+      const besatzung = new Map();
       for (const p of roster.people) {
         if (!p.assignedTo || !eigene.has(p.assignedTo)) continue;
         const v = eigene.get(p.assignedTo);
         // „In Ausbildung“ zählt hier wie fertig — nur der FMS-Status wartet.
         const kann = new Set([...p.quals, ...(p.inAusbildung || [])]);
-        const a = anforderung(v);
-        if (a.alle.length && !a.alle.every(k => kann.has(k))) continue;
-        drauf.set(v.id, (drauf.get(v.id) || 0) + 1);
+        if (!besatzung.has(v.id)) besatzung.set(v.id, []);
+        besatzung.get(v.id).push(kann);
       }
       /* Der Haken gilt ab Mindestbesetzung, nicht ab vollem Fahrzeug. */
-      const fertig = new Map();
+      const fertig = new Map(), mangel = new Map();
       for (const v of echteVon(b)) {
         const meta = T.veh(v.vehicle_type);
         if (!meta || !meta.max) continue;
-        fertig.set(v.id, (drauf.get(v.id) || 0) >= mindestBedarf(v));
+        const fehlt = fehltAn(v, besatzung.get(v.id) || []);
+        mangel.set(v.id, fehlt);
+        fertig.set(v.id, !fehlt);
       }
       const ohnePunkt = [];
       for (const v of echteVon(b)) {
@@ -1177,7 +1220,7 @@ async function hakenAbgleichen(sel, dry) {
           ohnePunkt.push(`${ohneHaken(v.caption)}: ` + (!meta.max
             ? (!v.zugfahrzeug ? 'kein Zugfahrzeug'
                : `${zug ? ohneHaken(zug.caption) : 'Zugfahrzeug'} hat keine Mindestbesetzung`)
-            : `${drauf.get(v.id) || 0} von ${mindestBedarf(v)} mit passendem Lehrgang`));
+            : (mangel.get(v.id) || 'nicht besetzbar')));
         }
 
         const kern = ohneHaken(v.caption);
@@ -1559,6 +1602,32 @@ function mindestBedarf(v) {
   return T.veh(v.vehicle_type) ? anforderung(v).min : 0;
 }
 
+/** Was dieser Besatzung zum Haken fehlt — leerer Text heißt: nichts.
+    `besatzung` ist je Person die Menge ihrer Lehrgänge (fertige und laufende).
+
+    Zwei Kanäle sind zu decken, und der Haken prüfte bisher nur den ersten:
+    `alle` verlangt einen Lehrgang von JEDEM Sitz, `mind` verlangt eine Anzahl
+    je Lehrgang. Ein Dekon-P mit einer ungelernten Person kam deshalb auf den
+    Haken — `alle` ist dort leer, und gezählt wurden nur Köpfe —, während
+    planeWache für dasselbe Fahrzeug 6× dekon_p verlangt. Der Punkt fror diesen
+    falschen Zustand über geschuetzt() dann fest, und genau der Lauf, der die
+    Besatzung richten würde, meldete „grüne Fahrzeuge unangetastet".
+
+    Dieselbe Funktion liefert die Begründung, damit Haken und Meldung nicht
+    wieder auseinanderlaufen können. */
+function fehltAn(v, besatzung) {
+  const a = anforderung(v);
+  const min = mindestBedarf(v);
+  if (besatzung.length < min) return `${besatzung.length} von ${min} Personen`;
+  const ohne = a.alle.filter(k => !besatzung.every(kann => kann.has(k)));
+  if (ohne.length) return `nicht alle haben ${ohne.map(k => kursNamen(k)[0] || k).join(', ')}`;
+  for (const [k, noetig] of a.mind) {
+    const da = besatzung.filter(kann => kann.has(k)).length;
+    if (da < noetig) return `${da} von ${noetig} mit ${kursNamen(k)[0] || k}`;
+  }
+  return '';
+}
+
 /* Umschaltungen, die gerade nicht möglich waren, weil das Fahrzeug
    unterwegs ist. Werden beim nächsten Personallauf nachgeholt. */
 const warte = store.get(KEY_WARTE, {});
@@ -1617,7 +1686,14 @@ async function pflegeAusbauten(b, dry) {
   const grund = lay.pools.find(p => p.from === 'level' || p.from === 'fixed');
   if (grund) {
     const soll = bereit(proTopf.get(grund.key) || []);
-    if (b.enabled !== soll && (proTopf.get(grund.key) || []).length) {
+    /* Ein unbekannter Ist-Zustand ist kein Grund zu schalten. Der Endpunkt
+       kippt nur, er setzt nicht — wer aus Unwissen kippt, trifft in der Hälfte
+       der Fälle das Gegenteil und merkt es nie, weil danach der geglaubte Wert
+       lokal steht. Lieber eine Lücke melden als eine Vermutung einsetzen. */
+    if (typeof b.enabled !== 'boolean') {
+      log(`   Wache ${b.caption}: Einsatzbereitschaft nicht bekannt — nicht angefaßt `
+        + `(Bestand neu laden)`, 'warn');
+    } else if (b.enabled !== soll && (proTopf.get(grund.key) || []).length) {
       log(`   Wache ${b.caption}: ${soll ? 'einsatzbereit' : 'nicht einsatzbereit'}`);
       if (!dry) { await getAction(`/buildings/${b.id}/active`); b.enabled = soll; merkeAenderung(); }
       n++;
