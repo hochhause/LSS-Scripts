@@ -1,0 +1,36 @@
+# Rauchtest v0.50.0 — Mitschrift
+# Namen von Personen und Fahrzeugen sind entfernt: die Ablage ist öffentlich,
+# und der Inhalt eines Kontos gehört nicht hinein. Was zählt, ist der Ablauf.
+
+Bestand laden …
+geladen, Wachenzeilen im Rumpf: 7
+Übersicht     1645 Zeichen  „Personal-Puffer % Bestand gera“
+Plan          2138 Zeichen  „Hier steht, wie eine Wache aussehen soll. Alles andere im “
+Bestand        670 Zeichen  „Um einen Ausbau zu bestellen, braucht das Spiel die Nummer“
+   └ Ausbauten      670 Zeichen  „Um einen Ausbau zu bestellen, braucht das Spiel die Nummer“
+   └ Kaufen        8500 Zeichen  „Kauft alle Fahrzeuge, die gegenüber dem Plan fehlen. Koste“
+   └ Verkaufen     5309 Zeichen  „Verkauft Fahrzeuge, die der Plan nicht vorsieht. Das lässt“
+Personal      4607 Zeichen  „Verteilt vorhandenes Personal auf die Fahrzeuge: erst Ausg“
+   └ Zuweisen      4607 Zeichen  „Verteilt vorhandenes Personal auf die Fahrzeuge: erst Ausg“
+   └ Werben        3939 Zeichen  „Startet an unterbesetzten Wachen eine dreitägige Bewerbung“
+   └ Anhänger koppeln  1416 Zeichen  „Ordnet jedem Anhänger ein festes Zugfahrzeug zu. Braucht e“
+   └ Alles lösen   4281 Zeichen  „Nimmt alle Personen von den Fahrzeugen einer Wache. Gedach“
+Ausbildung    1450 Zeichen  „Hier siehst du, wie viele Personen je Lehrgang ausgebildet“
+Namen         1445 Zeichen  „Benennt Wachen um: Wer von A bis Z fertig ist — Ausbauten,“
+
+Vorschau-Häkchen da: true | Ausführen-Knopf: "Personal zuweisen"
+abgewählt  -> Rahmen scharf: true | Marke sichtbar: true
+angehakt   -> Rahmen scharf: false
+Lauf mit Nur Vorschau …
+   <Wache>: <Person> → <Fahrzeug>   [Namen entfernt, Ablage ist öffentlich]
+   <Wache>: <Person> → <Fahrzeug>   [Namen entfernt, Ablage ist öffentlich]
+   <Wache>: <Person> → <Fahrzeug>   [Namen entfernt, Ablage ist öffentlich]
+      <Fahrzeug>: Status 2 → 6
+      <Fahrzeug>: Status 2 → 6
+      Wache THW 4: einsatzbereit
+   16x übergangen, weil grün markiert — zum Ändern in der Kopfzeile „Grüne freigeben“ ankreuzen
+   Vorschau: 112 Aktionen
+
+== Ergebnis ==
+abgebrochene Konto-Schreibversuche: 0
+Skriptfehler: 0

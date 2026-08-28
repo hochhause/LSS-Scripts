@@ -1140,3 +1140,35 @@ Kursname der Schule ist nicht der Name in der Personalliste; beim letzten der
 vier stehen die Wörter sogar in umgekehrter Reihenfolge. Gerechnet wird ohnehin
 über Schlüssel (D-09), die Namen sind Beschriftung.
 
+## D-74 Vor dem Ausliefern im Spiel angesehen (v0.50.0)
+
+`CLAUDE.md` verlangt es, und bei 526 geänderten Zeilen im Planer wäre alles
+andere leichtsinnig: die Oberfläche hat keine Testabdeckung, und `main` wird
+jeder Installation als Aktualisierung angeboten.
+
+Angesehen wurde mit einem angemeldeten Browser, das Skript wie von Tampermonkey
+eingespielt. Schreibende Anfragen waren dabei auf Netzebene **abgeschaltet** —
+ein Rauchtest darf das Konto nicht anfassen, auch nicht versehentlich.
+
+Ergebnis (`Notizen/rauchtest-0.50.0.txt`):
+
+- Panel zeichnet, alle sechs Gruppen und elf Reiter mit Inhalt, kein leerer Rumpf.
+- Bestand lädt in ~12 s über drei Abrufe; die Zeiger-Blätterung (`after=…`)
+  greift, danach `/api/alliance_buildings` für die Schulnamen.
+- **Häkchen „Nur Vorschau" abgewählt → Rahmen scharf, Marke sichtbar; wieder
+  angehakt → zurück.** Damit ist D-64 im Spiel bestätigt, nicht nur im Code.
+- Ein Lauf „Personal zuweisen" mit Vorschau: 112 Aktionen angekündigt, 16
+  Fahrzeuge wegen des grünen Punktes übergangen.
+- **Null Schreibversuche, null Skriptfehler.** Die Vorschau schreibt also
+  wirklich nichts mehr — D-63 im Spiel bestätigt.
+
+Nebenbei aufgefallen und mitgenommen: die Schutzmeldung schickte den Menschen
+„in die Kopfzeile", wo der Schalter nie war. Er sitzt unten neben „Nur
+Vorschau". Das ist die Meldung, die genau dann erscheint, wenn ein Lauf weniger
+getan hat als erwartet — die falsche Wegbeschreibung darin ist teurer als sie
+aussieht.
+
+Nicht abgedeckt und weiterhin offen: der scharfe Lauf selbst, das eigene Fenster
+(⇱), der Hinweis auf der Wachenseite und die Lehrgangsseite im Lightbox-Rahmen.
+Die stehen in `NAECHSTER_SCHRITT.md`.
+

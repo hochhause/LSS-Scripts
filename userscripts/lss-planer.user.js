@@ -1092,7 +1092,7 @@ const schutzZaehlen = () => { uebergangen++; };
 function schutzMelden() {
   if (!uebergangen) return;
   log(`${uebergangen}x übergangen, weil grün markiert — `
-    + `zum Ändern in der Kopfzeile „Grüne freigeben“ ankreuzen`, 'warn');
+    + `zum Ändern unten neben „Nur Vorschau“ das Häkchen „Grüne freigeben“ setzen`, 'warn');
   uebergangen = 0;
 }
 
