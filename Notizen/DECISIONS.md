@@ -1172,3 +1172,94 @@ Nicht abgedeckt und weiterhin offen: der scharfe Lauf selbst, das eigene Fenster
 (⇱), der Hinweis auf der Wachenseite und die Lehrgangsseite im Lightbox-Rahmen.
 Die stehen in `NAECHSTER_SCHRITT.md`.
 
+## D-75 SEG: Anh TeSi gehört dazu, also 2/2/2 (v0.51.0)
+
+Der Anh TeSi galt im Wunschbild als entbehrlich und fehlte. Er wird aber
+getrennt angefordert — GW TeSi, MTW TeSi und Anh TeSi braucht es in gleicher
+Zahl.
+
+Die SEG war dabei schon voll: 28 Stellplätze bei vollem Ausbau
+(1 fest + 1+4+3+2+1+10+6 aus den sieben Ausbauten), und der Plan füllte sie
+genau aus. Am Spiel nachgesehen: alle drei SEG-Wachen haben 7 von 7 Ausbauten,
+die Zahl stimmt also.
+
+Drei Wege standen zur Wahl; entschieden wurde für **2/2/2**, weil dabei kein
+anderes Fahrzeug weichen muß:
+
+| | Stellplätze | TeSi-Lehrgang min/max |
+|---|---|---|
+| vorher 3/3/0 | 28/28 | 6 / 36 |
+| **jetzt 2/2/2** | **28/28** | **4 / 24** |
+| 3/3/3 | 31/28 ✗ | 6 / 36 |
+
+Bemerkenswert und der Grund, warum der Anhänger überhaupt hineinpaßt: er kostet
+**keine zusätzliche Ausbildung**. `anhaengerZaehlt` (D-19) deckelt seine
+Anforderung auf die Sitze des Zugfahrzeugs — seine zwei Leute sind die Besatzung
+des GW oder MTW, nicht zusätzliche Köpfe. Zugfahrzeuge gibt es mit 2+2 genug für
+zwei Anhänger.
+
+Geändert wurde `MODELL_STANDARD` im Userscript, der Auszug in
+`daten/lss-modell-standard.json` ist nachgezogen.
+
+**Wichtig für den Betrieb:** das ist die *eingebaute Vorlage*. Wer bereits ein
+eigenes Wunschbild gespeichert hat, merkt davon nichts — sein Plan liegt in
+`lssplaner.modell`. Übernommen wird die neue Fassung im Reiter „Plan" über
+„Standard für SEG", und das überschreibt die eigenen Änderungen an dieser
+Gebäudeart.
+
+## D-76 Der Punkt der Wache folgt den Punkten ihrer Fahrzeuge (v0.51.0)
+
+Bisher bekam eine Wache den grünen Punkt erst, wenn **alles** stimmte: Ausbauten
+gebaut, Fahrzeuge gekauft, nichts überzählig, niemand unterbesetzt, jeder
+Anhänger gekoppelt, jede Ausbildung erledigt. Und ohne erfaßten
+Ausbildungsstand gab es gar kein Urteil — die Wache wurde übersprungen.
+
+Neu, auf Wunsch: **eine Wache trägt den Punkt, wenn jedes ihrer Fahrzeuge ihn
+trägt.** Sonst nichts.
+
+Das hat drei Folgen, die alle gewollt sind:
+
+- Der Punkt sagt jetzt dasselbe wie die Punkte darunter — er ist ihre Summe,
+  keine zweite, strengere Rechnung. Zwei Antworten auf dieselbe Frage können
+  damit nicht mehr auseinanderlaufen.
+- Personal- und Lehrgangszahlen entscheiden **nicht mehr** über den Punkt.
+  Damit fällt auch die Sperre „nicht beurteilbar, weil der Ausbildungsstand
+  fehlt": das Urteil braucht sie nicht mehr. Was an der Wache sonst noch
+  aussteht, steht weiterhin in der Meldung — es entscheidet nur nicht mehr.
+- Fehlende Fahrzeuge und ungebaute Ausbauten hindern den Punkt nicht. Eine
+  halb ausgebaute Wache, deren vorhandene Fahrzeuge alle besetzt sind, ist
+  jetzt grün. Das ist der Preis der Vereinfachung und war der Wunsch.
+
+Umgesetzt in **einer** Funktion, `stationsPunkt(b, frisch)`, die sowohl
+`fortschritt()` als auch der Haken-Lauf benutzt. Gelesen wird am Namen der
+Fahrzeuge, nicht aus einer zweiten Rechnung. Der Haken-Lauf reicht zusätzlich
+die gerade erst ermittelten Punkte herein, weil sie in der Vorschau noch nicht
+im Namen stehen — ohne das urteilte die Vorschau über den Stand von vorher.
+
+Zwei Feinheiten, absichtlich so:
+- `mineOf` statt `echteVon`: ein eben gekauftes, noch vorgemerktes Fahrzeug
+  trägt keinen Punkt und soll die Wache nicht fertig aussehen lassen.
+- Eine Wache **ohne** Fahrzeuge ist nicht fertig, sondern leer. Ohne diese
+  Ausnahme wäre die Aussage „alle Fahrzeuge tragen den Punkt" leer wahr.
+
+`offen` in `fortschritt()` bleibt unverändert und zählt weiter alles auf — davon
+leben die Listen, die Übersicht und der Hinweis auf der Wachenseite.
+
+### Wirkung am eigenen Konto, gemessen (27.08.)
+
+103 Gebäude: 9 ohne Fahrzeuge (nach neuer Regel nie fertig), 47 mit lauter
+grünen Fahrzeugen (bekommen den Punkt), 47 nur teilweise grün. Den Punkt tragen
+heute 49 Wachen.
+
+Neu grün werden **SEG 01** (28/28 Fahrzeuge) und **PolHub** (8/8) — beide waren
+bisher wegen offener Ausbauten oder Ausbildungen zurückgehalten. Umgekehrt
+erfüllen zwei Wachen mit Punkt die Regel nicht mehr; sie behalten ihn trotzdem,
+weil `geschuetzt()` das Wegnehmen sperrt, solange „Grüne freigeben" nicht
+angehakt ist (D-27). Das ist gewollt: den Punkt nimmt der Mensch weg, nicht der
+Lauf nebenbei.
+
+Im Vorschaulauf über 94 Wachen nachgesehen: die Meldung nennt jetzt den neuen
+Grund — „Feuer 11: kein Punkt — 6 von 20 Fahrzeugen ohne Punkt (außerdem offen:
+30 Fahrzeuge fehlen, 6 überzählig, 22 Ausbildungen)". Null Schreibversuche,
+null Skriptfehler.
+

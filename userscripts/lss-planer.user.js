@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.50.0
+// @version      0.51.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.50.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.51.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -252,7 +252,7 @@ const MODELL_STANDARD = {
   "6": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"32":12,"98":3,"94":1,"103":1,"95":2,"184":2},"pools":{"32":"normal","98":"normal","94":"hund","103":"dgl","95":"motorrad","184":"ap"},"extensions":{"Zelle":10,"Diensthundestaffel":1,"Kriminalpolizei":1,"Dienstgruppenleitung":1,"Motorradstaffel":1,"Autobahnpolizei":1}},"standard-groß":{"vehicles":{"32":20,"98":5,"94":1,"103":1,"95":2,"184":2,"52":1},"pools":{"32":"normal","98":"normal","94":"hund","103":"dgl","95":"motorrad","184":"ap","52":"gefkw"},"extensions":{"Zelle":10,"Diensthundestaffel":1,"Kriminalpolizei":1,"Dienstgruppenleitung":1,"Motorradstaffel":1,"Autobahnpolizei":1,"Großwache":1,"Großgewahrsam":1}}}},
   "9": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"39":2,"41":2,"110":2,"40":2,"124":2,"93":2,"92":2,"45":1,"42":1,"43":1,"44":1,"65":1,"66":1,"67":1,"68":1,"69":1,"100":1,"123":1,"101":1,"102":1,"109":1,"122":1,"112":1,"125":1,"144":1,"145":1,"146":1,"147":1,"148":1,"176":1,"177":1,"178":1,"181":1,"182":1,"183":1},"pools":{"39":"gesamt","41":"gesamt","110":"gesamt","40":"gesamt","124":"gesamt","93":"gesamt","92":"gesamt","45":"gesamt","42":"gesamt","43":"gesamt","44":"gesamt","65":"gesamt","66":"gesamt","67":"gesamt","68":"gesamt","69":"gesamt","100":"gesamt","123":"gesamt","101":"gesamt","102":"gesamt","109":"gesamt","122":"gesamt","112":"gesamt","125":"gesamt","144":"gesamt","145":"gesamt","146":"gesamt","147":"gesamt","148":"gesamt","176":"gesamt","177":"gesamt","178":"gesamt","181":"gesamt","182":"gesamt","183":"gesamt"},"extensions":{"1. Technischer Zug: Fachgruppe Notversorgung/Notinstandsetzung":1,"1. Technischer Zug: Zugtrupp":1,"2. Technischer Zug - Bergungsgruppe":1,"2. Technischer Zug: Fachgruppe Notversorgung/Notinstandsetzung":1,"2. Technischer Zug: Zugtrupp":1,"Fachgruppe Räumen":1,"Fachgruppe Wassergefahren":1,"Fachgruppe Ortung":1,"Fachgruppe Wasserschaden/Pumpen":1,"Fachgruppe Schwere Bergung":1,"Fachgruppe Elektroversorgung":1,"Ortsverbands-Mannschaftstransportwagen":1,"Trupp Unbemannte Luftfahrtsysteme":1,"Fachzug Führung und Kommunikation":1,"Fachgruppe Logistik-Verpflegung":1,"Fachgruppe Brückenbau":1}}}},
   "11": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"50":9,"35":4,"51":5,"72":3,"52":1,"80":2,"79":6,"82":2,"81":6,"94":3,"135":3,"137":3,"165":1},"pools":{"50":"gesamt","35":"gesamt","51":"gesamt","72":"gesamt","52":"gesamt","80":"gesamt","79":"gesamt","82":"gesamt","81":"gesamt","94":"gesamt","135":"gesamt","137":"gesamt","165":"gesamt"},"extensions":{"2. Zug der 1. Hundertschaft":1,"3. Zug der 1. Hundertschaft":1,"Sonderfahrzeug: Gefangenenkraftwagen":1,"Technischer Zug: Wasserwerfer":1,"SEK: 1. Zug":1,"SEK: 2. Zug":1,"MEK: 1. Zug":1,"MEK: 2. Zug":1,"Diensthundestaffel":1,"Reiterstaffel":1,"Sonderfahrzeug: Lautsprecherkraftwagen":1}}}},
-  "12": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"59":1,"60":1,"28":1,"58":3,"64":1,"63":1,"70":1,"91":2,"127":1,"133":4,"132":1,"130":2,"131":3,"171":3,"173":3},"pools":{"59":"gesamt","60":"gesamt","28":"gesamt","58":"gesamt","64":"gesamt","63":"gesamt","70":"gesamt","91":"gesamt","127":"gesamt","133":"gesamt","132":"gesamt","130":"gesamt","131":"gesamt","171":"gesamt","173":"gesamt"},"extensions":{"Führung":1,"Sanitätsdienst":1,"Wasserrettung":1,"Rettungshundestaffel":1,"SEG Drohne":1,"Betreuungs- und Verpflegungsdienst":1,"Technik und Sicherheit":1}}}},
+  "12": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"59":1,"60":1,"28":1,"58":3,"64":1,"63":1,"70":1,"91":2,"127":1,"133":4,"132":1,"130":2,"131":3,"171":2,"173":2,"174":2},"pools":{"59":"gesamt","60":"gesamt","28":"gesamt","58":"gesamt","64":"gesamt","63":"gesamt","70":"gesamt","91":"gesamt","127":"gesamt","133":"gesamt","132":"gesamt","130":"gesamt","131":"gesamt","171":"gesamt","173":"gesamt","174":"gesamt"},"extensions":{"Führung":1,"Sanitätsdienst":1,"Wasserrettung":1,"Rettungshundestaffel":1,"SEG Drohne":1,"Betreuungs- und Verpflegungsdienst":1,"Technik und Sicherheit":1}}}},
   "13": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"61":2,"96":1},"pools":{"61":"normal","96":"normal"},"extensions":{"Außenlastbehälter":1,"Windenrettung":1}}}},
   "15": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"64":2,"63":2,"70":2},"pools":{"64":"normal","63":"normal","70":"normal"},"extensions":{}}}},
   "17": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"51":4,"79":6,"80":2,"81":6,"82":2,"94":3},"pools":{"51":"gesamt","79":"gesamt","80":"gesamt","81":"gesamt","82":"gesamt","94":"gesamt"},"extensions":{"SEK: 1. Zug":1,"SEK: 2. Zug":1,"MEK: 1. Zug":1,"MEK: 2. Zug":1,"Diensthundestaffel":1}}}},
@@ -1004,6 +1004,24 @@ const ruhtUm = id => {
 };
 
 /** Einzelne Bereiche einer Wache: fertig, offen oder unbekannt. */
+/** Trägt diese Wache den Punkt? Neue Regel (Sasha, 27.08.): nicht mehr
+    „alles erledigt", sondern **jedes Fahrzeug hier trägt seinen Punkt**.
+
+    Gelesen wird an den Namen der Fahrzeuge, nicht aus einer zweiten Rechnung —
+    so können Wachen- und Fahrzeugurteil gar nicht auseinanderlaufen. `frisch`
+    reicht der Haken-Lauf herein: dort sind die Punkte gerade erst ermittelt,
+    und in der Vorschau stehen sie noch nicht im Namen.
+
+    `mineOf` statt `echteVon`: ein eben gekauftes, noch vorgemerktes Fahrzeug
+    trägt keinen Punkt und soll die Wache auch nicht fertig aussehen lassen.
+    Eine Wache ganz ohne Fahrzeuge ist nicht fertig, sondern leer — sonst wäre
+    die Aussage leer wahr. */
+function stationsPunkt(b, frisch = null) {
+  const fz = mineOf(b);
+  if (!fz.length) return false;
+  return fz.every(v => (frisch && frisch.has(v.id)) ? frisch.get(v.id) : hatHaken(v.caption));
+}
+
 function fortschritt(b) {
   const a = analyse(b);
   const fz = S.byBuilding.get(b.id) || [];
@@ -1040,7 +1058,10 @@ function fortschritt(b) {
     ausbau, kauf, weg, personal, personalUnklar, anhaenger, lehrgang, lehrgangUnklar,
     offen,
     unklar: personalUnklar > 0 || lehrgangUnklar,
-    fertig: offen === 0 && personalUnklar === 0 && !lehrgangUnklar
+    /* `offen` bleibt, was es war: die vollständige Liste dessen, was an dieser
+       Wache noch aussteht — davon leben die Reiter und der Hinweis auf der
+       Wachenseite. Der PUNKT hängt seit v0.51.0 aber nur noch an den Fahrzeugen. */
+    fertig: stationsPunkt(b)
   };
 }
 
@@ -1187,7 +1208,7 @@ async function zuweisungenLoeschen(sel, dry) {
 
 /** Setzt oder entfernt das Häkchen je nach Fortschritt. */
 async function hakenAbgleichen(sel, dry) {
-  let n = 0, unklar = 0, i = 0;
+  let n = 0, i = 0;
   for (const b of sel) {
     schritt(i++, sel.length, b.caption);
     if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
@@ -1196,6 +1217,7 @@ async function hakenAbgleichen(sel, dry) {
        den nötigen Lehrgang hat, verrät nur die Zuweisungsseite — ein
        Abruf je Wache, derselbe wie beim Personallauf. */
     let roster = null;
+    const punktSoll = new Map();   // Fahrzeug-Id -> soll den Punkt tragen
     try { roster = await readRoster(b); } catch { /* dann eben ohne */ }
     if (roster) {
       const eigene = new Map(mineOf(b).map(v => [String(v.id), v]));
@@ -1230,6 +1252,9 @@ async function hakenAbgleichen(sel, dry) {
         const voll = meta.max
           ? fertig.get(v.id)
           : !!v.zugfahrzeug && fertig.get(v.zugfahrzeug) === true;
+        // Für das Urteil über die Wache: in der Vorschau steht der Punkt noch
+        // nicht im Namen, hier ist er aber schon bekannt.
+        punktSoll.set(v.id, !!voll);
 
         if (!voll) {
           /* Ohne Begründung ist eine fehlende Markierung nicht von einem
@@ -1259,36 +1284,39 @@ async function hakenAbgleichen(sel, dry) {
     }
 
     const f = fortschritt(b);
-    if (f.unklar) {                                 // kein Urteil ohne Zahlen
-      unklar++;
-      /* Zwei ganz verschiedene Gründe, früher unter einer Meldung: der
-         Ausbildungsstand fehlt, oder der Bestand kennt die Besatzung eines
-         Fahrzeugs nicht. Wer das nicht auseinanderhält, erfasst zum dritten
-         Mal den Ausbildungsstand und wundert sich. */
-      log(`${b.caption}: nicht beurteilbar — ${f.lehrgangUnklar
-        ? 'Ausbildungsstand dieser Wache nicht erfasst'
-        : `${f.personalUnklar} Fahrzeuge ohne bekannte Besatzung, „Bestand neu laden“ hilft`}`, 'warn');
-      continue;
+    /* Das Urteil über die Wache braucht seit v0.51.0 keine Personal- oder
+       Lehrgangszahlen mehr — es hängt allein an den Punkten der Fahrzeuge, und
+       die stehen entweder im Namen oder sind gerade eben ermittelt worden.
+       Ohne gelesenen Bestand ginge es trotzdem nicht: dann steht kein Fahrzeug
+       zur Verfügung, über das zu urteilen wäre. */
+    const wachePunkt = stationsPunkt(b, punktSoll);
+    if (!roster && mineOf(b).length) {
+      log(`${b.caption}: Besatzung nicht lesbar — die Fahrzeugpunkte bleiben, `
+        + 'die Wache wird nach den vorhandenen Punkten beurteilt', 'warn');
     }
     const kern = ohneHaken(b.caption);
-    const soll = f.fertig ? `${HAKEN} ${kern}` : kern;
-    if (!f.fertig) {
-      const t = [];
-      if (f.ausbau)    t.push(`${f.ausbau} Ausbauten`);
-      if (f.kauf)      t.push(`${f.kauf} Fahrzeuge`);
-      if (f.weg)       t.push(`${f.weg} überzählig`);
-      if (f.personal)  t.push(`${f.personal} unterbesetzt`);
-      if (f.anhaenger) t.push(`${f.anhaenger} ohne Zugfahrzeug`);
-      if (f.lehrgang)  t.push(`${f.lehrgang} Ausbildungen`);
-      log(`${b.caption}: kein Punkt — offen sind ${t.join(', ') || 'unbekannte Posten'}`);
+    const soll = wachePunkt ? `${HAKEN} ${kern}` : kern;
+    if (!wachePunkt) {
+      /* Der Grund ist jetzt ein anderer: nicht mehr „was ist offen", sondern
+         „welche Fahrzeuge tragen keinen Punkt". Was sonst noch aussteht, steht
+         weiterhin daneben — es entscheidet nur nicht mehr über den Punkt. */
+      const fz = mineOf(b);
+      const ohne = fz.filter(v => !((punktSoll.has(v.id)) ? punktSoll.get(v.id) : hatHaken(v.caption)));
+      const rest = [];
+      if (f.ausbau)    rest.push(`${f.ausbau} Ausbauten`);
+      if (f.kauf)      rest.push(`${f.kauf} Fahrzeuge fehlen`);
+      if (f.weg)       rest.push(`${f.weg} überzählig`);
+      if (f.lehrgang)  rest.push(`${f.lehrgang} Ausbildungen`);
+      log(`${b.caption}: kein Punkt — ${!fz.length ? 'keine Fahrzeuge auf der Wache'
+        : `${ohne.length} von ${fz.length} Fahrzeugen ohne Punkt`}`
+        + (rest.length ? ` (außerdem offen: ${rest.join(', ')})` : ''));
     }
     if (soll === b.caption) continue;
     if (geschuetzt(b)) { schutzZaehlen(); continue; }
-    log(`${b.caption} → ${soll}`, f.fertig ? 'good' : '');
+    log(`${b.caption} → ${soll}`, wachePunkt ? 'good' : '');
     try { await umbenennen(b, soll, dry); n++; }
     catch (e) { log(`   fehlgeschlagen: ${e.message}`, 'err'); break; }
   }
-  if (unklar) log(`${unklar} Wachen übersprungen — Gründe siehe oben.`, 'warn');
   schutzMelden();
   return n;
 }
