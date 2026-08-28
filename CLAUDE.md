@@ -88,6 +88,11 @@ wer dort etwas ändert, zieht den Auszug nach oder streicht ihn.
 - **Lehrgänge über Schlüssel**, nie über Klartext. Ein Schlüssel trägt mehrere
   Namen, ein Name mehrere Schlüssel (`police_helicopter_lift` und
   `rescue_helicopter_lift` heißen beide „Windenoperator").
+- **Seiten nachmessen, nicht raten.** Was das Spiel liefert, steht in
+  `Notizen/SPIELSEITEN.md` — aufgenommen mit einem angemeldeten Browser. Drei
+  Adressen waren jahrelang falsch, ohne daß es auffiel, weil der Code
+  schlüssig aussah. Wer einen Endpunkt oder Selektor ändert, mißt ihn nach und
+  schreibt die Notiz fort.
 - **Wahlfreie Parameter ausschreiben** (`function frage(text, merk = '')`).
   Sonst sieht ein Aufruf mit einem Argument aus wie ein vergessenes zweites.
 

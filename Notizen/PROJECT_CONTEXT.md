@@ -175,7 +175,10 @@ GET  /buildings/<id>/leitstelle-extensions          alle Ausbauten; die Bauplatz
                                                     bzw. /extension_ready/<nr>/
 POST /buildings/<id>/extension/credits/<typeId>     bauen
 POST /buildings/<id>/extension_ready/<typeId>/<ls>  Ausbau ein/aus
-GET  /buildings/<id>/active                         Wache ein/aus
+GET  /buildings/<id>/active                         Wache ein/aus (UMSCHALTER, kein Setzer)
+GET  /buildings/<leitstelle>/leitstelle-extensions  Ausbaukatalog ALLER eigenen Gebäude
+                                                    (auf einer Wache: HTTP 500)
+GET  /buildings/<id>/vehicles/new                   Kaufliste (NICHT auf /buildings/<id>)
 GET  /buildings/<id>/hire_do/3                      werben
 GET  /vehicles/<id>/zuweisung                       Personalliste der Wache
 POST /vehicles/<vid>/zuweisungDo/<pid>              zuweisen/lösen (Umschalter)
