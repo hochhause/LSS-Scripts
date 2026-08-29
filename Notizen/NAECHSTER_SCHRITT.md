@@ -1,6 +1,6 @@
 # Nächster Schritt
 
-Stand v0.50.0. Was hier steht, ist offen — alles darüber ist erledigt und in
+Stand v0.52.0. Was hier steht, ist offen — alles darüber ist erledigt und in
 `DECISIONS.md` begründet.
 
 ## Ungeprüft im laufenden Spiel
@@ -42,7 +42,10 @@ Dinge sind gebaut, aber noch nie im Spiel gesehen worden:
 
 ## Entschiedene Regeln (gelten weiter)
 
-- Fahrzeug-Haken ab **Mindestbesetzung**, nicht ab Vollbesetzung.
+- Fahrzeug-Haken ab **Mindestbesetzung**, nicht ab Vollbesetzung — und ab
+  v0.51.0 gegen **beide** Anforderungskanäle geprüft (`alle` und `mind`).
+- **Der Punkt der Wache ist die Summe der Fahrzeugpunkte** (D-76). Ausbauten,
+  Käufe und Ausbildungen entscheiden nicht mehr darüber.
 - „In Ausbildung" zählt wie fertig — **außer** beim FMS: solche Fahrzeuge
   bekommen den Haken, bleiben aber auf Status 6.
 - Erweiterung aus, sobald **ein** zugehöriges Fahrzeug lahmt.

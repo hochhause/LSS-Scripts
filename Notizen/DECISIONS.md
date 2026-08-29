@@ -1172,3 +1172,223 @@ Nicht abgedeckt und weiterhin offen: der scharfe Lauf selbst, das eigene Fenster
 (⇱), der Hinweis auf der Wachenseite und die Lehrgangsseite im Lightbox-Rahmen.
 Die stehen in `NAECHSTER_SCHRITT.md`.
 
+## D-75 SEG: Anh TeSi gehört dazu, also 2/2/2 (v0.51.0)
+
+Der Anh TeSi galt im Wunschbild als entbehrlich und fehlte. Er wird aber
+getrennt angefordert — GW TeSi, MTW TeSi und Anh TeSi braucht es in gleicher
+Zahl.
+
+Die SEG war dabei schon voll: 28 Stellplätze bei vollem Ausbau
+(1 fest + 1+4+3+2+1+10+6 aus den sieben Ausbauten), und der Plan füllte sie
+genau aus. Am Spiel nachgesehen: alle drei SEG-Wachen haben 7 von 7 Ausbauten,
+die Zahl stimmt also.
+
+Drei Wege standen zur Wahl; entschieden wurde für **2/2/2**, weil dabei kein
+anderes Fahrzeug weichen muß:
+
+| | Stellplätze | TeSi-Lehrgang min/max |
+|---|---|---|
+| vorher 3/3/0 | 28/28 | 6 / 36 |
+| **jetzt 2/2/2** | **28/28** | **4 / 24** |
+| 3/3/3 | 31/28 ✗ | 6 / 36 |
+
+Bemerkenswert und der Grund, warum der Anhänger überhaupt hineinpaßt: er kostet
+**keine zusätzliche Ausbildung**. `anhaengerZaehlt` (D-19) deckelt seine
+Anforderung auf die Sitze des Zugfahrzeugs — seine zwei Leute sind die Besatzung
+des GW oder MTW, nicht zusätzliche Köpfe. Zugfahrzeuge gibt es mit 2+2 genug für
+zwei Anhänger.
+
+Geändert wurde `MODELL_STANDARD` im Userscript, der Auszug in
+`daten/lss-modell-standard.json` ist nachgezogen.
+
+**Wichtig für den Betrieb:** das ist die *eingebaute Vorlage*. Wer bereits ein
+eigenes Wunschbild gespeichert hat, merkt davon nichts — sein Plan liegt in
+`lssplaner.modell`. Übernommen wird die neue Fassung im Reiter „Plan" über
+„Standard für SEG", und das überschreibt die eigenen Änderungen an dieser
+Gebäudeart.
+
+## D-76 Der Punkt der Wache folgt den Punkten ihrer Fahrzeuge (v0.51.0)
+
+Bisher bekam eine Wache den grünen Punkt erst, wenn **alles** stimmte: Ausbauten
+gebaut, Fahrzeuge gekauft, nichts überzählig, niemand unterbesetzt, jeder
+Anhänger gekoppelt, jede Ausbildung erledigt. Und ohne erfaßten
+Ausbildungsstand gab es gar kein Urteil — die Wache wurde übersprungen.
+
+Neu, auf Wunsch: **eine Wache trägt den Punkt, wenn jedes ihrer Fahrzeuge ihn
+trägt.** Sonst nichts.
+
+Das hat drei Folgen, die alle gewollt sind:
+
+- Der Punkt sagt jetzt dasselbe wie die Punkte darunter — er ist ihre Summe,
+  keine zweite, strengere Rechnung. Zwei Antworten auf dieselbe Frage können
+  damit nicht mehr auseinanderlaufen.
+- Personal- und Lehrgangszahlen entscheiden **nicht mehr** über den Punkt.
+  Damit fällt auch die Sperre „nicht beurteilbar, weil der Ausbildungsstand
+  fehlt": das Urteil braucht sie nicht mehr. Was an der Wache sonst noch
+  aussteht, steht weiterhin in der Meldung — es entscheidet nur nicht mehr.
+- Fehlende Fahrzeuge und ungebaute Ausbauten hindern den Punkt nicht. Eine
+  halb ausgebaute Wache, deren vorhandene Fahrzeuge alle besetzt sind, ist
+  jetzt grün. Das ist der Preis der Vereinfachung und war der Wunsch.
+
+Umgesetzt in **einer** Funktion, `stationsPunkt(b, frisch)`, die sowohl
+`fortschritt()` als auch der Haken-Lauf benutzt. Gelesen wird am Namen der
+Fahrzeuge, nicht aus einer zweiten Rechnung. Der Haken-Lauf reicht zusätzlich
+die gerade erst ermittelten Punkte herein, weil sie in der Vorschau noch nicht
+im Namen stehen — ohne das urteilte die Vorschau über den Stand von vorher.
+
+Zwei Feinheiten, absichtlich so:
+- `mineOf` statt `echteVon`: ein eben gekauftes, noch vorgemerktes Fahrzeug
+  trägt keinen Punkt und soll die Wache nicht fertig aussehen lassen.
+- Eine Wache **ohne** Fahrzeuge ist nicht fertig, sondern leer. Ohne diese
+  Ausnahme wäre die Aussage „alle Fahrzeuge tragen den Punkt" leer wahr.
+
+`offen` in `fortschritt()` bleibt unverändert und zählt weiter alles auf — davon
+leben die Listen, die Übersicht und der Hinweis auf der Wachenseite.
+
+### Wirkung am eigenen Konto, gemessen (27.08.)
+
+103 Gebäude: 9 ohne Fahrzeuge (nach neuer Regel nie fertig), 47 mit lauter
+grünen Fahrzeugen (bekommen den Punkt), 47 nur teilweise grün. Den Punkt tragen
+heute 49 Wachen.
+
+Neu grün werden **SEG 01** (28/28 Fahrzeuge) und **PolHub** (8/8) — beide waren
+bisher wegen offener Ausbauten oder Ausbildungen zurückgehalten. Umgekehrt
+erfüllen zwei Wachen mit Punkt die Regel nicht mehr; sie behalten ihn trotzdem,
+weil `geschuetzt()` das Wegnehmen sperrt, solange „Grüne freigeben" nicht
+angehakt ist (D-27). Das ist gewollt: den Punkt nimmt der Mensch weg, nicht der
+Lauf nebenbei.
+
+Im Vorschaulauf über 94 Wachen nachgesehen: die Meldung nennt jetzt den neuen
+Grund — „Feuer 11: kein Punkt — 6 von 20 Fahrzeugen ohne Punkt (außerdem offen:
+30 Fahrzeuge fehlen, 6 überzählig, 22 Ausbildungen)". Null Schreibversuche,
+null Skriptfehler.
+
+## D-77 Die eingebaute Vorlage IST eine gültige Einstellung (v0.51.1)
+
+Rücknahme einer Änderung aus derselben Sitzung, in der sie entstand.
+
+In `fill()` stand eine Prüfung `Object.keys(modell).length` mit dem Hinweis
+„Kein Wunschbild vorhanden". Sie war **tot**: der Getter `S.modell` fällt auf
+`MODELL_STANDARD` zurück, das Ergebnis ist also nie leer. Beim Aufräumen wurde
+daraus eine **erreichbare** Prüfung — „wurde je ein eigenes Wunschbild
+gespeichert?" —, mit der Begründung, sonst werde gegen fremde Vorgaben gebucht.
+
+Das war falsch gedacht. Es gibt drei normale Arbeitsweisen, und zwei davon legen
+nie ein „eigenes" Wunschbild an:
+
+1. die eingebaute Vorlage unverändert benutzen,
+2. sie an Ort und Stelle anpassen — der Plan-Editor schreibt zwar in
+   `lssplaner.modell`, aber wer nichts anfaßt, hat dort nichts stehen,
+3. ein eigenes Wunschbild aufbauen.
+
+Die Prüfung sperrte die ersten beiden aus, und zwar hart: „Bedarf anhaken" tat
+gar nichts mehr und meldete stattdessen, es fehle etwas, das gar nicht fehlt.
+Dazu ein roter Kasten in der Werkzeugleiste, der auf jeder Schulseite behauptete,
+die Einstellung sei unvollständig.
+
+Beides ersatzlos entfernt. Es gibt hier nichts zu prüfen: ein Ziel liegt immer
+vor, entweder das gespeicherte oder die Vorlage. Welches von beiden gilt, ist
+für die Rechnung ohne Belang.
+
+Die Lehre, weil sie sich wiederholen könnte: eine tote Prüfung ist nicht
+automatisch eine, die man beleben sollte. Erst prüfen, ob die Bedingung
+überhaupt einen Fehler beschreibt — hier beschrieb sie einen völlig normalen
+Zustand.
+
+## D-78 Der importierte Plan ist weg (v0.52.0)
+
+Seit D-51 bis D-55 stammt alles, was der Plan einmal mitbrachte, aus dem Skript
+oder aus dem Spiel. Übrig waren vier Ersatzgriffe — und jeder hatte längst eine
+bessere Quelle:
+
+| las aus dem Plan | Ersatz | geprüft |
+|---|---|---|
+| `vehicleTypes` | `PB` | `PB` kennt 186 Typen; der Bestand benutzt 84, **keinen unbekannten** |
+| `buildingTypes` | `GEBAEUDE_NAMEN` | gedeckt |
+| `layouts` | `LAYOUTS_STANDARD` | gedeckt |
+| `extensionCatalog` | `extCatVon` + `ausbauKatalogLesen` | seit D-68 überhaupt erst benutzbar |
+
+Der Rest war Oberfläche: das Einfügefeld, „Plan ersetzen", der Speicher-Horcher
+und die Übernahmeseite des Ausbaureiters. Zusammen 102 Zeilen weg, 27 dazu.
+
+Mitgegangen ist `geraten`. D-01 hatte die Notquelle mit „sichtbar an
+`geraten: true`, deshalb tragbar" gerechtfertigt — das Feld wurde gesetzt und
+**nie gelesen**, die Rechtfertigung war also nie eingelöst. Jetzt gibt `vehMeta`
+für einen unbekannten Typ schlicht `null` zurück, und die Rechnungen übergehen
+ihn; Probe 7 deckt genau das ab. Ein neuer Fahrzeugtyp wird in `PB` nachgetragen,
+nicht über einen Plan hereingereicht.
+
+**Nebenwirkung, und der eigentliche Anlaß:** auf `/schoolings` hing der Knopf
+„Bestand jetzt laden" an `S.plan`. Ausgerechnet der Knopf, den nur jemand ohne
+geladenen Bestand braucht, erschien also nur für Leute, die einen Plan
+importiert hatten — genau verkehrt herum. Ohne Bestand bleibt die
+Bedarfsspalte leer und „Alle füllen" gesperrt; für einen Mitspieler ohne Plan
+sah die ganze Übersicht kaputt aus. Mit dem Plan fällt die Bedingung weg.
+
+Ein Wort zur Sprache: „Plan" meinte in diesem Skript drei Dinge — den
+importierten Plan, das Wunschbild und die Personalverteilung einer Wache. Eines
+davon ist jetzt fort, und die Texte der Oberfläche („Fahrzeuge, die gegenüber
+dem Plan fehlen") meinen eindeutig das Wunschbild im Reiter „Plan".
+
+## D-79 Fünf Anhänger bekommen ihre Einsatzstellen-Stärke (v0.52.0)
+
+`sitzeFuerKurs` gibt für einen Anhänger `meta.est` zurück — fehlt das Feld, ist
+der Bedarf **null**, für immer. Fünf Anhänger im Wunschbild forderten einen
+Lehrgang, nannten aber keine Zahl:
+
+| Typ | Fahrzeug | Lehrgang | est | Quelle |
+|---|---|---|---|---|
+| 92 | Anh Hund | `thw_rescue_dogs` | 4 | Wiki: „für den MTW-O braucht man vier Personen mit Fachgruppe Rettungshundeführer" |
+| 96 | Außenlastbehälter | `police_firefighting` | 1 | Sasha |
+| 112 | NEA200 (THW) | `thw_energy_supply` | 1 | Sasha |
+| 113 | NEA200 (Feuerwehr) | `energy_supply` | 1 | Sasha |
+| 180 | AB-NEA200 | `energy_supply` | 1 | Sasha („wie das normale NEA") |
+
+Bei zweien wäre die Zahl ohnehin folgenlos geblieben — `Anh SwPu` und `Anh 7`
+werden von Fahrzeugen gezogen, die denselben Kurs schon fordern, also greift
+D-19 und der Anhänger zählt nicht doppelt. Bei den fünf oben fordert **kein**
+zugelassenes Zugfahrzeug den Kurs; ihr Bedarf ging deshalb verloren.
+
+Wirkung: die Kursauswahl beschriftet jetzt **59 von 60** Lehrgängen statt 55.
+`thw_rescue_dogs` 8, `energy_supply` 2, `police_firefighting` 1,
+`thw_energy_supply` 1.
+
+Ohne Bedarf bleibt allein `police_helicopter_lift` — dafür müßte
+`156 Polizeihubschrauber mit verbauter Winde` in einem Profil stehen. Das ist
+eine Entscheidung über das Wunschbild, keine Datenlücke.
+
+Nicht eingetragen: `est` ist **nicht** die Sitzzahl des Zugfahrzeugs. Der
+AB-Dekon-P steht mit 6 auf einem WLF mit drei Plätzen, der Anh MzB mit 4 auf
+einem Zweisitzer. Die Zahl ist eine Spielregel und wird erfragt, nicht
+hergeleitet.
+
+## D-80 „Nicht erfaßt" ist eine Angabe, kein Loch (v0.52.0)
+
+Sechs Anhänger fordern einen Lehrgang, ohne die Einsatzstellen-Stärke zu nennen.
+Fünf davon sind folgenlos — ihr Zugfahrzeug verlangt denselben Kurs, also greift
+D-19 und der Anhänger zählt ohnehin nicht mit. Einer verliert wirklich Bedarf:
+`155 Anh Höhenrettung (Bergrettung)` mit `mountain_height_rescue`, gezogen von
+Fahrzeugen, die den Kurs nicht fordern.
+
+Alle sechs stehen jetzt auf `est: null`. Das heißt ausdrücklich **nachgesehen,
+Spielregel nicht bekannt** — im Unterschied zum fehlenden Feld, das heißt
+*niemand hat hingesehen*.
+
+Warum `null` und nicht der Text „not tracked", wie zuerst gedacht: `est` geht
+direkt in eine Multiplikation. `"not tracked" * 2` ergibt `NaN`, und ein NaN
+wandert unbemerkt durch jede Summe bis in eine Kaufzahl. Genau diese Art von
+still falscher Zahl räumen wir gerade aus dem Skript; sie zur Kennzeichnung
+einer Lücke einzuführen wäre widersinnig. `null` rechnet wie 0 und ist im
+Klartext trotzdem vom Weggelassenen zu unterscheiden.
+
+`pruefer.js` hat dafür eine neue Prüfung. Sie meldet **nur**, was wirklich
+Bedarf verliert, und unterscheidet dabei:
+
+- Feld fehlt ganz → **Fund**, jemand muß hinsehen;
+- `est: null` → aufgezählt, aber kein Fund;
+- Zugfahrzeug deckt den Kurs → gar nicht erwähnt.
+
+So bleibt die Lücke sichtbar, ohne daß die Prüfung dauerhaft meckert — eine
+Prüfung, die niemand schließen kann, wird nach kurzer Zeit überlesen, und dann
+ist sie schlimmer als keine.
+
