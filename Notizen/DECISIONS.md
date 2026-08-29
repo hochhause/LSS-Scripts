@@ -1362,3 +1362,33 @@ AB-Dekon-P steht mit 6 auf einem WLF mit drei Plätzen, der Anh MzB mit 4 auf
 einem Zweisitzer. Die Zahl ist eine Spielregel und wird erfragt, nicht
 hergeleitet.
 
+## D-80 „Nicht erfaßt" ist eine Angabe, kein Loch (v0.52.0)
+
+Sechs Anhänger fordern einen Lehrgang, ohne die Einsatzstellen-Stärke zu nennen.
+Fünf davon sind folgenlos — ihr Zugfahrzeug verlangt denselben Kurs, also greift
+D-19 und der Anhänger zählt ohnehin nicht mit. Einer verliert wirklich Bedarf:
+`155 Anh Höhenrettung (Bergrettung)` mit `mountain_height_rescue`, gezogen von
+Fahrzeugen, die den Kurs nicht fordern.
+
+Alle sechs stehen jetzt auf `est: null`. Das heißt ausdrücklich **nachgesehen,
+Spielregel nicht bekannt** — im Unterschied zum fehlenden Feld, das heißt
+*niemand hat hingesehen*.
+
+Warum `null` und nicht der Text „not tracked", wie zuerst gedacht: `est` geht
+direkt in eine Multiplikation. `"not tracked" * 2` ergibt `NaN`, und ein NaN
+wandert unbemerkt durch jede Summe bis in eine Kaufzahl. Genau diese Art von
+still falscher Zahl räumen wir gerade aus dem Skript; sie zur Kennzeichnung
+einer Lücke einzuführen wäre widersinnig. `null` rechnet wie 0 und ist im
+Klartext trotzdem vom Weggelassenen zu unterscheiden.
+
+`pruefer.js` hat dafür eine neue Prüfung. Sie meldet **nur**, was wirklich
+Bedarf verliert, und unterscheidet dabei:
+
+- Feld fehlt ganz → **Fund**, jemand muß hinsehen;
+- `est: null` → aufgezählt, aber kein Fund;
+- Zugfahrzeug deckt den Kurs → gar nicht erwähnt.
+
+So bleibt die Lücke sichtbar, ohne daß die Prüfung dauerhaft meckert — eine
+Prüfung, die niemand schließen kann, wird nach kurzer Zeit überlesen, und dann
+ist sie schlimmer als keine.
+

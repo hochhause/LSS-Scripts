@@ -102,6 +102,50 @@ for (const m of rein.matchAll(/catch\s*(?:\([^)]*\))?\s*\{\s*\}/g)) {
 for (const m of rein.matchAll(/(?<![.\w])(TODO|FIXME|XXX)/g))
   melde('?', zeileVon(m.index), `offene Marke ${m[1]}`);
 
+/* ── 5. Anhänger ohne Einsatzstellen-Stärke ───────────────────────────────
+   `sitzeFuerKurs` gibt für einen Anhänger `est` zurück. Fehlt die Zahl, ist der
+   Bedarf still null — der Lehrgang gilt für immer als gedeckt, egal wie wenige
+   Leute ihn haben. Verlangt aber ein zugelassenes Zugfahrzeug denselben Kurs,
+   zählt der Anhänger ohnehin nicht mit (D-19), dann ist die Lücke folgenlos.
+   Gemeldet wird deshalb nur, was wirklich Bedarf verliert.
+   `est: null` heißt „nicht erfaßt" und ist eine bewußte Angabe, kein Versehen —
+   aufgeführt wird es trotzdem, damit es nicht in Vergessenheit gerät. */
+console.log('\nAnhänger ohne Einsatzstellen-Stärke');
+try {
+  const schnitt = (von, bis) => {
+    const a = src.indexOf(von), b = src.indexOf(bis);
+    return (a < 0 || b < 0 || b <= a) ? null : src.slice(a, b);
+  };
+  const roh = schnitt('const PB = {', '\nconst T = {');
+  const PB = roh ? new Function('return ' + roh.slice(roh.indexOf('{')))() : null;
+  if (!PB) console.log('  PB nicht lesbar — übersprungen');
+  else {
+    let offen = 0, folgenlos = 0, vermerkt = 0;
+    for (const [id, v] of Object.entries(PB)) {
+      if (v.max !== 0 || !(v.kurse || []).length || v.est) continue;
+      const deckt = (v.zug || []).some(z => PB[z] && (PB[z].kurse || [])
+        .some(k => v.kurse.some(x => x.k === k.k)));
+      if (deckt) { folgenlos++; continue; }
+      const kurse = v.kurse.map(k => k.k).join(', ');
+      /* `est: null` heißt: nachgesehen, Spielregel nicht bekannt. Das ist eine
+         Angabe und kein Versehen — sie wird aufgezählt, aber nicht als Fund
+         gewertet. Sonst stünde hier für immer eine Meldung, die niemand
+         schließen kann, und eine Prüfung, die immer meckert, liest keiner mehr.
+         Fehlt das Feld dagegen ganz, hat schlicht niemand hingesehen. */
+      if (v.est === null) {
+        vermerkt++;
+        console.log(`  --  Typ ${id} „${v.c}": ${kurse} — nicht erfaßt, Bedarf bleibt null`);
+        continue;
+      }
+      offen++;
+      melde('!', 1, `Typ ${id} „${v.c}" fordert ${kurse}, nennt aber kein est — `
+        + 'Zahl eintragen oder ausdrücklich est: null setzen');
+    }
+    if (!offen) console.log(`  ok  keine unbemerkte Lücke `
+      + `(${vermerkt} als nicht erfaßt vermerkt, ${folgenlos} vom Zugfahrzeug gedeckt)`);
+  }
+} catch (e) { console.log('  nicht prüfbar: ' + e.message); }
+
 /* ── 5. Fassung ───────────────────────────────────────────────────────── */
 console.log('\nFassung');
 const kopf = (src.match(/@version\s+([\d.]+)/) || [])[1];

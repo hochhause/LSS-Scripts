@@ -294,7 +294,12 @@ const S = {
            'min'  → n der Besatzung brauchen ihn; n = 0 heißt, die Zahl steht
                     in est (so führt das Spiel Dekon-P und die Pferdetransporte)
      est   Personal an der Einsatzstelle — beim Anhänger die Zahl, die auf
-           dem Zugfahrzeug mitfahren muss
+           dem Zugfahrzeug mitfahren muss.
+           `null` heißt ausdrücklich **nicht erfaßt**: die Spielregel ist uns
+           nicht bekannt. Gerechnet wird dann mit 0, aber der Unterschied zu
+           „braucht wirklich niemanden" ist festgehalten, und `pruefer.js`
+           zählt die Fälle auf. Ein Text statt der Zahl verbietet sich —
+           `"nicht erfaßt" * 2` ergäbe NaN und damit still falsche Zahlen.
      zug   Fahrzeugtypen, die diesen Anhänger ziehen dürfen
    Was das Spiel neu herausbringt, fehlt hier — und fehlt dann ganz:
    `vehMeta` gibt für einen unbekannten Typ `null` zurück, und die Rechnungen
@@ -384,8 +389,8 @@ const PB = {
   "97":{"c":"ITW","min":3,"max":3,"kurse":[{"k":"intensive_care","art":"min","n":2},{"k":"notarzt","art":"min","n":1}]},
   "98":{"c":"Zivilstreifenwagen","min":1,"max":2,"kurse":[{"k":"criminal_investigation","art":"alle","n":null}]},
   "100":{"c":"MLW 4","min":1,"max":7,"kurse":[{"k":"water_damage_pump","art":"alle","n":null}]},
-  "101":{"c":"Anh SwPu","min":0,"max":0,"kurse":[{"k":"water_damage_pump","art":"min","n":1}],"zug":[100,123]},
-  "102":{"c":"Anh 7","min":0,"max":0,"kurse":[{"k":"water_damage_pump","art":"min","n":1}],"zug":[100,123]},
+  "101":{"c":"Anh SwPu","min":0,"max":0,"est":null,"kurse":[{"k":"water_damage_pump","art":"min","n":1}],"zug":[100,123]},
+  "102":{"c":"Anh 7","min":0,"max":0,"est":null,"kurse":[{"k":"water_damage_pump","art":"min","n":1}],"zug":[100,123]},
   "103":{"c":"FuStW (DGL)","min":1,"max":2,"kurse":[{"k":"police_service_group_leader","art":"min","n":1}]},
   "104":{"c":"GW-L1","min":1,"max":6},"105":{"c":"GW-L2","min":1,"max":6},
   "106":{"c":"MTF-L","min":1,"max":6},"107":{"c":"LF-L","min":1,"max":9},
@@ -431,7 +436,7 @@ const PB = {
   "152":{"c":"ATV","min":1,"max":1},
   "153":{"c":"Hundestaffel (Bergrettung)","min":4,"max":5,"kurse":[{"k":"seg_rescue_dogs","art":"alle","n":null}]},
   "154":{"c":"Schneefahrzeug","min":1,"max":1},
-  "155":{"c":"Anh Höhenrettung (Bergrettung)","min":0,"max":0,"kurse":[{"k":"mountain_height_rescue","art":"min","n":4}],"zug":[149,150]},
+  "155":{"c":"Anh Höhenrettung (Bergrettung)","min":0,"max":0,"est":null,"kurse":[{"k":"mountain_height_rescue","art":"min","n":4}],"zug":[149,150]},
   "156":{"c":"Polizeihubschrauber mit verbauter Winde","min":1,"max":3,"kurse":[{"k":"polizeihubschrauber","art":"min","n":1},{"k":"police_helicopter_lift","art":"min","n":1}]},
   "157":{"c":"RTH Winde","min":1,"max":2,"kurse":[{"k":"rescue_helicopter_lift","art":"min","n":1},{"k":"notarzt","art":"min","n":1}]},
   "158":{"c":"GW-Höhenrettung (Bergrettung)","min":4,"max":4,"kurse":[{"k":"mountain_height_rescue","art":"alle","n":null}]},
@@ -449,8 +454,8 @@ const PB = {
   "171":{"c":"GW TeSi","min":1,"max":5,"kurse":[{"k":"disaster_response_technology","art":"alle","n":null}]},
   "172":{"c":"LKW Technik (Notstrom)","min":2,"max":6,"kurse":[{"k":"disaster_response_technology","art":"min","n":1}]},
   "173":{"c":"MTW TeSi","min":1,"max":7,"kurse":[{"k":"disaster_response_technology","art":"min","n":1}]},
-  "174":{"c":"Anh TeSi","min":0,"max":0,"kurse":[{"k":"disaster_response_technology","art":"min","n":2}],"zug":[171,173]},
-  "175":{"c":"NEA50","min":0,"max":0,"kurse":[{"k":"disaster_response_technology","art":"min","n":2}],"zug":[172]},
+  "174":{"c":"Anh TeSi","min":0,"max":0,"est":null,"kurse":[{"k":"disaster_response_technology","art":"min","n":2}],"zug":[171,173]},
+  "175":{"c":"NEA50","min":0,"max":0,"est":null,"kurse":[{"k":"disaster_response_technology","art":"min","n":2}],"zug":[172]},
   "176":{"c":"LKW 7 Lbw (FGr Log-V)","min":3,"max":3,"kurse":[{"k":"thw_care_service","art":"min","n":1},{"k":"care_service_equipment","art":"min","n":2}]},
   "177":{"c":"MTW-FGr Log-V","min":5,"max":5,"kurse":[{"k":"thw_care_service","art":"alle","n":null}]},
   "178":{"c":"Anh 12 Lbw (FGr Log-V)","min":0,"max":0,"zug":[176]},
@@ -458,7 +463,7 @@ const PB = {
   "180":{"c":"AB-NEA200","min":0,"max":0,"est":1,"kurse":[{"k":"energy_supply","art":"min","n":1}],"zug":[46]},
   "181":{"c":"MzGW (FGr BrB)","min":6,"max":9,"kurse":[{"k":"thw_bridge_construction","art":"alle","n":null}]},
   "182":{"c":"Mobilkran","min":1,"max":1,"kurse":[{"k":"thw_bridge_construction_crane","art":"alle","n":null}]},
-  "183":{"c":"Anh Plattform (FGr BrB)","min":0,"max":0,"kurse":[{"k":"thw_bridge_construction","art":"min","n":6}],"zug":[181]},
+  "183":{"c":"Anh Plattform (FGr BrB)","min":0,"max":0,"est":null,"kurse":[{"k":"thw_bridge_construction","art":"min","n":6}],"zug":[181]},
   "184":{"c":"FuStW (AP)","min":2,"max":2,"kurse":[{"k":"highway_police","art":"alle","n":null}]},
   "185":{"c":"GW-Tierrettung","min":2,"max":6},
   "186":{"c":"Anh Tierrettung","min":0,"max":0,"zug":[90,4,27,53,104,105,1,5,6,8,9,15,16,18,21,22,36,37,88,89,185]}
