@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.51.1
+// @version      0.52.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.51.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.52.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -28,7 +28,6 @@ const inFrame = window.top !== window.self;
    ═══════════════════════════════════════════════════════════════════ */
 const READ_DELAY  = 150;
 const WRITE_DELAY = 350;
-const KEY_PLAN    = 'lssplaner.plan';
 const KEY_OPTS    = 'lssplaner.opts';
 const KEY_COURSE  = 'lssplaner.courseMap';   // interner Schlüssel → Klartext
 const KEY_DATA    = 'lssplaner.data';        // zwischengespeicherter Bestand
@@ -281,19 +280,6 @@ const S = {
   log: []
 };
 
-/* In jeder Gebäude-Lightbox läuft dieses Skript erneut. Den kompletten Plan
-   dort ungefragt zu parsen, lag auf dem kritischen Pfad jedes Gebäudeklicks. */
-let _plan;
-Object.defineProperty(S, 'plan', {
-  get() { return _plan !== undefined ? _plan : (_plan = store.get(KEY_PLAN, null)); },
-  /* Ein neuer Plan macht alles Gerechnete ungültig: Fahrzeugdaten, Bedarf
-     je Wache, Kurstabellen. Ohne standNeu() rechnete der Planer nach dem
-     Import mit den Zahlen des alten Plans weiter, bis der Bestand neu geladen
-     wurde — sichtbar erst dort, wo die Zahlen plötzlich wieder stimmten. */
-  set(v) { _plan = v; _vehCache.clear(); standNeu(); },
-  configurable: true
-});
-
 /* ═══════════════════════════════════════════════════════════════════
    Fahrzeug-Stammdaten
    Bis v0.18 kamen Sitze und Lehrgänge aus dem importierten Plan. Der Plan
@@ -310,8 +296,10 @@ Object.defineProperty(S, 'plan', {
      est   Personal an der Einsatzstelle — beim Anhänger die Zahl, die auf
            dem Zugfahrzeug mitfahren muss
      zug   Fahrzeugtypen, die diesen Anhänger ziehen dürfen
-   Was das Spiel neu herausbringt, fehlt hier; dafür greift weiter der Plan,
-   erkennbar an `geraten: true`.
+   Was das Spiel neu herausbringt, fehlt hier — und fehlt dann ganz:
+   `vehMeta` gibt für einen unbekannten Typ `null` zurück, und die Rechnungen
+   übergehen ihn (Probe 7). Der frühere Notweg über den importierten Plan ist
+   mit ihm verschwunden (D-78); nachgetragen wird hier, in dieser Tabelle.
    ═══════════════════════════════════════════════════════════════════ */
 const PB = {
   "0":{"c":"LF 20","min":1,"max":9},"1":{"c":"LF 10","min":1,"max":9},
@@ -388,11 +376,11 @@ const PB = {
   "87":{"c":"TLF 4000","min":1,"max":3},"88":{"c":"KLF","min":1,"max":6},
   "89":{"c":"MLF","min":1,"max":6},"90":{"c":"HLF 10","min":1,"max":9},
   "91":{"c":"Rettungshundefahrzeug","min":4,"max":5,"kurse":[{"k":"seg_rescue_dogs","art":"alle","n":null}]},
-  "92":{"c":"Anh Hund","min":0,"max":0,"kurse":[{"k":"thw_rescue_dogs","art":"alle","n":null}],"zug":[93]},
+  "92":{"c":"Anh Hund","min":0,"max":0,"est":4,"kurse":[{"k":"thw_rescue_dogs","art":"alle","n":null}],"zug":[93]},
   "93":{"c":"MTW-O","min":4,"max":5},
   "94":{"c":"DHuFüKW","min":1,"max":2,"kurse":[{"k":"k9","art":"alle","n":null}]},
   "95":{"c":"Polizeimotorrad","min":1,"max":1,"kurse":[{"k":"police_motorcycle","art":"alle","n":null}]},
-  "96":{"c":"Außenlastbehälter (allgemein)","min":0,"max":0,"kurse":[{"k":"police_firefighting","art":"alle","n":null}],"zug":[61,156]},
+  "96":{"c":"Außenlastbehälter (allgemein)","min":0,"max":0,"est":1,"kurse":[{"k":"police_firefighting","art":"alle","n":null}],"zug":[61,156]},
   "97":{"c":"ITW","min":3,"max":3,"kurse":[{"k":"intensive_care","art":"min","n":2},{"k":"notarzt","art":"min","n":1}]},
   "98":{"c":"Zivilstreifenwagen","min":1,"max":2,"kurse":[{"k":"criminal_investigation","art":"alle","n":null}]},
   "100":{"c":"MLW 4","min":1,"max":7,"kurse":[{"k":"water_damage_pump","art":"alle","n":null}]},
@@ -405,8 +393,8 @@ const PB = {
   "109":{"c":"MzGW SB","min":1,"max":9,"kurse":[{"k":"heavy_rescue","art":"alle","n":null}]},
   "110":{"c":"NEA50","min":0,"max":0,"zug":[41]},
   "111":{"c":"NEA50","min":0,"max":0,"zug":[90,4,27,53,104,105,6,8,9,15,16,18,21,22]},
-  "112":{"c":"NEA200","min":0,"max":0,"kurse":[{"k":"thw_energy_supply","art":"min","n":1}],"zug":[122]},
-  "113":{"c":"NEA200","min":0,"max":0,"kurse":[{"k":"energy_supply","art":"min","n":1}],"zug":[90,4,27,53,104,105,6,8,9,15,16,18,21,22]},
+  "112":{"c":"NEA200","min":0,"max":0,"est":1,"kurse":[{"k":"thw_energy_supply","art":"min","n":1}],"zug":[122]},
+  "113":{"c":"NEA200","min":0,"max":0,"est":1,"kurse":[{"k":"energy_supply","art":"min","n":1}],"zug":[90,4,27,53,104,105,6,8,9,15,16,18,21,22]},
   "114":{"c":"GW-Lüfter","min":1,"max":2},
   "115":{"c":"Anh Lüfter","min":0,"max":0,"zug":[90,4,27,53,104,105,6,8,9,15,16,18,21,22,83,5]},
   "116":{"c":"AB-Lüfter","min":0,"max":0,"zug":[46]},
@@ -467,7 +455,7 @@ const PB = {
   "177":{"c":"MTW-FGr Log-V","min":5,"max":5,"kurse":[{"k":"thw_care_service","art":"alle","n":null}]},
   "178":{"c":"Anh 12 Lbw (FGr Log-V)","min":0,"max":0,"zug":[176]},
   "179":{"c":"AB-NEA50","min":0,"max":0,"zug":[46]},
-  "180":{"c":"AB-NEA200","min":0,"max":0,"kurse":[{"k":"energy_supply","art":"min","n":1}],"zug":[46]},
+  "180":{"c":"AB-NEA200","min":0,"max":0,"est":1,"kurse":[{"k":"energy_supply","art":"min","n":1}],"zug":[46]},
   "181":{"c":"MzGW (FGr BrB)","min":6,"max":9,"kurse":[{"k":"thw_bridge_construction","art":"alle","n":null}]},
   "182":{"c":"Mobilkran","min":1,"max":1,"kurse":[{"k":"thw_bridge_construction_crane","art":"alle","n":null}]},
   "183":{"c":"Anh Plattform (FGr BrB)","min":0,"max":0,"kurse":[{"k":"thw_bridge_construction","art":"min","n":6}],"zug":[181]},
@@ -483,22 +471,12 @@ function vehMeta(id) {
   const k = String(id);
   if (_vehCache.has(k)) return _vehCache.get(k);
   const pb = PB[k] || null;
-  const pl = S.plan?.vehicleTypes?.[k] || null;
-  let meta = null;
-  if (pb) {
-    meta = { name: pl?.name || pb.c, min: pb.min, max: pb.max,
-             kurse: pb.kurse || [], est: pb.est || 0, zug: pb.zug || null,
-             geraten: false };
-  } else if (pl) {
-    /* Ohne Stammdaten bleibt nur, was der Plan hergibt: Sitzzahlen ja,
-       Lehrgänge nein — der Plan führt sie als Klartext, und den wieder in
-       Schlüssel zurückzuübersetzen war die Fehlerquelle, die v0.19 beseitigt
-       hat. Solche Typen fordern also keine Ausbildung, bis sie in PB stehen. */
-    meta = { ...pl, kurse: [], est: pl.est || 0, zug: null, geraten: true };
-  }
+  const meta = pb ? { name: pb.c, min: pb.min, max: pb.max, kurse: pb.kurse || [],
+                      est: pb.est || 0, zug: pb.zug || null } : null;
   _vehCache.set(k, meta);
   return meta;
 }
+
 
 /* Wunschbild und Zuordnung: gelesen wird träge, geschrieben immer sofort —
    an ihnen hängt jede Rechnung, und ein halb gespeichertes Modell wäre
@@ -679,14 +657,14 @@ async function kaufbareLesen(b) {
 const T = {
   veh: id => vehMeta(id),
   vehName: id => vehMeta(id)?.name || `Typ ${id}`,
-  btName: t => S.plan?.buildingTypes?.[t] || GEBAEUDE_NAMEN[t] || `Gebäudetyp ${t}`,
-  layout: t => S.plan?.layouts?.[t] || LAYOUTS_STANDARD[t] || null,
-  extCat: t => S.plan?.extensionCatalog?.[t] || extCatVon(t),
+  btName: t => GEBAEUDE_NAMEN[t] || `Gebäudetyp ${t}`,
+  layout: t => LAYOUTS_STANDARD[t] || null,
+  extCat: t => extCatVon(t),
   /** Profile eines Gebäudetyps. Für Schulen, Krankenhäuser und Leitstellen
       gibt es keine — dort steht nichts, was der Planer besetzen, kaufen oder
       benennen könnte, und ein leeres Profil in der Liste ist nur Ballast.
-      Die Sperre sitzt hier und nicht bloß in den Daten, damit auch ein
-      importierter Plan sie nicht unterläuft. */
+      Die Sperre sitzt hier und nicht bloß in den Daten, damit keine
+      Datenquelle sie unterlaufen kann. */
   profiles: t => NICHT_PLANEN.has(Number(t)) ? {} : (S.modell?.[t]?.profiles || {}),
   /** Profil einer Wache: eigene Zuordnung, sonst erstes Profil des Typs */
   profileOf(b) {
@@ -2966,48 +2944,6 @@ function einzelBinden(wurzel) {
 }
 
 /** Feld zum Einfügen eines Plans — im Übersichtsreiter und dort, wo er fehlt. */
-function planEinfuegen() {
-  return `<textarea id="lssp-paste" placeholder='{"format":"lss-plan",…}'
-      style="width:100%;min-height:90px;background:var(--lp-feld);color:var(--lp-fg);
-             border:1px solid var(--lp-rand);border-radius:3px;padding:8px;font:11px monospace"></textarea>
-    <div class="row" style="margin-top:8px">
-      <button class="act go" id="lssp-take">Plan übernehmen</button>
-      <span style="flex:1"></span>
-      <input type="file" id="lssp-file" accept=".json" style="font-size:11px">
-    </div>`;
-}
-
-function planEinfuegenBinden(wurzel) {
-  const take = async txt => {
-    try {
-      const p = JSON.parse(txt);
-      if (p.format !== 'lss-plan') throw new Error('kein lss-plan-Format');
-      S.plan = p;
-      if (!store.set(KEY_PLAN, p)) log('Plan gilt nur für diese Sitzung — zu groß für den Speicher', 'warn');
-      /* Der Plan bringt ein Wunschbild mit. Es zu übernehmen ist eine
-         Entscheidung des Menschen, nicht des Skripts — sonst überschreibt ein
-         Import stillschweigend alles, was im Editor entstanden ist. */
-      if (p.model?.types && await frage(
-          'Der Plan enthält ein eigenes Wunschbild. Übernehmen und das bisherige ersetzen?'
-          + '\n\nNein behält, was im Reiter „Plan“ steht.', 'plan-modell-uebernehmen')) {
-        S.modell = p.model.types;
-        if (p.model.assignment) S.zuordnung = p.model.assignment;
-        log('Wunschbild und Zuordnung aus dem Plan übernommen.', 'good');
-      }
-      log('Plan übernommen.', 'good');
-      render();
-    } catch (e) { log('Plan nicht lesbar: ' + e.message, 'err'); }
-  };
-  wurzel.querySelector('#lssp-take')?.addEventListener('click', () => {
-    const t = wurzel.querySelector('#lssp-paste').value.trim();
-    if (t) take(t);
-  });
-  wurzel.querySelector('#lssp-file')?.addEventListener('change', e => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const rd = new FileReader(); rd.onload = () => take(String(rd.result)); rd.readAsText(f);
-  });
-}
 
 /** Zeichnet die beiden Leisten: Gruppen oben, Handgriffe darunter. */
 function navZeichnen() {
@@ -3281,12 +3217,9 @@ function render() {
      Aufforderung, ein Artefakt zu bedienen, das er gar nicht hat. */
   /* Kaufen geht seit v0.44 ohne Plan: die Stellplätze rechnet LAYOUTS_STANDARD
      aus Stufe und Ausbauten. Nur die Ausbauten selbst brauchen noch den
-     Katalog aus dem Plan — ohne ihn weiß niemand, welcher Bauplatz welcher ist. */
-  /* Der Ausbaureiter braucht die Bauplatz-Nummern. Fehlen sie, wird nicht nach
-     einem Plan gefragt, sondern angeboten, sie aus dem Spiel zu holen — ein
-     Abruf je Gebäudeart. */
-  if (tab === 'ausbau' && !S.plan?.extensionCatalog
-      && !Object.keys(store.get(KEY_EXTCAT, {})).length) {
+  /* Der Ausbaureiter braucht die Bauplatz-Nummern. Fehlen sie, wird angeboten,
+     sie aus dem Spiel zu holen — ein Abruf, der alle Gebäudearten mitbringt. */
+  if (tab === 'ausbau' && !Object.keys(store.get(KEY_EXTCAT, {})).length) {
     b.innerHTML = `<p class="hint">Um einen Ausbau zu bestellen, braucht das Spiel die Nummer des
       Bauplatzes. Die steht auf den Ausbauseiten deiner Wachen — ein Abruf je Gebäudeart, danach
       merkt sich der Planer sie.</p>
@@ -3380,13 +3313,7 @@ function render() {
         <span style="color:var(--lp-dim2);font-size:12px">Bestand ${esc(since(S.stamp))}${
           S.aenderungen ? ` · ${S.aenderungen} lokale Änderungen` : ''}</span>
         <button class="act" id="lssp-reload">Bestand neu laden</button>
-        <button class="act" id="lssp-drop"${S.plan ? '' : ' style="display:none"'}>Plan ersetzen</button>
       </div>
-      ${S.plan ? '' : `<p class="hint" style="margin-bottom:8px">
-        <b>Ein Plan ist nicht nötig.</b> Wunschbild, Fahrzeugdaten und Namen sind eingebaut.
-        Nur der Reiter <b>Ausbauten</b> braucht den Ausbaukatalog aus dem Plan des
-        Soll/Ist-Werkzeugs.</p>
-        ${planEinfuegen()}`}
       <p class="hint" style="margin-bottom:8px">
         <b>${HAKEN} im Namen</b> setzt der Planer selbst, sobald eine Wache nach Plan fertig ist;
         was ihn trägt, rührt er ohne Freigabe nicht mehr an.
@@ -3415,16 +3342,11 @@ function render() {
     S.opts.buffer = Number(e.target.value) || 0; store.set(KEY_OPTS, S.opts); standNeu(); render();
   };
     b.querySelector('#lssp-reload').onclick = async () => { await loadAll(true); render(); };
-    planEinfuegenBinden(b);
     b.querySelector('#lssp-inline')?.addEventListener('change', e => {
       ui.inline = e.target.checked; saveUi();
       if (ui.inline) wachenSeite(); else document.querySelector('#lssp-wache')?.remove();
     });
     b.querySelector('#lssp-fragen')?.addEventListener('click', () => { stilleLeeren(); render(); });
-    b.querySelector('#lssp-drop').onclick = async () => {
-      if (!await frage('Geladenen Plan verwerfen?', 'plan-verwerfen')) return;
-      S.plan = null; localStorage.removeItem(KEY_PLAN); render();
-    };
     log('');
     return;
   }
@@ -4754,7 +4676,7 @@ function educationPage() {
   auswahlBeschriften();
   schulartNachtragen();   // trägt die Schulart nach, wenn der Bestand sie nicht hergab
   addEventListener('storage', e => {
-    if (e.key === KEY_QUAL || e.key === KEY_PLAN) { reloadQuals(true); auswahlBeschriften(); }
+    if (e.key === KEY_QUAL) { reloadQuals(true); auswahlBeschriften(); }
   });
 
   // Das Spiel füllt seine Zähler beim Scrollen nach. Nicht bei jeder Änderung
@@ -5281,7 +5203,10 @@ function schoolingsOverview() {
 
   // Kein Bestand im Zwischenspeicher? Nicht ungefragt laden — der bloße
   // Aufruf einer Seite soll keinen Vollabruf auslösen.
-  if (!S.buildings.length && S.plan) {
+  /* Früher hing dieser Knopf an `S.plan` — ausgerechnet der Knopf, den nur
+     jemand ohne geladenen Bestand braucht, erschien also nur für Leute, die
+     einen Plan importiert hatten. Genau verkehrt herum. */
+  if (!S.buildings.length) {
     box.querySelector('#lssp-ueber-inhalt')?.insertAdjacentHTML('afterbegin',
       '<p id="lssp-ueber-lade" style="margin:0 0 8px">'
       + '<button type="button" class="btn btn-sm btn-default" id="lssp-ueber-laden">Bestand jetzt laden</button> '

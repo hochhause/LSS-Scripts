@@ -1,6 +1,6 @@
 # Nächster Schritt
 
-Stand v0.51.0. Was hier steht, ist offen — alles darüber ist erledigt und in
+Stand v0.52.0. Was hier steht, ist offen — alles darüber ist erledigt und in
 `DECISIONS.md` begründet.
 
 ## Ungeprüft im laufenden Spiel

@@ -1295,3 +1295,70 @@ automatisch eine, die man beleben sollte. Erst prüfen, ob die Bedingung
 überhaupt einen Fehler beschreibt — hier beschrieb sie einen völlig normalen
 Zustand.
 
+## D-78 Der importierte Plan ist weg (v0.52.0)
+
+Seit D-51 bis D-55 stammt alles, was der Plan einmal mitbrachte, aus dem Skript
+oder aus dem Spiel. Übrig waren vier Ersatzgriffe — und jeder hatte längst eine
+bessere Quelle:
+
+| las aus dem Plan | Ersatz | geprüft |
+|---|---|---|
+| `vehicleTypes` | `PB` | `PB` kennt 186 Typen; der Bestand benutzt 84, **keinen unbekannten** |
+| `buildingTypes` | `GEBAEUDE_NAMEN` | gedeckt |
+| `layouts` | `LAYOUTS_STANDARD` | gedeckt |
+| `extensionCatalog` | `extCatVon` + `ausbauKatalogLesen` | seit D-68 überhaupt erst benutzbar |
+
+Der Rest war Oberfläche: das Einfügefeld, „Plan ersetzen", der Speicher-Horcher
+und die Übernahmeseite des Ausbaureiters. Zusammen 102 Zeilen weg, 27 dazu.
+
+Mitgegangen ist `geraten`. D-01 hatte die Notquelle mit „sichtbar an
+`geraten: true`, deshalb tragbar" gerechtfertigt — das Feld wurde gesetzt und
+**nie gelesen**, die Rechtfertigung war also nie eingelöst. Jetzt gibt `vehMeta`
+für einen unbekannten Typ schlicht `null` zurück, und die Rechnungen übergehen
+ihn; Probe 7 deckt genau das ab. Ein neuer Fahrzeugtyp wird in `PB` nachgetragen,
+nicht über einen Plan hereingereicht.
+
+**Nebenwirkung, und der eigentliche Anlaß:** auf `/schoolings` hing der Knopf
+„Bestand jetzt laden" an `S.plan`. Ausgerechnet der Knopf, den nur jemand ohne
+geladenen Bestand braucht, erschien also nur für Leute, die einen Plan
+importiert hatten — genau verkehrt herum. Ohne Bestand bleibt die
+Bedarfsspalte leer und „Alle füllen" gesperrt; für einen Mitspieler ohne Plan
+sah die ganze Übersicht kaputt aus. Mit dem Plan fällt die Bedingung weg.
+
+Ein Wort zur Sprache: „Plan" meinte in diesem Skript drei Dinge — den
+importierten Plan, das Wunschbild und die Personalverteilung einer Wache. Eines
+davon ist jetzt fort, und die Texte der Oberfläche („Fahrzeuge, die gegenüber
+dem Plan fehlen") meinen eindeutig das Wunschbild im Reiter „Plan".
+
+## D-79 Fünf Anhänger bekommen ihre Einsatzstellen-Stärke (v0.52.0)
+
+`sitzeFuerKurs` gibt für einen Anhänger `meta.est` zurück — fehlt das Feld, ist
+der Bedarf **null**, für immer. Fünf Anhänger im Wunschbild forderten einen
+Lehrgang, nannten aber keine Zahl:
+
+| Typ | Fahrzeug | Lehrgang | est | Quelle |
+|---|---|---|---|---|
+| 92 | Anh Hund | `thw_rescue_dogs` | 4 | Wiki: „für den MTW-O braucht man vier Personen mit Fachgruppe Rettungshundeführer" |
+| 96 | Außenlastbehälter | `police_firefighting` | 1 | Sasha |
+| 112 | NEA200 (THW) | `thw_energy_supply` | 1 | Sasha |
+| 113 | NEA200 (Feuerwehr) | `energy_supply` | 1 | Sasha |
+| 180 | AB-NEA200 | `energy_supply` | 1 | Sasha („wie das normale NEA") |
+
+Bei zweien wäre die Zahl ohnehin folgenlos geblieben — `Anh SwPu` und `Anh 7`
+werden von Fahrzeugen gezogen, die denselben Kurs schon fordern, also greift
+D-19 und der Anhänger zählt nicht doppelt. Bei den fünf oben fordert **kein**
+zugelassenes Zugfahrzeug den Kurs; ihr Bedarf ging deshalb verloren.
+
+Wirkung: die Kursauswahl beschriftet jetzt **59 von 60** Lehrgängen statt 55.
+`thw_rescue_dogs` 8, `energy_supply` 2, `police_firefighting` 1,
+`thw_energy_supply` 1.
+
+Ohne Bedarf bleibt allein `police_helicopter_lift` — dafür müßte
+`156 Polizeihubschrauber mit verbauter Winde` in einem Profil stehen. Das ist
+eine Entscheidung über das Wunschbild, keine Datenlücke.
+
+Nicht eingetragen: `est` ist **nicht** die Sitzzahl des Zugfahrzeugs. Der
+AB-Dekon-P steht mit 6 auf einem WLF mit drei Plätzen, der Anh MzB mit 4 auf
+einem Zweisitzer. Die Zahl ist eine Spielregel und wird erfragt, nicht
+hergeleitet.
+
