@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.52.0
+// @version      0.53.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.52.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.53.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -1658,6 +1658,50 @@ function fehltAn(v, besatzung) {
   return '';
 }
 
+/** Welche Anfragen bringen eine Wache vom Ist- in den Sollzustand?
+    Rein rechnend und ohne Server — genau hier saß der Fehler aus D-81.
+
+    `zuweisungDo` ist ein UMSCHALTER (siehe PROJECT_CONTEXT). Wer über eine
+    Momentaufnahme des Rosters arbeitet, statt den Sitzplan mitzuführen, löst
+    darum beim zweiten Griff wieder aus, was der erste gesetzt hat: wird das
+    ZIEL-Fahrzeug vor dem QUELL-Fahrzeug abgearbeitet, hängt der Lauf die
+    Person zurück auf das alte Fahrzeug. Das Zielfahrzeug bleibt leer, das
+    Protokoll behauptet das Gegenteil, und beim nächsten Lauf beginnt es von
+    vorn. Welche Reihenfolge man bekommt, entschied allein die Reihenfolge des
+    Bestands.
+
+    Deshalb ein lebender Sitzplan: `sitzt` wird nach jedem Schritt
+    nachgeführt, und `ist` ergibt sich daraus, nicht aus dem Roster.
+    Geschlüsselt über die Personen-Id, weil Roster und Plan verschiedene
+    Kopien derselben Person halten.
+
+    `fahrzeuge` in der Reihenfolge, in der gearbeitet wird. Zurück kommt die
+    Schrittfolge; abgeschickt wird sie erst von `assignStaff`. */
+function sitzplanSchritte(personen, zuweisung, fahrzeuge, lahmIds) {
+  const sitzt = new Map();
+  for (const p of personen) sitzt.set(p.id, p.assignedTo || null);
+  const schritte = [];
+  for (const v of fahrzeuge) {
+    const vid = String(v.id);
+    const soll = lahmIds.has(vid) ? [] : (zuweisung.get(v.id) || []);
+    const sollIds = new Set(soll.map(p => p.id));
+    // Wer JETZT hier sitzt — nach allem, was dieser Lauf schon getan hat.
+    for (const p of personen) {
+      if (sitzt.get(p.id) !== vid || sollIds.has(p.id)) continue;
+      schritte.push({ art: 'loesen', fzId: vid, pId: p.id });
+      sitzt.set(p.id, null);
+    }
+    for (const p of soll) {
+      const wo = sitzt.get(p.id);
+      if (wo === vid) continue;                       // sitzt schon richtig
+      if (wo) { schritte.push({ art: 'loesen', fzId: wo, pId: p.id }); sitzt.set(p.id, null); }
+      schritte.push({ art: 'setzen', fzId: vid, pId: p.id });
+      sitzt.set(p.id, vid);
+    }
+  }
+  return { schritte, sitzt };
+}
+
 /* Umschaltungen, die gerade nicht möglich waren, weil das Fahrzeug
    unterwegs ist. Werden beim nächsten Personallauf nachgeholt. */
 const warte = store.get(KEY_WARTE, {});
@@ -2080,48 +2124,41 @@ async function assignStaff(sel, dry) {
     if (plan.uebrig) log(`${b.caption}: ${plan.uebrig} Personen ohne Fahrzeug`);
 
     // Ausführen: nur Abweichungen anfassen
-    const istAuf = new Map();
-    for (const p of roster.people) if (p.assignedTo) {
-      if (!istAuf.has(p.assignedTo)) istAuf.set(p.assignedTo, []);
-      istAuf.get(p.assignedTo).push(p);
+    const lahmIds = new Set(plan.lahm.map(x => String(x.v.id)));
+    const bemannbar = mineOf(b).filter(v => (T.veh(v.vehicle_type)?.max || 0) > 0);
+
+    /* Mehr Personen als Sitze kann der Planer nicht verursachen — er bricht
+       bei max ab. Steht es trotzdem so da, stimmen die Stammdaten für diesen
+       Typ nicht, und das gehört gesagt statt still korrigiert. */
+    for (const v of bemannbar) {
+      const drauf = roster.people.filter(p => p.assignedTo === String(v.id)).length;
+      const sitze = T.veh(v.vehicle_type)?.max || 0;
+      if (drauf > sitze)
+        log(`${b.caption}: ${v.caption} — ${drauf} Personen auf ${sitze} Sitzen `
+          + `laut Stammdaten (Typ ${v.vehicle_type})`, 'warn');
     }
 
-    const lahmIds = new Set(plan.lahm.map(x => String(x.v.id)));
-    for (const v of mineOf(b)) {
-      if ((T.veh(v.vehicle_type)?.max || 0) === 0) continue;
-      const soll = lahmIds.has(String(v.id)) ? [] : (plan.zuweisung.get(v.id) || []);
-      const ist  = istAuf.get(String(v.id)) || [];
-      /* Mehr Personen als Sitze kann der Planer nicht verursachen — er bricht
-         bei max ab. Steht es trotzdem so da, stimmen die Stammdaten für diesen
-         Typ nicht, und das gehört gesagt statt still korrigiert. */
-      const sitze = T.veh(v.vehicle_type)?.max || 0;
-      if (ist.length > sitze)
-        log(`${b.caption}: ${v.caption} — ${ist.length} Personen auf ${sitze} Sitzen `
-          + `laut Stammdaten (Typ ${v.vehicle_type})`, 'warn');
-      const sollIds = new Set(soll.map(p => p.id));
-      const istIds  = new Set(ist.map(p => p.id));
+    /* Die Schrittfolge wird gerechnet, nicht nebenbei entschieden — sie führt
+       den Sitzplan mit, weil `zuweisungDo` umschaltet (D-81). */
+    const { schritte } = sitzplanSchritte(roster.people, plan.zuweisung, bemannbar, lahmIds);
+    const nameVon = new Map(roster.people.map(p => [p.id, p.name]));
+    const fzVon = new Map(mineOf(b).map(v => [String(v.id), v]));
 
-      for (const p of ist) {
-        if (sollIds.has(p.id)) continue;
-        log(`${b.caption}: ${p.name} von ${v.caption} lösen`);
-        if (!dry) await postForm(`/vehicles/${v.id}/zuweisungDo/${p.id}`);
-        n++;
-      }
-      for (const p of soll) {
-        if (istIds.has(p.id)) continue;
-        if (p.assignedTo && p.assignedTo !== String(v.id)) {
-          log(`${b.caption}: ${p.name} von Fahrzeug ${p.assignedTo} lösen`);
-          if (!dry) await postForm(`/vehicles/${p.assignedTo}/zuweisungDo/${p.id}`);
-          n++;
-        }
-        log(`${b.caption}: ${p.name} → ${v.caption}`);
-        if (!dry) await postForm(`/vehicles/${v.id}/zuweisungDo/${p.id}`);
-        n++;
-      }
-      /* Der Bestand kennt die Besatzungsstärke aus dem letzten Vollabruf. Wer
-         direkt nach dem Personallauf die Haken setzt, urteilte sonst über
-         Zahlen von vorhin — oder über gar keine, wenn das Fahrzeug neu ist. */
-      if (!dry && v.besatzung !== soll.length) { v.besatzung = soll.length; merkeAenderung(); }
+    for (const sch of schritte) {
+      if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
+      const wer = nameVon.get(sch.pId) || `Person ${sch.pId}`;
+      const wo = fzVon.get(sch.fzId)?.caption || `Fahrzeug ${sch.fzId}`;
+      log(`${b.caption}: ${wer} ${sch.art === 'loesen' ? `von ${wo} lösen` : `→ ${wo}`}`);
+      if (!dry) await postForm(`/vehicles/${sch.fzId}/zuweisungDo/${sch.pId}`);
+      n++;
+    }
+
+    /* Der Bestand kennt die Besatzungsstärke aus dem letzten Vollabruf. Wer
+       direkt nach dem Personallauf die Haken setzt, urteilte sonst über
+       Zahlen von vorhin — oder über gar keine, wenn das Fahrzeug neu ist. */
+    if (!dry) for (const v of bemannbar) {
+      const soll = lahmIds.has(String(v.id)) ? [] : (plan.zuweisung.get(v.id) || []);
+      if (v.besatzung !== soll.length) { v.besatzung = soll.length; merkeAenderung(); }
     }
 
     /* Status: lahme Fahrzeuge und solche, deren Besatzung den Kurs erst

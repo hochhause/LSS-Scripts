@@ -56,10 +56,10 @@ const echteVon = b => mineOf(b).filter(v => !istPlatzhalter(v));
 
 const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
            bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
-           courseNeed, bedarfDerWache, memoK, fehltAn };`)();
+           courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
-        courseNeed, bedarfDerWache, memoK, fehltAn } = kern;
+        courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte } = kern;
 
 let fehler = 0;
 const pruefe = (name, ist, soll) => {
@@ -654,6 +654,67 @@ console.log('\n22. Haken: beide Anforderungskanäle, nicht nur Köpfe');
          !!fehltAn(gwW, voll.slice(0, -1).concat([kann()])), true);
   pruefe('zu wenige Personen wird zuerst gemeldet',
          /von \d+ Personen/.test(fehltAn(gwW, [])), true);
+}
+
+console.log('');
+console.log('23. Sitzplan: Umzuege ueberleben jede Reihenfolge');
+{
+  /* `zuweisungDo` ist ein Umschalter. Wer ueber eine Momentaufnahme arbeitet,
+     loest beim zweiten Griff wieder aus, was der erste gesetzt hat — und ob
+     das passiert, entschied allein die Reihenfolge des Bestands (D-81).
+     Geprueft wird deshalb der ENDZUSTAND, nachgespielt mit echter
+     Umschalt-Wirkung, nicht die Schrittfolge. */
+  const person = (id, auf) => ({ id: String(id), name: 'P' + id, assignedTo: auf ? String(auf) : null });
+  const spielDurch = (personen, schritte) => {
+    const sitzt = new Map(personen.map(p => [p.id, p.assignedTo || null]));
+    for (const sch of schritte) sitzt.set(sch.pId, sitzt.get(sch.pId) === sch.fzId ? null : sch.fzId);
+    return sitzt;
+  };
+  const A = { id: 10 }, B = { id: 20 };
+
+  // P sitzt auf A, soll auf B — einmal in jeder Reihenfolge
+  for (const [reihe, wie] of [[[A, B], 'A vor B'], [[B, A], 'B vor A']]) {
+    const leute = [person(1, 10)];
+    const zuw = new Map([[20, [leute[0]]]]);
+    const { schritte } = sitzplanSchritte(leute, zuw, reihe, new Set());
+    const ende = spielDurch(leute, schritte);
+    pruefe('Umzug A->B, ' + wie + ': P landet auf B', ende.get('1'), '20');
+  }
+
+  // Kreuztausch: P von A nach B, Q von B nach A
+  {
+    const leute = [person(1, 10), person(2, 20)];
+    const zuw = new Map([[10, [leute[1]]], [20, [leute[0]]]]);
+    const { schritte } = sitzplanSchritte(leute, zuw, [A, B], new Set());
+    const ende = spielDurch(leute, schritte);
+    pruefe('Kreuztausch: P nach B', ende.get('1'), '20');
+    pruefe('Kreuztausch: Q nach A', ende.get('2'), '10');
+  }
+
+  // Wer schon richtig sitzt, wird nicht angefasst
+  {
+    const leute = [person(1, 10)];
+    const zuw = new Map([[10, [leute[0]]]]);
+    const { schritte } = sitzplanSchritte(leute, zuw, [A, B], new Set());
+    pruefe('richtig Sitzender kostet keine Anfrage', schritte.length, 0);
+  }
+
+  // Lahmes Fahrzeug wird geleert
+  {
+    const leute = [person(1, 10)];
+    const { schritte } = sitzplanSchritte(leute, new Map(), [A], new Set(['10']));
+    const ende = spielDurch(leute, schritte);
+    pruefe('lahmes Fahrzeug wird geraeumt', ende.get('1'), null);
+    pruefe('und zwar mit genau einer Anfrage', schritte.length, 1);
+  }
+
+  // Ein Umzug kostet zwei Anfragen, nicht drei
+  {
+    const leute = [person(1, 10)];
+    const zuw = new Map([[20, [leute[0]]]]);
+    const { schritte } = sitzplanSchritte(leute, zuw, [B, A], new Set());
+    pruefe('Umzug kostet genau zwei Anfragen', schritte.length, 2);
+  }
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');

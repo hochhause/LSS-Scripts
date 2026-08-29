@@ -1392,3 +1392,42 @@ So bleibt die Lücke sichtbar, ohne daß die Prüfung dauerhaft meckert — eine
 Prüfung, die niemand schließen kann, wird nach kurzer Zeit überlesen, und dann
 ist sie schlimmer als keine.
 
+## D-81 Der Sitzplan wird mitgeführt, nicht einmal abgelesen (v0.53.0)
+
+Sasha, aus dem Spiel: „einige meiner Fahrzeuge haben niemanden zugewiesen oder
+die falschen." Das ist genau die Vorhersage dieses Fehlers.
+
+`assignStaff` baute `istAuf` **einmal** aus dem Roster und führte es nie nach;
+`p.assignedTo` blieb ebenfalls auf dem Stand des Lesens. `zuweisungDo` ist aber
+ein **Umschalter** (`PROJECT_CONTEXT.md:184`), und die Ausführung lief in der
+Reihenfolge des Bestands — die mit der Reihenfolge des Plans nichts zu tun hat.
+
+Person P sitzt auf A, der Plan will sie auf B:
+
+- **B zuerst:** P von A lösen, P auf B setzen — richtig. Dann kommt A an die
+  Reihe, dessen `ist`-Liste P **immer noch** enthält, findet P nicht im `soll`
+  und schickt ein weiteres `zuweisungDo` — der Umschalter zieht P von B zurück
+  auf A. **B bleibt leer**, das Protokoll behauptet „P → B", und der nächste
+  Lauf fängt von vorn an.
+- **A zuerst:** der Endzustand stimmt, kostet aber eine dritte Anfrage und
+  führt durch einen falschen Zwischenzustand.
+
+Behoben mit einem lebenden Sitzplan. `sitzplanSchritte(personen, zuweisung,
+fahrzeuge, lahmIds)` rechnet die Schrittfolge aus und führt dabei mit, wo jede
+Person nach jedem Schritt sitzt. `ist` ergibt sich daraus, nicht mehr aus dem
+Roster. Geschlüsselt wird über die Personen-Id, weil Roster und Plan
+verschiedene Kopien derselben Person halten.
+
+Die Funktion ist **rein** und liegt innerhalb der dritten Schnittmarke, ist also
+von `test-planung.js` erreichbar — der Fehler hat vier Jahre überlebt, weil
+diese zwanzig Zeilen die einzigen im Personalweg ohne Abdeckung waren. Probe 23
+spielt die Schritte mit echter Umschalt-Wirkung nach und prüft den
+**Endzustand**, nicht die Schrittfolge. Gegen die alte Fassung fallen drei ihrer
+acht Proben um, darunter „Umzug A→B, B vor A".
+
+Zwei Kleinigkeiten sind mitgegangen: die Schleife prüft jetzt `abgebrochen()`
+zwischen den Schritten — vorher liefen die Zuweisungen einer Wache ohne
+Haltepunkt durch —, und die Warnung „mehr Personen als Sitze" wird einmal vorab
+aus dem gelesenen Stand gebildet statt aus einer Liste, die sich unterwegs
+ändert.
+
