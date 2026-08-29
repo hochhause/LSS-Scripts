@@ -717,5 +717,37 @@ console.log('23. Sitzplan: Umzuege ueberleben jede Reihenfolge');
   }
 }
 
+console.log('');
+console.log('24. Fachkraefte bleiben frei, solange es einfachere gibt');
+{
+  /* X = gw_taucher, Y = gw_wasserrettung. Ein Fahrzeug verlangt nur Y.
+     Steht an derselben Wache auch ein X-Fahrzeug, ist X knapp — dann gehoert
+     der Doppelqualifizierte NICHT auf das Y-Fahrzeug. Massstab ist nicht
+     „wenige Lehrgaenge", sondern „wenige Lehrgaenge, die HIER knapp sind". */
+  const yF = fz(64), xF = fz(63);
+  const b = wache([yF, xF]);
+  const plan = planeWache(b, { people: [
+    person(1, 'gw_wasserrettung'),
+    person(2, 'gw_wasserrettung', 'gw_taucher'),
+    person(3, 'gw_taucher'),
+    person(4, 'gw_taucher')
+  ] }, false);
+  pruefe('Y-Fahrzeug nimmt den Y-Only', auf(plan, yF), ['1']);
+  pruefe('X-Fahrzeug nimmt die X-Only', auf(plan, xF), ['3', '4']);
+  pruefe('der Doppelte bleibt uebrig', plan.uebrig, 1);
+}
+{
+  // Reicht es nicht, muss der Doppelte ran — Freihalten ist kein Selbstzweck
+  const yF = fz(64), xF = fz(63);
+  const b = wache([yF, xF]);
+  const plan = planeWache(b, { people: [
+    person(1, 'gw_wasserrettung', 'gw_taucher'),
+    person(2, 'gw_taucher'),
+    person(3, 'gw_taucher')
+  ] }, false);
+  pruefe('ohne Y-Only springt der Doppelte ein', auf(plan, yF), ['1']);
+  pruefe('das X-Fahrzeug bleibt trotzdem besetzt', auf(plan, xF), ['2', '3']);
+}
+
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');
 process.exit(fehler ? 1 : 0);
