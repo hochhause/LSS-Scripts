@@ -20,6 +20,7 @@ Form der Seite, nicht der Inhalt eines Kontos.
 | `/vehicles/<id>/zuweisung` | HTML | die vollständige Personalquelle (D-47) |
 | `/schoolings` | HTML | zwei Tabellen, siehe unten |
 | `/schoolings/<id>` | HTML | Anmeldeseite eines offenen Lehrgangs |
+| `/vehicles/<id>/refit` | HTML | Umrüstformular; schickt an `POST /refit_vehicle/<id>` |
 
 Zwischenspeicher: `/api/buildings` und `/api/v2/vehicles` antworten mit
 `cache-control: max-age=60, private`. Das Spiel erlaubt also ausdrücklich, eine
@@ -128,8 +129,88 @@ hat als Kinder nur `script`, `img#ajax-loader`,
 Bauplatznummern sind **nicht** fortlaufend — an einer Wache traten 0, 6, 8, 14,
 15, 16, 18, 19 auf.
 
+## Die Umrüstseite `/vehicles/<id>/refit`
+
+Nachgemessen am 29.08.2026, rein lesend — jeder POST wurde im Browser
+abgefangen, es wurde nichts umgerüstet.
+
+```
+GET  /vehicles/<id>/refit          HTML, form#refit_form
+POST /refit_vehicle/<id>           dorthin geht die Umrüstung
+```
+
+Felder des Formulars:
+
+```
+utf8                                  ✓
+authenticity_token                    aus der Seite, nicht erfindbar
+vehicle_fitting_template[id]          leer = neue Umrüstung, sonst Vorlage
+vehicle_fitting_template[template_caption]   Pflicht, minlength=2, bei neuer Vorlage
+cabin_size_new_value                  versteckt, vom Schieber gespeist
+water_tank_capacity_new_value         "
+pump_capacity_new_value               "
+foam_capacity_new_value               "
+commit                                der gedrückte Knopf, siehe unten
+```
+
+**Die vier Wertfelder gibt es nur bei Löschfahrzeugen.** Bei DLK 23 und RTW
+enthält dasselbe Formular ausschließlich die beiden Vorlagenfelder — eine
+Umrüstung ist dort gegenstandslos. Die Grenzen hängen am Typ:
+
+| Typ | Personen | Wasser | Pumpe | Sonderlöschmittel |
+|---|---|---|---|---|
+| LF 20 | 1–9 (jetzt 9) | 0–4000 (2000) | 0–4000 (2000) | 0–1500 (150) |
+| HLF 20 | 1–9 (jetzt 9) | 0–**5000** (1600) | 0–4000 (2000) | 0–1500 (150) |
+
+Die Vorgabewerte sind der **Istzustand** des Fahrzeugs. Wer ein Feld wegläßt,
+darf sich also nicht darauf verlassen, daß es bleibt — die Werte gehören
+vollständig mitgeschickt.
+
+### Der gefährlichste Teil: `commit`
+
+Es gibt **zwei** Absendeknöpfe, beide heißen `commit`. Unterschieden werden sie
+allein durch ihren Text — und in dem Text steht der Preis:
+
+```html
+<input name="commit" type="submit" value="Fahrzeug umrüsten (10 Coins)"
+       class="… coins_activate …">
+<input name="commit" type="submit" value="Fahrzeug umrüsten (5.000 Credits)"
+       id="refit_with_credits_button">
+```
+
+Coins sind gekaufte Währung. Wer den String selbst zusammensetzt, verschreibt
+sich irgendwann. Der Wert wird **aus `#refit_with_credits_button` gelesen**,
+niemals gebaut.
+
+### Preis und Dauer
+
+Die Hälfte des Kaufpreises: LF 20 → 5.000, HLF 20 → 20.000 Credits. Der
+Knopftext änderte sich **nicht**, als der Personenschieber von 9 auf 4 gezogen
+wurde — der Einleitungssatz der Seite („beruhen auf dem ursprünglichen
+Kaufpreis des Fahrzeugs **und den vorgenommenen Veränderungen**") verspricht
+also mehr Feinheit, als die Seite zeigt. Dauer laut Seite: 48 Stunden.
+
+**Nicht gemessen:** ob das Fahrzeug während der 48 Stunden aus dem Dienst geht,
+und was `POST /refit_vehicle/<id>` antwortet. Beides ließe sich nur durch eine
+echte Umrüstung erfahren.
+
+### Was die API dazu sagt
+
+`/api/v2/vehicles` führt die Werte bereits mit:
+
+```
+custom_personal_max      die tatsächliche Sitzzahl
+custom_water_amount · custom_pump_amount · custom_foam_amount
+max_personnel_override   Deckel, sonst null
+```
+
+Am eigenen Konto stimmt `custom_personal_max` bei **allen 1.567 Fahrzeugen** mit
+`PB[typ].max` überein, und die 294 gesetzten `max_personnel_override` sind
+durchweg gleich groß. Solange nichts umgerüstet ist, rechnet der Planer also
+richtig — mit der ersten Umrüstung der Kabinengröße gilt das nicht mehr.
+
 ## Größen, am eigenen Konto gemessen
 
-103 Gebäude · 1.449 Fahrzeuge · 28 Schulen, davon 27 im Verband über vier
+103 Gebäude · 1.449 Fahrzeuge (29.08.2026: 1.567) · 28 Schulen, davon 27 im Verband über vier
 Schularten. `loadAll` kostet drei Abrufe (≈ 4 s), der Bestand im Speicher rund
 232 KB JSON — etwa ein Zehntel der Browserquote, nicht ein Viertel.
