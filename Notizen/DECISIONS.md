@@ -1431,3 +1431,35 @@ Haltepunkt durch —, und die Warnung „mehr Personen als Sitze" wird einmal vo
 aus dem gelesenen Stand gebildet statt aus einer Liste, die sich unterwegs
 ändert.
 
+
+## D-82 — „Zuweisungen lösen" verschont grüne Fahrzeuge (v0.54.0)
+
+Sasha will Wache für Wache vorgehen: fertig bauen, leeren, sauber neu zuweisen,
+grün markieren. Genau in diesem Ablauf war `zuweisungenLoeschen` eine Falle. Sie
+war die **einzige** Schreibstelle im Skript, die `geschuetzt()` nicht fragte.
+
+Warum das mehr ist als eine Unsauberkeit: `planeWache` besetzt ein grünes
+Fahrzeug nicht neu, sondern **friert** seine Besatzung ein (`fest`) und läßt
+danach nur noch den Auffüll-Durchgang darüber laufen — und der bedient sich
+ausschließlich aus Spalten, die nichts kosten. Steht nach dem Leeren niemand
+mehr darauf, friert der Planer also die **leere** Besatzung ein. Ein grünes
+Fahrzeug mit Fachkraftbedarf kommt danach leer zurück, und der Haken, der es
+schützen sollte, hat es leergeräumt. Wer den Ablauf ausführt, um Gewißheit zu
+gewinnen, bekommt das Gegenteil.
+
+Geschützt wird auf beiden Ebenen — grüne Wache: gar nichts, grünes Fahrzeug:
+übersprungen und mitgezählt. `„Grüne freigeben"` hebt beides auf, wie überall
+sonst. Damit gilt jetzt ausnahmslos, was oben bei `geschuetzt` steht: kein
+Personal abziehen.
+
+**Verworfen:** einen Neuaufbau-Haken in den Personallauf einbauen (erst alles
+lösen, dann setzen). Er hätte dieselbe Falle nur an eine zweite Stelle getragen,
+und er wird nicht gebraucht — der Abgleich läuft seit D-81 von selbst auf den
+Sollzustand zu. Wer trotzdem von Null anfangen will, hat mit „Zuweisungen lösen"
+den Knopf dafür, mit Rückfrage und auf **eine** Wache begrenzt.
+
+Zwei Kleinigkeiten mitgenommen: die gemerkte `besatzung` der geleerten Fahrzeuge
+wird auf 0 gezogen (sonst hält „Haken abgleichen" die Wache für besetzt und
+hakt leere Fahrzeuge ab), und das Protokoll nennt den Fahrzeugnamen statt der
+nackten Nummer. Nachgezogen wird nur, was der Lauf wirklich angefaßt hat — ein
+Abbruch soll nicht behaupten, er sei durchgelaufen.

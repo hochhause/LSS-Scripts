@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.53.0
+// @version      0.54.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.53.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.54.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -1171,21 +1171,53 @@ async function zuweisungenLoeschen(sel, dry) {
   const roster = await readRoster(b);
   if (!roster) { log(`${b.caption}: keine Fahrzeuge`, 'warn'); return 0; }
 
-  const eigene = new Set(mineOf(b).map(v => String(v.id)));
+  /* Grün heißt überall sonst „fertig, nichts wegnehmen“ — hier muß es
+     dasselbe heißen, und zwar aus einem handfesten Grund: ein grünes
+     Fahrzeug wird von `planeWache` nicht neu besetzt, sondern eingefroren.
+     Steht nach dem Leeren niemand mehr darauf, friert der Planer die leere
+     Besatzung ein und füllt nur noch aus kostenlosen Spalten auf. Ein
+     grünes Fahrzeug mit Fachkraftbedarf käme also leer zurück — genau das
+     Gegenteil von „Neuanfang vor einer sauberen Zuweisung“. */
+  if (geschuetzt(b)) {
+    log(`${b.caption} ist grün markiert — nichts gelöst.`, 'warn');
+    schutzZaehlen(); schutzMelden();
+    return 0;
+  }
+  const eigene = new Set(echteVon(b)
+    .filter(v => { if (geschuetzt(v)) { schutzZaehlen(); return false; } return true; })
+    .map(v => String(v.id)));
   const belegt = roster.people.filter(p => p.assignedTo && eigene.has(p.assignedTo));
-  if (!belegt.length) { log(`${b.caption}: niemand zugewiesen`, 'good'); return 0; }
+  if (!belegt.length) {
+    log(`${b.caption}: niemand zugewiesen, den dieser Lauf anfassen darf`, 'good');
+    schutzMelden();
+    return 0;
+  }
 
-  if (!dry && !await frage(`Wirklich alle ${belegt.length} Zuweisungen auf „${b.caption}" lösen?`,
+  if (!dry && !await frage(`Wirklich ${belegt.length} Zuweisungen auf „${b.caption}" lösen?`,
       'leeren')) return 0;
 
+  const fzVon = new Map(echteVon(b).map(v => [String(v.id), v]));
+  const geleert = new Set();
   let n = 0;
   for (const p of belegt) {
     if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
-    log(`${b.caption}: ${p.name} von Fahrzeug ${p.assignedTo} lösen`);
+    log(`${b.caption}: ${p.name} von ${fzVon.get(p.assignedTo)?.caption || `Fahrzeug ${p.assignedTo}`} lösen`);
     // Derselbe Aufruf wie beim Zuweisen — er schaltet um
     if (!dry) await postForm(`/vehicles/${p.assignedTo}/zuweisungDo/${p.id}`);
+    geleert.add(p.assignedTo);
     n++;
   }
+
+  /* Die gemerkte Besatzungsstärke stammt vom letzten Vollabruf. Bleibt sie
+     nach dem Leeren stehen, hält „Haken abgleichen“ die Wache für besetzt
+     und setzt einen Haken auf leere Fahrzeuge. Nachgezogen wird nur, was
+     dieser Lauf wirklich angefaßt hat — ein Abbruch soll nicht behaupten,
+     er sei durchgelaufen. */
+  if (!dry) for (const id of geleert) {
+    const v = fzVon.get(id);
+    if (v && v.besatzung !== 0) { v.besatzung = 0; merkeAenderung(); }
+  }
+  schutzMelden();
   return n;
 }
 
@@ -3323,8 +3355,10 @@ function render() {
     anhaenger:['Anhänger koppeln',     linkTrailers,
       'Ordnet jedem Anhänger ein festes Zugfahrzeug zu. Braucht einen Abruf je Fahrzeug und dauert entsprechend.'],
     leeren:   ['Zuweisungen lösen',    zuweisungenLoeschen,
-      'Nimmt alle Personen von den Fahrzeugen einer Wache. Gedacht als Neuanfang vor einer '
-      + 'sauberen Zuweisung. Aus Sicherheitsgründen immer nur eine einzige Wache je Lauf, '
+      'Nimmt die Personen von den Fahrzeugen einer Wache. Gedacht als Neuanfang vor einer '
+      + `sauberen Zuweisung: erst leeren, dann „Personal zuweisen". Was ${HAKEN} trägt, bleibt `
+      + 'unberührt — ein grünes Fahrzeug wird beim Zuweisen nicht neu besetzt und käme sonst '
+      + 'leer zurück. Aus Sicherheitsgründen immer nur eine einzige Wache je Lauf, '
       + 'und vor der Ausführung wird nochmals nachgefragt.'],
     haken:    ['Haken abgleichen',     hakenAbgleichen,
       'Benennt Wachen um: Wer von A bis Z fertig ist — Ausbauten, Fahrzeuge, Personal, Anhänger, '
