@@ -11,7 +11,7 @@
 
 (async () => {
   const ZIEL    = 400;
-  const TROCKEN = true;          // ← auf false setzen, wenn es wirklich passieren soll
+  const TROCKEN = false;          // ← auf false setzen, wenn es wirklich passieren soll
   const PAUSE   = 350;           // ms zwischen zwei Schreibvorgängen
 
   /* Gebäudearten ohne Personal übergehen: Schulen, Krankenhaus, Leitstelle.
