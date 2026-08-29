@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.51.0
+// @version      0.51.1
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.51.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.51.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -4185,12 +4185,12 @@ function educationPage() {
 
   // Wunschbild und Zuordnung kommen seit v0.32 aus eigenem Speicher; der
   // importierte Plan wird auf dieser Seite gar nicht mehr gebraucht (D-54).
-  /* `S.modell` fällt auf MODELL_STANDARD zurück, ist also NIE leer — die alte
-     Prüfung `Object.keys(modell).length` konnte deshalb nie zuschlagen, und der
-     rote Hinweis „Es gibt noch kein Wunschbild" war unerreichbar. Gefragt ist
-     nicht, ob ein Wunschbild im Speicher steht, sondern ob je eines angelegt
-     wurde — sonst wird gegen fremde Vorgaben gebucht. */
-  const eigenesWunschbild = () => !!store.get(KEY_MODELL, null);
+  /* Hier stand einmal eine Prüfung „gibt es überhaupt ein Wunschbild?". Sie war
+     erst tot (`S.modell` fällt auf MODELL_STANDARD zurück, ist also nie leer)
+     und danach schädlich: die eingebaute Vorlage IST eine gültige Einstellung.
+     Wer sie unverändert benutzt oder an Ort und Stelle anpaßt, legt nie ein
+     „eigenes" Wunschbild an — und wurde ausgesperrt. Es gibt hier nichts zu
+     prüfen, denn ein Ziel liegt immer vor (D-77). */
   let handKey = null;              // vom Nutzer gewählt, falls nicht erkennbar
 
   /** Um welchen Lehrgang geht es auf dieser Seite? Mehrere Wege, weil die
@@ -4535,12 +4535,6 @@ function educationPage() {
       auf die volle Besatzung aufgefüllt. */
   async function fill() {
     if (!curKey()) { alertBar('Bitte oben zuerst einen Lehrgang auswählen.'); return 0; }
-    if (!eigenesWunschbild()) {
-      alertBar('Kein eigenes Wunschbild angelegt — es gälte sonst die eingebaute Vorlage, '
-        + 'und die ist eine fremde Meinung. Im Planer unter „Plan“ anlegen oder die Vorlage dort übernehmen.');
-      return 0;
-    }
-
     let frei = freiePlaetze();
     if (frei === null) {
       alertBar(laeuftSchon()
@@ -4659,8 +4653,6 @@ function educationPage() {
       <b>Planer:</b> Wähle oben einen Lehrgang. Bei jeder Wache steht dann, wie viele Personen dort
       noch ausgebildet werden müssen. <b>Bedarf anhaken</b> füllt die freien Plätze des Lehrgangs
       — größter Bedarf zuerst. Abgeschickt wird nichts, das machst du selbst mit „Ausbilden“.
-      ${eigenesWunschbild() ? '' : '<br><b style="color:#a94442">Es gibt noch kein eigenes Wunschbild.</b> '
-        + 'Bis dahin gälte die eingebaute Vorlage. Öffne den Planer im Hauptfenster, Reiter „Plan“.'}
       ${Object.keys(inAus).length ? '' :
         '<br><b style="color:#a94442">Laufende Ausbildungen sind nicht erfaßt.</b> '
         + 'Die Zahl steht auf der Zuweisungsseite jeder Wache, nicht hier — lass einmal '

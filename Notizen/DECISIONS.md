@@ -1263,3 +1263,35 @@ Grund — „Feuer 11: kein Punkt — 6 von 20 Fahrzeugen ohne Punkt (außerdem 
 30 Fahrzeuge fehlen, 6 überzählig, 22 Ausbildungen)". Null Schreibversuche,
 null Skriptfehler.
 
+## D-77 Die eingebaute Vorlage IST eine gültige Einstellung (v0.51.1)
+
+Rücknahme einer Änderung aus derselben Sitzung, in der sie entstand.
+
+In `fill()` stand eine Prüfung `Object.keys(modell).length` mit dem Hinweis
+„Kein Wunschbild vorhanden". Sie war **tot**: der Getter `S.modell` fällt auf
+`MODELL_STANDARD` zurück, das Ergebnis ist also nie leer. Beim Aufräumen wurde
+daraus eine **erreichbare** Prüfung — „wurde je ein eigenes Wunschbild
+gespeichert?" —, mit der Begründung, sonst werde gegen fremde Vorgaben gebucht.
+
+Das war falsch gedacht. Es gibt drei normale Arbeitsweisen, und zwei davon legen
+nie ein „eigenes" Wunschbild an:
+
+1. die eingebaute Vorlage unverändert benutzen,
+2. sie an Ort und Stelle anpassen — der Plan-Editor schreibt zwar in
+   `lssplaner.modell`, aber wer nichts anfaßt, hat dort nichts stehen,
+3. ein eigenes Wunschbild aufbauen.
+
+Die Prüfung sperrte die ersten beiden aus, und zwar hart: „Bedarf anhaken" tat
+gar nichts mehr und meldete stattdessen, es fehle etwas, das gar nicht fehlt.
+Dazu ein roter Kasten in der Werkzeugleiste, der auf jeder Schulseite behauptete,
+die Einstellung sei unvollständig.
+
+Beides ersatzlos entfernt. Es gibt hier nichts zu prüfen: ein Ziel liegt immer
+vor, entweder das gespeicherte oder die Vorlage. Welches von beiden gilt, ist
+für die Rechnung ohne Belang.
+
+Die Lehre, weil sie sich wiederholen könnte: eine tote Prüfung ist nicht
+automatisch eine, die man beleben sollte. Erst prüfen, ob die Bedingung
+überhaupt einen Fehler beschreibt — hier beschrieb sie einen völlig normalen
+Zustand.
+
