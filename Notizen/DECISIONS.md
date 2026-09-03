@@ -1509,12 +1509,26 @@ Vier Regeln stecken darin:
 gelesen, und bei wiederholtem Lauf wuchs es in das gemerkte Analyseergebnis
 hinein.
 
-**Verworfen: die Überzahl gegen `echteVon` rechnen** statt gegen den Bestand
-samt Platzhaltern. Das hätte die Phantommeldung nach einem Kauf beseitigt —
-aber `have` speist auch `vehMissing`, und ohne Platzhalter hätte der nächste
-Lauf dasselbe Fahrzeug **ein zweites Mal gekauft**. Ein bezahlter Fehler gegen
-eine unschöne Meldung: die Meldung sagt jetzt einfach die Wahrheit („gerade
-gekauft, dem Server noch unbekannt").
+**Nicht gebaut: die Überzahl gegen `echteVon` rechnen** statt gegen den Bestand
+samt Platzhaltern — weil es nichts zu beheben gibt. Nachgerechnet an
+`buyVehicles`: `vehMissing` führt `n = soll − have`, gekauft wird
+`Math.min(n, frei)`, also gilt danach `have ≤ soll`. Ein Kauf des Planers kann
+**keine Überzahl erzeugen**, und Platzhalter entstehen nur beim Kauf. Die
+befürchtete Phantommeldung „x nicht verkauft" nach einem Kauf ist auf diesem
+Weg nicht erreichbar.
+
+Erreichbar bleibt ein enger Fall: kaufen, dann **Profil wechseln**, dann
+verkaufen — alles vor dem nächsten Bestandsladen. Dann sind Platzhalter
+überzählig. Dafür ist die Sperre richtig (eine negative Nummer darf in keine
+Anfrage), und die Meldung nennt den Grund: „gerade gekauft, dem Server noch
+unbekannt".
+
+Zwei frühere Begründungen hier waren falsch und sind ersetzt: daß die
+Phantommeldung im Normalbetrieb auftrete, und daß eine eigene Zählung aus
+`echteVon` zu einem Doppelkauf führen müßte. Sie hätte `have` und damit
+`vehMissing` gar nicht angefaßt — sie wird nur einfach nicht gebraucht.
+Festgehalten, weil eine plausible Fehlerursache, die es nicht gibt, sonst beim
+nächsten Lesen erneut „behoben" wird.
 
 **Verworfen: den Rang einstellbar machen.** Es gibt keinen Fall, in dem man das
 einsatzbereite vor dem abgestellten Fahrzeug verkaufen will.
