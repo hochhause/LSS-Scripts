@@ -18,6 +18,7 @@ const schnitt = (von, bis) => {
 
 const teile = [
   schnitt('const PB = {', 'const T = {'),
+  schnitt('/** Namensvorlagen', '/* Wie eine Wache umbenannt wird'),
   schnitt('/** Anhänger, die an diesem Fahrzeug hängen. */', '/* ═══════════════════════════════════════════════════════════════════\n   Einsatzbereitschaft'),
   schnitt('function mindestBedarf(v) {', '/* Umschaltungen, die gerade nicht möglich'),
   schnitt('/** Soll je Kursschlüssel für eine Wache.', '/** Liest die Personalauswahl einer Wache'),
@@ -28,7 +29,9 @@ const teile = [
 
 const stub = `
 const S = { plan: null, byBuilding: new Map(), byId: new Map(), opts: {} };
+const HAKEN = '\u{1F7E2}';
 const hatHaken = t => /\u{1F7E2}/u.test(String(t || ''));
+const ohneHaken = t => String(t).replace(/\u{1F7E2}/gu, '').replace(/\s{2,}/g, ' ').trim();
 const geschuetzt = o => !S.opts.gruenFrei && hatHaken(o?.caption || '');
 let uebergangen = 0;
 const quals = { by: {}, ts: null };
@@ -59,12 +62,16 @@ const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, bes
            bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
            courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
            verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
-           anhaengerAn, PB_TYPEN: PB };`)();
+           anhaengerAn, PB_TYPEN: PB,
+           MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler,
+           nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
         verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
-        anhaengerAn, PB_TYPEN } = kern;
+        anhaengerAn, PB_TYPEN,
+        MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler,
+        nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken } = kern;
 
 let fehler = 0;
 const pruefe = (name, ist, soll) => {
@@ -1010,6 +1017,129 @@ console.log('\n27. Mehrere Anhaenger an einem Zugfahrzeug');
   } else {
     pruefe('kein Paar kursfordernder AB am WLF — Probe entfaellt', true, true);
   }
+}
+
+/* ── 28. Namensvorlagen ────────────────────────────────────────────── */
+console.log('\n28. Namensvorlagen');
+const mFz = markenFuer(MARKEN_FZ);
+const mWa = markenFuer(MARKEN_WACHE);
+/* Ein Kontext, in dem jede Marke etwas Unverwechselbares liefert — so faellt
+   eine Verwechslung zweier Marken auf, nicht erst im Spiel. */
+const kFull = {
+  punkt: HAKEN, id: 42, alt: 'Altname', typName: 'RTW', typKurz: 'R',
+  wache: 'Wache Nord', wacheKurz: 'WN', nummer: 4,
+  leitstelle: 'Leitstelle Mitte', leitstelleKurz: 'LM'
+};
+
+{
+  // Jede der elf Marken loest genau ihren Wert auf.
+  const erwartet = {
+    punkt: HAKEN, id: '42', old: 'Altname', vehicleType: 'RTW', tagging: 'R',
+    stationName: 'Wache Nord', stationAlias: 'WN', number: '4',
+    numberRoman: 'IV', dispatch: 'Leitstelle Mitte', dispatchAlias: 'LM'
+  };
+  for (const k of MARKEN_FZ)
+    pruefe(`Marke {${k}}`, nameAus(`{${k}}`, mFz, kFull), erwartet[k]);
+  pruefe('alle Fahrzeugmarken sind belegt', MARKEN_FZ.length, 11);
+}
+{
+  // Die Vorgabe muss das Verhalten bis v0.58.0 nachbilden: Punkt vorn, Name sonst gleich.
+  pruefe('Vorgabe {punkt} {old} mit Punkt', nameAus('{punkt} {old}', mFz, kFull), HAKEN + ' Altname');
+  pruefe('Vorgabe {punkt} {old} ohne Punkt',
+         nameAus('{punkt} {old}', mFz, { ...kFull, punkt: '' }), 'Altname');
+  // Und der Punkt darf ueberall stehen.
+  pruefe('Punkt hinten', nameAus('{old} {punkt}', mFz, kFull), 'Altname ' + HAKEN);
+  pruefe('Punkt hinten, unfertig',
+         nameAus('{old} {punkt}', mFz, { ...kFull, punkt: '' }), 'Altname');
+  pruefe('Punkt mitten drin',
+         nameAus('{typ} {punkt} {number}'.replace('{typ}', '{vehicleType}'), mFz, kFull),
+         'RTW ' + HAKEN + ' 4');
+  pruefe('Punkt mitten drin, unfertig',
+         nameAus('{vehicleType} {punkt} {number}', mFz, { ...kFull, punkt: '' }), 'RTW 4');
+}
+{
+  // Unbekannte Marke bleibt woertlich stehen (LSSM-Verhalten): der Tippfehler
+  // ist am Ergebnis zu sehen, statt dass der Name still eine Luecke bekommt.
+  pruefe('unbekannte Marke bleibt stehen',
+         nameAus('{punkt} {vehicleTyp} X', mFz, kFull), HAKEN + ' {vehicleTyp} X');
+  pruefe('Fahrzeugmarke in Wachenvorlage bleibt stehen',
+         nameAus('{vehicleType}', mWa, kFull), '{vehicleType}');
+  pruefe('Wachenvorlage kennt sieben Marken', MARKEN_WACHE.length, 7);
+}
+{
+  // Alias faellt auf den Langnamen zurueck, wenn keiner gesetzt ist.
+  const ohne = { ...kFull, typKurz: '', wacheKurz: '', leitstelleKurz: '' };
+  pruefe('{tagging} ohne Alias = {vehicleType}', nameAus('{tagging}', mFz, ohne), 'RTW');
+  pruefe('{stationAlias} ohne Alias = {stationName}', nameAus('{stationAlias}', mFz, ohne), 'Wache Nord');
+  pruefe('{dispatchAlias} ohne Alias = {dispatch}', nameAus('{dispatchAlias}', mFz, ohne), 'Leitstelle Mitte');
+}
+{
+  // Leere Vorlage und fehlende Werte duerfen keinen Muell erzeugen.
+  pruefe('leere Vorlage gibt Leertext', nameAus('', mFz, kFull), '');
+  pruefe('nur Leerzeichen gibt Leertext', nameAus('   ', mFz, kFull), '');
+  pruefe('fehlender Wert wird zu Leertext',
+         nameAus('A {number} B', mFz, { ...kFull, nummer: null }), 'A B');
+  pruefe('Rand und Doppelluecken werden eingefangen',
+         nameAus('  {punkt}   {old}  ', mFz, { ...kFull, punkt: '' }), 'Altname');
+}
+{
+  // Roemische Zahlen, verbatim nach LSSM — 0 und Unsinn geben Leertext.
+  const paare = [[1, 'I'], [4, 'IV'], [5, 'V'], [9, 'IX'], [14, 'XIV'], [40, 'XL'],
+                 [90, 'XC'], [400, 'CD'], [1990, 'MCMXC'], [2024, 'MMXXIV'], [3999, 'MMMCMXCIX']];
+  for (const [z, r] of paare) pruefe(`roemisch ${z}`, roemisch(z), r);
+  pruefe('roemisch 0 gibt Leertext', roemisch(0), '');
+  pruefe('roemisch negativ gibt Leertext', roemisch(-3), '');
+  pruefe('roemisch Unsinn gibt Leertext', roemisch('abc'), '');
+  pruefe('roemisch Leertext gibt Leertext', roemisch(''), '');
+  pruefe('{numberRoman} bei 0 gibt Leertext',
+         nameAus('{numberRoman}', mFz, { ...kFull, nummer: 0 }), '');
+}
+{
+  // Typzaehler, Formel von LSSM. Gezaehlt wird nach Fahrzeugnummer aufsteigend.
+  const RTW = 28, LF = 0;
+  const a = fz(RTW, { id: 500 }), b2 = fz(RTW, { id: 100 }), c = fz(RTW, { id: 300 });
+  const fremd = fz(LF, { id: 50 });
+  const liste = [a, b2, c, fremd];
+  pruefe('Zaehler folgt der Fahrzeugnummer, nicht der Listenreihenfolge',
+         [b2, c, a].map(v => typZaehler(liste, v, 1, false)), [1, 2, 3]);
+  pruefe('fremder Typ zaehlt eigenstaendig', typZaehler(liste, fremd, 1, false), 1);
+  pruefe('Start 5', [b2, c, a].map(v => typZaehler(liste, v, 5, false)), [5, 6, 7]);
+  pruefe('Start 0 ohne Schalter', [b2, c, a].map(v => typZaehler(liste, v, 0, false)), [0, 1, 2]);
+  pruefe('Start 0 mit Schalter, mehrere des Typs',
+         [b2, c, a].map(v => typZaehler(liste, v, 0, true)), [1, 2, 3]);
+  pruefe('Start 0 mit Schalter, Einzelstueck bleibt ohne Nummer',
+         typZaehler(liste, fremd, 0, true), 0);
+  pruefe('unbekanntes Fahrzeug gibt Leertext',
+         typZaehler(liste, fz(RTW, { id: 999 }), 1, false), '');
+}
+{
+  // mitPunkt: fehlt {punkt}, kommt er an die Standardstelle vorn.
+  pruefe('mitPunkt ergaenzt vorn', mitPunkt('{vehicleType} {number}'), '{punkt} {vehicleType} {number}');
+  pruefe('mitPunkt laesst vorhandenes {punkt} in Ruhe',
+         mitPunkt('{old} {punkt}'), '{old} {punkt}');
+  pruefe('mitPunkt bei leerer Vorlage', mitPunkt(''), '{punkt} ');
+  pruefe('ergaenzte Vorlage traegt den Punkt auch wirklich',
+         nameAus(mitPunkt('{vehicleType}'), mFz, kFull), HAKEN + ' RTW');
+}
+{
+  // Wachsende Vorlagen: zweimal anwenden und vergleichen.
+  pruefe('{punkt} {old} waechst nicht', wachsendeVorlage('{punkt} {old}', mFz, kFull), null);
+  pruefe('{old} allein waechst nicht', wachsendeVorlage('{old}', mFz, kFull), null);
+  pruefe('reine Marken waechst nicht',
+         wachsendeVorlage('{punkt} {vehicleType} {number}', mFz, kFull), null);
+  const w = wachsendeVorlage('RTW {old}', mFz, kFull);
+  pruefe('RTW {old} waechst', !!w, true);
+  pruefe('und zeigt beide Stufen', [w.einmal, w.zweimal], ['RTW Altname', 'RTW RTW Altname']);
+  pruefe('Text hinter {old} waechst auch', !!wachsendeVorlage('{old} alt', mFz, kFull), true);
+  /* Der Punkt selbst darf nicht als Wachstum gelten — ohneHaken raeumt ihn
+     weg, genau deshalb steht er in wachsendeVorlage drin. */
+  pruefe('{punkt} zaehlt nicht als Wachstum',
+         wachsendeVorlage('{punkt} {old}', mFz, { ...kFull, punkt: HAKEN }), null);
+}
+{
+  // Der Musterkontext muss jede Marke bedienen, sonst zeigt die Vorschau Luecken.
+  for (const k of MARKEN_FZ)
+    pruefe(`Musterkontext bedient {${k}}`, nameAus(`{${k}}`, mFz, MUSTER_KONTEXT) !== '', true);
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');
