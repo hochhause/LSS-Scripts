@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.56.0
+// @version      0.57.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.56.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.57.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -930,15 +930,10 @@ function analyseIntern(b) {
   const have = {};
   for (const v of (S.byBuilding.get(b.id) || [])) have[v.vehicle_type] = (have[v.vehicle_type] || 0) + 1;
 
-  for (const [id, n] of Object.entries(tgt.vehicles || {})) {
-    const d = (Number(n) || 0) - (have[id] || 0);
-    if (d > 0) res.vehMissing.push({ id, n: d, name: T.vehName(id) });
-    res.staffNeed += (T.veh(id)?.max || 0) * (Number(n) || 0);
-  }
-  for (const [id, n] of Object.entries(have)) {
-    const soll = Number((tgt.vehicles || {})[id]) || 0;
-    if (n > soll) res.vehSurplus.push({ id, n: n - soll, name: T.vehName(id) });
-  }
+  const gegen = bestandGegenSoll(have, tgt.vehicles);
+  res.vehMissing = gegen.fehlt;
+  res.vehSurplus = gegen.zuviel;
+  res.staffNeed  = gegen.sitze;
 
   const cat = T.extCat(b.building_type), giving = slotGivingCaptions(b.building_type);
   const repeatable = {};
@@ -1347,6 +1342,31 @@ async function hakenAbgleichen(sel, dry) {
 /** Anhänger, die an diesem Fahrzeug hängen. */
 const anhaengerAn = v => (S.byBuilding.get(v.building_id) || [])
   .filter(a => a.zugfahrzeug === v.id && (T.veh(a.vehicle_type)?.max || 0) === 0);
+
+/** Bestand gegen Soll: was fehlt, was ist zu viel, wie viele Sitze der Plan
+    verlangt. Herausgezogen, weil Kauf und Zerstören an derselben Rechnung
+    hängen und sich nicht widersprechen dürfen — was fehlt, kann nicht
+    gleichzeitig zu viel sein, und ein Kauf darf keine Überzahl erzeugen.
+    Beides ist in `test-planung.js` festgenagelt (D-83, Abschnitt 26).
+
+    `have` zählt absichtlich auch vorgemerkte Fahrzeuge mit: sie stehen
+    serverseitig längst da und belegen Stellplätze. Zerstört werden können sie
+    nicht — das sagt `verkaufsKandidaten` mit eigenem Grund. */
+function bestandGegenSoll(have, sollFahrzeuge) {
+  const soll = sollFahrzeuge || {};
+  const fehlt = [], zuviel = [];
+  let sitze = 0;
+  for (const [id, n] of Object.entries(soll)) {
+    const d = (Number(n) || 0) - (have[id] || 0);
+    if (d > 0) fehlt.push({ id, n: d, name: T.vehName(id) });
+    sitze += (T.veh(id)?.max || 0) * (Number(n) || 0);
+  }
+  for (const [id, n] of Object.entries(have)) {
+    const s = Number(soll[id]) || 0;
+    if (n > s) zuviel.push({ id, n: n - s, name: T.vehName(id) });
+  }
+  return { fehlt, zuviel, sitze };
+}
 
 /** Reihenfolge unter den verkäuflichen Fahrzeugen. Klein fällt zuerst.
     „Irgendeiner davon" heißt nicht „der erste, den die API nennt":

@@ -36,6 +36,7 @@ const saveQuals = () => {};
 const log = () => {};        // im Test still
 const T = {
   veh: id => vehMeta(id),
+  vehName: id => vehMeta(id)?.name || ('Typ ' + id),
   profileOf(b) {
     const ps = S.plan?.model?.types?.[b.building_type]?.profiles || {};
     const a = S.plan?.model?.assignment?.[b.id];
@@ -57,11 +58,11 @@ const echteVon = b => mineOf(b).filter(v => !istPlatzhalter(v));
 const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
            bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
            courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
-           verkaufsKandidaten, verkaufsRang, verkaufsNamen };`)();
+           verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
-        verkaufsKandidaten, verkaufsRang, verkaufsNamen } = kern;
+        verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll } = kern;
 
 let fehler = 0;
 const pruefe = (name, ist, soll) => {
@@ -885,6 +886,49 @@ const RTW = 28, WLF = 46, AB = 49;      // AB-Oel hat keine Sitze, ist also Anha
          verkaufsRang({ caption: 'X', fms_real: 6 }) < verkaufsRang({ caption: 'X', fms_real: 2 }), true);
   pruefe('Rang: ungruen vor gruen',
          verkaufsRang({ caption: 'X', fms_real: 2 }) < verkaufsRang({ caption: '🟢 X', fms_real: 6 }), true);
+}
+
+/* ── 26. Bestand gegen Soll: die Invarianten hinter B4 ──────────────── */
+console.log('\n26. Bestand gegen Soll');
+/* Die Sorge hinter B4 war: ein eben gekauftes Fahrzeug treibt die Überzahl
+   hoch und meldet dann stumm „nicht zerstört". Nachgerechnet an
+   buyVehicles kann das nicht sein — hier steht es geprüft statt begründet. */
+const zahl = (l, id) => l.find(x => String(x.id) === String(id))?.n || 0;
+{
+  const soll = { [RTW]: 2, [WLF]: 1 };
+  for (let da = 0; da <= 4; da++) {
+    const g = bestandGegenSoll({ [RTW]: da }, soll);
+    const fehltRTW = zahl(g.fehlt, RTW), zuvielRTW = zahl(g.zuviel, RTW);
+    pruefe(`${da} von 2 RTW: nie fehlend UND ueberzaehlig`,
+           fehltRTW > 0 && zuvielRTW > 0, false);
+    pruefe(`${da} von 2 RTW: genau eine Richtung stimmt`,
+           [fehltRTW, zuvielRTW], [Math.max(0, 2 - da), Math.max(0, da - 2)]);
+    /* Kauf wie buyVehicles: genau das Fehlende, Stellplaetze frei.
+       Die Invariante ist nicht „danach null" — eine Ueberzahl, die schon
+       vorher bestand, bleibt zu Recht stehen. Sie ist: der Kauf macht sie
+       nicht groesser. */
+    pruefe(`${da} RTW: der Kauf vergroessert die Ueberzahl nicht`,
+           zahl(bestandGegenSoll({ [RTW]: da + fehltRTW }, soll).zuviel, RTW), zuvielRTW);
+  }
+}
+{
+  // Ein Typ, den der Plan nicht kennt, ist vollstaendig ueberzaehlig.
+  const g = bestandGegenSoll({ [WLF]: 3 }, { [RTW]: 1 });
+  pruefe('ungeplanter Typ ist ganz ueberzaehlig', zahl(g.zuviel, WLF), 3);
+  pruefe('und der geplante fehlt trotzdem', zahl(g.fehlt, RTW), 1);
+}
+{
+  // Sitze: der Plan zaehlt, nicht der Bestand — sonst waechst der
+  // Personalbedarf mit jedem gekauften Fahrzeug nachtraeglich.
+  const leer = bestandGegenSoll({}, { [RTW]: 2 });
+  const voll = bestandGegenSoll({ [RTW]: 2 }, { [RTW]: 2 });
+  pruefe('Sitze haengen am Soll, nicht am Bestand', leer.sitze, voll.sitze);
+  pruefe('Sitze: 2 RTW mal 2 Plaetze', leer.sitze, 4);
+}
+{
+  // Kein Soll: alles ueberzaehlig, nichts fehlt, keine Sitze.
+  const g = bestandGegenSoll({ [RTW]: 1 }, undefined);
+  pruefe('ohne Soll ist alles ueberzaehlig', [zahl(g.zuviel, RTW), g.fehlt.length, g.sitze], [1, 0, 0]);
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');

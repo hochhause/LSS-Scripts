@@ -1530,6 +1530,15 @@ Phantommeldung im Normalbetrieb auftrete, und daß eine eigene Zählung aus
 Festgehalten, weil eine plausible Fehlerursache, die es nicht gibt, sonst beim
 nächsten Lesen erneut „behoben" wird.
 
+**Statt eines Fehlers ein Nachweis (v0.57.0).** „Kann nicht passieren" ist eine
+Begründung, kein Netz. Die Rechnung, an der Kauf und Zerstören gemeinsam
+hängen, steht deshalb jetzt als `bestandGegenSoll(have, sollFahrzeuge)` für
+sich und ist in `test-planung.js` (Abschnitt 26) festgenagelt: ein Typ ist
+nie fehlend **und** überzählig, und **ein Kauf vergrößert die Überzahl nicht**.
+Die zweite Probe war beim ersten Anlauf selbst falsch — sie verlangte „danach
+keine Überzahl", obwohl eine schon vorher bestehende Überzahl zu Recht
+stehenbleibt. Die Invariante lautet: der Kauf macht sie nicht größer.
+
 **Verworfen: den Rang einstellbar machen.** Es gibt keinen Fall, in dem man das
 einsatzbereite vor dem abgestellten Fahrzeug verkaufen will.
 
