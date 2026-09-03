@@ -24,6 +24,11 @@ einem Fahrzeug prüft, das ohnehin weg soll, schreibt es in D-84 nach.
 Der Rechenkern ist mit `test-planung.js` abgedeckt, die Oberfläche nicht. Diese
 Dinge sind gebaut, aber noch nie im Spiel gesehen worden:
 
+- **Namensvorlagen** (Reiter „Namen", seit v0.59.0, D-86). Anzusehen: die zwei
+  Vorlagenfelder, die anklickbaren Marken (fügen sie an der Schreibmarke ein?),
+  die Vorschau samt Warnungen, und die zwei aufklappbaren Alias-Listen. Der
+  Rechenkern ist mit 73 Proben abgedeckt, die Oberfläche nicht.
+  **Mit „Nur Vorschau" an anfangen** — der Lauf benennt Fahrzeuge und Wachen um.
 - **Eigenes Fenster** (⇱ im Kopf). Popup-Blocker beim ersten Mal, und ob die
   Themenfarben drüben stimmen.
 - **Hinweis auf der Wachenseite** (versuchsweise, im Übersichtsreiter

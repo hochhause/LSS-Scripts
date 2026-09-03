@@ -27,7 +27,7 @@ darunter wiederholt, wird gestrichen.
 node --check userscripts/lss-planer.user.js   # Syntax
 node --check userscripts/lss-farben.user.js   # Syntax
 node werkzeuge/pruefer.js                     # fehlende Argumente, Reste, stille Fallen
-node werkzeuge/test-planung.js                # Rechenkern, 175 Proben
+node werkzeuge/test-planung.js                # Rechenkern, 248 Proben
 ```
 
 Beide Werkzeuge finden den Planer selbst; ein Pfad als Argument prüft eine

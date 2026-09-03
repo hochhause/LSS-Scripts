@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.58.0
+// @version      0.59.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.58.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.59.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -1101,6 +1101,121 @@ const ohneHaken = t => String(t)
   .trim();
 const hatHaken  = t => { HAKEN_ALLE.lastIndex = 0; return HAKEN_ALLE.test(String(t)); };
 
+/** Namensvorlagen
+    ═══════════════════════════════════════════════════════════════════
+    Nach dem Vorbild von LSSM v3 (`modules/lss-RenameFZ`), mit einer
+    Ergänzung: `{punkt}` sagt, **wo** der grüne Punkt steht. Bis v0.58.0
+    stand er immer vorn; die Vorgabe `{punkt} {old}` ist genau das.
+
+    Die Marken stehen in **einer Tabelle**, nicht im Code der Ersetzung. Eine
+    neue Variable ist damit eine Zeile hier plus ein Feld im Kontext — sonst
+    nichts. Jede `wert`-Funktion liest ausschließlich aus dem Kontext, also
+    ist die ganze Tabelle ohne Spielstand prüfbar.
+
+    Unbekannte Marken bleiben **wörtlich stehen**, wie bei LSSM: so sieht man
+    am Ergebnis den Tippfehler, statt daß der Name still eine Lücke bekommt. */
+const MARKEN = {
+  punkt:         { hilfe: 'grüner Punkt, sobald fertig — sonst nichts',
+                   wert: k => k.punkt },
+  id:            { hilfe: 'Nummer im Spiel',            wert: k => k.id },
+  old:           { hilfe: 'bisheriger Name, ohne Punkt', wert: k => k.alt },
+  vehicleType:   { hilfe: 'Typbezeichnung aus dem Katalog', wert: k => k.typName },
+  tagging:       { hilfe: 'eigene Typbezeichnung (sonst wie {vehicleType})',
+                   wert: k => k.typKurz || k.typName },
+  stationName:   { hilfe: 'Name der Wache, ohne Punkt',  wert: k => k.wache },
+  stationAlias:  { hilfe: 'eigener Wachenname (sonst wie {stationName})',
+                   wert: k => k.wacheKurz || k.wache },
+  number:        { hilfe: 'Zähler je Typ auf der Wache', wert: k => k.nummer },
+  numberRoman:   { hilfe: 'derselbe Zähler in römischen Zahlen',
+                   wert: k => roemisch(k.nummer) },
+  dispatch:      { hilfe: 'Name der Leitstelle',         wert: k => k.leitstelle },
+  dispatchAlias: { hilfe: 'eigener Leitstellenname (sonst wie {dispatch})',
+                   wert: k => k.leitstelleKurz || k.leitstelle }
+};
+
+/* Welche Marken wo gelten. Eine Wache hat keinen Fahrzeugtyp und keinen
+   Zähler; stünde `{vehicleType}` in einer Wachenvorlage, blieb es wörtlich
+   stehen — deshalb zeigt die Oberfläche je Vorlage nur die passenden. */
+const MARKEN_FZ = ['punkt', 'id', 'old', 'vehicleType', 'tagging', 'stationName',
+                   'stationAlias', 'number', 'numberRoman', 'dispatch', 'dispatchAlias'];
+const MARKEN_WACHE = ['punkt', 'id', 'old', 'stationName', 'stationAlias',
+                      'dispatch', 'dispatchAlias'];
+const markenFuer = liste => Object.fromEntries(liste.map(k => [k, MARKEN[k]]));
+
+/** Römische Zahlen, wie LSSM v3 sie rechnet. Ein Unterschied: dort gibt die
+    Funktion für 0 den Text „0" zurück, den der Aufrufer anschließend durch
+    Leertext ersetzt — hier kommt gleich Leertext heraus. Gleiches Ergebnis,
+    eine Stelle weniger, an der man es vergessen kann. */
+const ROEMISCH = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'],
+                  [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'],
+                  [5, 'V'], [4, 'IV'], [1, 'I']];
+function roemisch(zahl) {
+  let z = parseInt(zahl, 10);
+  if (!Number.isFinite(z) || z <= 0) return '';
+  let out = '';
+  for (const [wert, zeichen] of ROEMISCH) while (z >= wert) { out += zeichen; z -= wert; }
+  return out;
+}
+
+/** Zähler je Typ auf einer Wache, Formel von LSSM v3.
+    `start` 0 zusammen mit `abBeiEins` heißt: ein Einzelstück bekommt keine
+    Nummer, mehrere werden ab 1 durchnummeriert.
+
+    Eine Abweichung, bewußt: LSSM zählt in der Reihenfolge der Fahrzeugtabelle
+    auf der Spielseite. Der Planer hat keine Tabelle, also wird nach
+    Fahrzeugnummer aufsteigend gezählt. Das ist wichtiger als die Nachahmung —
+    eine wechselnde Reihenfolge würde die Nummern zwischen zwei Läufen wandern
+    lassen und jedes Mal alles umbenennen. */
+function typZaehler(fahrzeuge, v, start = 1, abBeiEins = false) {
+  const gleiche = fahrzeuge
+    .filter(x => String(x.vehicle_type) === String(v.vehicle_type))
+    .sort((x, y) => Number(x.id) - Number(y.id));
+  const i = gleiche.findIndex(x => String(x.id) === String(v.id));
+  if (i < 0) return '';
+  return i + start + (start === 0 && abBeiEins && gleiche.length > 1 ? 1 : 0);
+}
+
+/** Vorlage füllen. */
+function nameAus(vorlage, marken, kontext) {
+  return String(vorlage ?? '')
+    .replace(/\{(.*?)\}/g, (ganz, name) =>
+      marken[name] ? String(marken[name].wert(kontext) ?? '') : ganz)
+    /* Fällt `{punkt}` weg, bleibt sonst eine Lücke oder ein Rand stehen. */
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/** Fehlt `{punkt}`, kommt er an die Standardstelle: vorn. So war es bis
+    v0.58.0, und wegfallen darf er nicht — der grüne Punkt ist der
+    **Schutzmarker**, den `geschuetzt()` liest. Eine Vorlage ohne ihn nähme
+    jedem Fahrzeug den Schutz, und „Überzählige zerstören" verschonte danach
+    nichts mehr (D-86). Der Aufrufer meldet die Ergänzung. */
+const HAT_PUNKT = /\{punkt\}/;
+const mitPunkt = vorlage => HAT_PUNKT.test(String(vorlage ?? '')) ? String(vorlage ?? '')
+                                                                 : '{punkt} ' + String(vorlage ?? '');
+
+/** Wächst der Name bei jedem Lauf? Die Vorlage wird zweimal angewandt: einmal
+    auf den Namen, dann auf das Ergebnis. Kommt etwas anderes heraus, enthält
+    die Vorlage `{old}` neben festem Text („RTW {old}") und verlängert den
+    Namen bei jedem Lauf, bis die Längengrenze zuschlägt.
+
+    LSSM darf das ignorieren — dort drückt ein Mensch einmal auf einen Knopf
+    und sieht das Ergebnis. Der Planer läuft unbeaufsichtigt und wiederholt.
+    Liefert null, wenn alles in Ordnung ist. */
+function wachsendeVorlage(vorlage, marken, kontext) {
+  const einmal = nameAus(vorlage, marken, kontext);
+  const zweimal = nameAus(vorlage, marken, { ...kontext, alt: ohneHaken(einmal) });
+  return einmal === zweimal ? null : { einmal, zweimal };
+}
+
+/** Ein Muster-Kontext zum Prüfen und für die Vorschau in der Oberfläche —
+    ohne Spielstand, damit eine Vorlage schon beim Eintippen beurteilt wird. */
+const MUSTER_KONTEXT = {
+  punkt: HAKEN, id: 4711, alt: 'Muster', typName: 'RTW', typKurz: '',
+  wache: 'Rettungswache Nord', wacheKurz: '', nummer: 2,
+  leitstelle: 'Leitstelle Mitte', leitstelleKurz: ''
+};
+
 /* Wie eine Wache umbenannt wird, steht in ihrem Bearbeiten-Formular.
    Einmal nachsehen genügt, danach gilt der Weg für alle. */
 let umbenennWeg = null;
@@ -1216,9 +1331,102 @@ async function zuweisungenLoeschen(sel, dry) {
   return n;
 }
 
+/* ── Namensvorlagen: was aus den Einstellungen und dem Bestand kommt ──
+   Die Rechnung selbst steht weiter oben und ist ohne Spielstand geprüft.
+   Hier wird nur eingesammelt, was sie braucht. */
+const VORLAGE_STANDARD = '{punkt} {old}';   // = Verhalten bis v0.58.0
+/* ponytail: 150 ist LSSMs Zahl, **nicht** gemessen — die Formularfelder des
+   Spiels tragen weder maxlength noch pattern (D-86). Wer die echte Grenze
+   kennt, setzt sie in den Einstellungen; zu lange Namen werden übersprungen
+   und gemeldet, nie stillschweigend gekürzt. */
+const NAME_MAX_STANDARD = 150;
+
+const KEY_ALIAS_TYP   = 'lssplaner.aliasTyp';
+const KEY_ALIAS_WACHE = 'lssplaner.aliasWache';
+/* Gespeichert werden nur Abweichungen. 186 Katalognamen als „Alias" in den
+   Speicher zu schreiben hätte keinen Leser und keinen Nutzen. */
+const aliasTypAlle   = store.get(KEY_ALIAS_TYP, {});
+const aliasWacheAlle = store.get(KEY_ALIAS_WACHE, {});
+const aliasTyp   = id => aliasTypAlle[String(id)] || '';
+const aliasWache = id => (id == null ? '' : aliasWacheAlle[String(id)] || '');
+const leitstelleName = b => S.buildings
+  .find(x => String(x.id) === String(b.leitstelle_building_id))?.caption || '';
+
+/** Kontext eines Fahrzeugs. Wer eine neue Marke einbaut, ergänzt `MARKEN`
+    um eine Zeile und hier um ein Feld — die Tabelle liest nur von hier. */
+function kontextFahrzeug(b, v, punkt) {
+  return {
+    punkt:          punkt ? HAKEN : '',
+    id:             v.id,
+    alt:            ohneHaken(v.caption),
+    typName:        T.vehName(v.vehicle_type),
+    typKurz:        aliasTyp(v.vehicle_type),
+    wache:          ohneHaken(b.caption),
+    wacheKurz:      aliasWache(b.id),
+    nummer:         typZaehler(echteVon(b), v, Number(S.opts.zaehlerStart ?? 1),
+                               !!S.opts.zaehlerAbEins),
+    leitstelle:     ohneHaken(leitstelleName(b)),
+    leitstelleKurz: aliasWache(b.leitstelle_building_id)
+  };
+}
+
+/** Kontext einer Wache. `{old}` und `{stationName}` sind hier dasselbe —
+    beide dürfen benutzt werden, das ist kein Versehen. */
+function kontextWache(b, punkt) {
+  return {
+    punkt:          punkt ? HAKEN : '',
+    id:             b.id,
+    alt:            ohneHaken(b.caption),
+    wache:          ohneHaken(b.caption),
+    wacheKurz:      aliasWache(b.id),
+    leitstelle:     ohneHaken(leitstelleName(b)),
+    leitstelleKurz: aliasWache(b.leitstelle_building_id)
+  };
+}
+
+/** Beide Vorlagen prüfen, **bevor** ein einziger Name geschrieben wird.
+    Zwei Dinge werden hier entschieden und nicht je Fahrzeug: die Ergänzung
+    des fehlenden `{punkt}` und die Ablehnung wachsender Vorlagen. Eine
+    schlechte Vorlage ist ein Fehler der Einstellung — sie soll den Lauf
+    aufhalten, nicht 1500 Fahrzeuge einzeln. */
+function vorlagenPruefen() {
+  const eintraege = [
+    { was: 'Fahrzeuge', roh: S.opts.vorlageFz    ?? VORLAGE_STANDARD, marken: markenFuer(MARKEN_FZ) },
+    { was: 'Wachen',    roh: S.opts.vorlageWache ?? VORLAGE_STANDARD, marken: markenFuer(MARKEN_WACHE) }
+  ];
+  const hinweise = [], fehler = [];
+  for (const e of eintraege) {
+    e.vorlage = mitPunkt(e.roh);
+    if (!HAT_PUNKT.test(String(e.roh ?? '')))
+      hinweise.push(`Vorlage ${e.was}: kein {punkt} angegeben — er kommt an die Standardstelle `
+        + `vorn. Der grüne Punkt ist der Schutzmarker; ohne ihn verliert jedes Fahrzeug `
+        + `seinen Schutz.`);
+    const w = wachsendeVorlage(e.vorlage, e.marken, MUSTER_KONTEXT);
+    if (w) fehler.push(`Vorlage ${e.was} verlängert den Namen bei jedem Lauf: `
+      + `„${w.einmal}" wird beim nächsten Mal „${w.zweimal}". `
+      + `Nimm {vehicleType} oder {tagging} statt {old}.`);
+    const unbekannt = [...String(e.vorlage).matchAll(/\{(.*?)\}/g)]
+      .map(m => m[1]).filter(x => !e.marken[x]);
+    if (unbekannt.length)
+      hinweise.push(`Vorlage ${e.was}: ${unbekannt.map(x => `{${x}}`).join(', ')} `
+        + `${unbekannt.length > 1 ? 'sind keine Marken' : 'ist keine Marke'} und bleibt wörtlich stehen.`);
+  }
+  return { fehler: fehler.length ? fehler : null, hinweise,
+           vorlageFz: eintraege[0].vorlage, vorlageWache: eintraege[1].vorlage };
+}
+
 /** Setzt oder entfernt das Häkchen je nach Fortschritt. */
 async function hakenAbgleichen(sel, dry) {
-  let n = 0, i = 0;
+  let n = 0, i = 0, zuLang = 0;
+  const grenze = Number(S.opts.nameMax ?? NAME_MAX_STANDARD);
+  const pruefung = vorlagenPruefen();
+  pruefung.hinweise.forEach(t => log(t, 'warn'));
+  if (pruefung.fehler) {
+    pruefung.fehler.forEach(t => log(t, 'err'));
+    log('Nichts umbenannt — erst die Vorlage richtigstellen.', 'err');
+    return 0;
+  }
+  const markenFz = markenFuer(MARKEN_FZ), markenWa = markenFuer(MARKEN_WACHE);
   for (const b of sel) {
     schritt(i++, sel.length, b.caption);
     if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
@@ -1277,11 +1485,24 @@ async function hakenAbgleichen(sel, dry) {
             : (mangel.get(v.id) || 'nicht besetzbar')));
         }
 
-        const kern = ohneHaken(v.caption);
-        const soll = voll ? `${HAKEN} ${kern}` : kern;
+        const soll = nameAus(pruefung.vorlageFz, markenFz, kontextFahrzeug(b, v, voll));
         if (soll === v.caption) continue;
+        /* Der Schutz zuerst: ein grünes Fahrzeug wird ohnehin nicht angefaßt,
+           und es soll nicht als „zu lang" in einer Zählung auftauchen, die
+           nach einem Namensproblem klingt. */
         // Den Punkt wegzunehmen ist auch ein Eingriff — gerade der, der zählt
         if (geschuetzt(v)) { schutzZaehlen(); continue; }
+        /* Nie stillschweigend kürzen: ein halber Name ist schlimmer als ein
+           alter. Übersprungen und am Ende gezählt. */
+        if (soll.length > grenze) {
+          log(`   ${v.caption}: neuer Name wäre ${soll.length} Zeichen lang (Grenze ${grenze}) `
+            + '— übersprungen', 'warn');
+          zuLang++; continue;
+        }
+        if (!soll) {
+          log(`   ${v.caption}: die Vorlage ergibt einen leeren Namen — übersprungen`, 'warn');
+          continue;
+        }
         log(`   ${v.caption} → ${soll}`, voll ? 'good' : '');
         try { await umbenennenFahrzeug(v, soll, dry); n++; }
         catch (e) { log(`      fehlgeschlagen: ${e.message}`, 'err'); }
@@ -1304,8 +1525,7 @@ async function hakenAbgleichen(sel, dry) {
       log(`${b.caption}: Besatzung nicht lesbar — die Fahrzeugpunkte bleiben, `
         + 'die Wache wird nach den vorhandenen Punkten beurteilt', 'warn');
     }
-    const kern = ohneHaken(b.caption);
-    const soll = wachePunkt ? `${HAKEN} ${kern}` : kern;
+    const soll = nameAus(pruefung.vorlageWache, markenWa, kontextWache(b, wachePunkt));
     if (!wachePunkt) {
       /* Der Grund ist jetzt ein anderer: nicht mehr „was ist offen", sondern
          „welche Fahrzeuge tragen keinen Punkt". Was sonst noch aussteht, steht
@@ -1323,10 +1543,19 @@ async function hakenAbgleichen(sel, dry) {
     }
     if (soll === b.caption) continue;
     if (geschuetzt(b)) { schutzZaehlen(); continue; }
+    if (soll.length > grenze) {
+      log(`${b.caption}: neuer Name wäre ${soll.length} Zeichen lang (Grenze ${grenze}) `
+        + '— übersprungen', 'warn');
+      zuLang++; continue;
+    }
+    if (!soll) { log(`${b.caption}: die Vorlage ergibt einen leeren Namen — übersprungen`, 'warn'); continue; }
     log(`${b.caption} → ${soll}`, wachePunkt ? 'good' : '');
     try { await umbenennen(b, soll, dry); n++; }
     catch (e) { log(`   fehlgeschlagen: ${e.message}`, 'err'); break; }
   }
+  if (zuLang) log(`${zuLang} Namen übersprungen, weil sie länger als ${grenze} Zeichen wären. `
+    + 'Die echte Grenze des Spiels ist unbekannt — sie steht in den Einstellungen und '
+    + 'lässt sich heraufsetzen.', 'warn');
   schutzMelden();
   return n;
 }
@@ -3171,7 +3400,11 @@ function malLog(pre) {
   pre.className = logFilter;
   pre.scrollTop = pre.scrollHeight;
 }
-const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/* Gleicher Inhalt, eigener Name: wo etwas in ein Attribut geht, soll am
+   Aufruf zu sehen sein, daß es dorthin gehört. */
+const escA = esc;
 
 /* Ein Lauf über 20 Wachen schreibt hunderte Zeilen „→ zugewiesen“. Die eine
    Warnung dazwischen findet niemand. Gefiltert wird in CSS, damit die Zeilen
@@ -3453,11 +3686,12 @@ function render() {
       + 'unberührt — ein grünes Fahrzeug wird beim Zuweisen nicht neu besetzt und käme sonst '
       + 'leer zurück. Aus Sicherheitsgründen immer nur eine einzige Wache je Lauf, '
       + 'und vor der Ausführung wird nochmals nachgefragt.'],
-    haken:    ['Haken abgleichen',     hakenAbgleichen,
-      'Benennt Wachen um: Wer von A bis Z fertig ist — Ausbauten, Fahrzeuge, Personal, Anhänger, '
-      + `Lehrgänge — bekommt ein ${HAKEN} vor den Namen, alle anderen verlieren es. `
-      + 'Fahrzeuge bekommen den Haken, sobald sie voll und passend besetzt sind. '
-      + 'Wachen ohne erfassten Ausbildungsstand bleiben unangetastet.'],
+    haken:    ['Namen abgleichen',     hakenAbgleichen,
+      'Benennt Fahrzeuge und Wachen nach den Vorlagen unten um. '
+      + `${HAKEN} trägt, wer fertig ist: ein Fahrzeug, sobald es voll und passend besetzt ist, `
+      + 'eine Wache, sobald jedes ihrer Fahrzeuge den Punkt trägt. Wo der Punkt im Namen steht, '
+      + 'sagt {punkt}; alles andere daneben ist frei. Wachen ohne erfassten Ausbildungsstand '
+      + 'bleiben unangetastet.'],
     personal: ['Personal zuweisen',    assignStaff,
       'Verteilt vorhandenes Personal auf die Fahrzeuge: erst Ausgebildete auf ihre Fachfahrzeuge, dann der Rest. '
       + 'Anschließend wird die Einsatzbereitschaft nachgezogen: Fahrzeuge ohne ausreichende Besatzung gehen auf '
@@ -3947,10 +4181,84 @@ function render() {
       <b>Vorher alle Fahrzeuge einrücken lassen.</b> Der Status lässt sich nur umschalten, wenn ein
       Fahrzeug auf seiner Wache steht. Was unterwegs ist, wird vorgemerkt und beim nächsten Lauf nachgeholt.
     </div>`;
+  /* ── Namensvorlagen: Einstellungen im Reiter „Namen" ────────────────
+     Nur hier, nicht global: die Vorlage gehört zu der Tat, die sie ausführt.
+     Aufgeklappt wird über <details> — das kann der Browser selbst. */
+  const markenKnoepfe = (welche, liste) => liste
+    .map(k => `<button type="button" class="lssp-marke" data-vorlage="${welche}" data-marke="${k}"
+        title="${escA(MARKEN[k].hilfe)}"
+        style="background:var(--lp-flaeche2);border:1px solid var(--lp-rand);color:var(--lp-text);
+               border-radius:3px;padding:1px 5px;margin:1px 2px 1px 0;cursor:pointer;font-size:11px">{${k}}</button>`)
+    .join('');
+
+  const vorlageFeld = (welche, titel, wert, liste) => `
+    <div style="margin:0 0 10px">
+      <label style="display:block;margin-bottom:3px"><b>${esc(titel)}</b></label>
+      <input type="text" class="lssp-vorlage-feld" data-vorlage="${welche}"
+             value="${escA(wert)}" spellcheck="false"
+             style="width:100%;box-sizing:border-box;font-family:monospace">
+      <div style="margin-top:3px">${markenKnoepfe(welche, liste)}</div>
+      <div class="lssp-vorschau" data-vorlage="${welche}"
+           style="margin-top:4px;font-size:11px;color:var(--lp-dim)"></div>
+    </div>`;
+
+  /* Nur was der Spieler wirklich hat: 186 Katalogzeilen anzuzeigen wäre eine
+     Wand, in der man den eigenen RTW nicht findet. */
+  const eigeneTypen = [...new Set(S.vehicles.filter(v => !istPlatzhalter(v))
+      .map(v => String(v.vehicle_type)))]
+    .sort((x, y) => String(T.vehName(x)).localeCompare(String(T.vehName(y)), 'de'));
+
+  const aliasBlock = () => `
+    <details style="margin:0 0 8px">
+      <summary style="cursor:pointer;color:var(--lp-dim)">Eigene Typbezeichnungen
+        <span style="color:var(--lp-dim2)">— für {tagging}, ${eigeneTypen.length} Typen im Bestand</span></summary>
+      <div style="max-height:190px;overflow:auto;margin-top:5px">
+        ${eigeneTypen.map(t => `<label class="row" style="gap:6px;margin:2px 0">
+            <span style="flex:1;color:var(--lp-dim)">${esc(T.vehName(t))}</span>
+            <input type="text" class="lssp-alias" data-art="typ" data-id="${escA(t)}"
+                   value="${escA(aliasTyp(t))}" placeholder="${escA(T.vehName(t))}"
+                   style="width:150px"></label>`).join('')}
+      </div>
+    </details>
+    <details style="margin:0 0 8px">
+      <summary style="cursor:pointer;color:var(--lp-dim)">Eigene Wachennamen
+        <span style="color:var(--lp-dim2)">— für {stationAlias} und {dispatchAlias}</span></summary>
+      <div style="max-height:190px;overflow:auto;margin-top:5px">
+        ${planWachen().map(w => `<label class="row" style="gap:6px;margin:2px 0">
+            <span style="flex:1;color:var(--lp-dim)">${esc(ohneHaken(w.caption))}</span>
+            <input type="text" class="lssp-alias" data-art="wache" data-id="${escA(w.id)}"
+                   value="${escA(aliasWache(w.id))}" placeholder="${escA(ohneHaken(w.caption))}"
+                   style="width:150px"></label>`).join('')}
+      </div>
+    </details>`;
+
+  const namensopt = tab !== 'haken' ? '' : `
+    <div style="border:1px solid var(--lp-rand);border-radius:3px;padding:9px 11px;margin:0 0 10px">
+      <div style="margin-bottom:8px"><b>Namensvorlagen</b>
+        <span style="color:var(--lp-dim2)">— <code>{punkt}</code> sagt, <b>wo</b> der grüne Punkt
+        steht. Fehlt er, kommt er vorn hin. Die Vorgabe <code>{punkt} {old}</code> ist genau das
+        Verhalten bis v0.58.0.</span></div>
+      ${vorlageFeld('fz', 'Fahrzeuge', S.opts.vorlageFz ?? VORLAGE_STANDARD, MARKEN_FZ)}
+      ${vorlageFeld('wache', 'Wachen', S.opts.vorlageWache ?? VORLAGE_STANDARD, MARKEN_WACHE)}
+      <div class="row" style="gap:14px;flex-wrap:wrap;margin:0 0 8px;color:var(--lp-dim)">
+        <label title="Womit {number} anfängt. 0 zusammen mit dem Schalter rechts heißt: ein Einzelstück bekommt keine Nummer.">
+          Zähler-Start
+          <input type="number" id="lssp-zstart" min="0" max="99" style="width:60px"
+                 value="${Number(S.opts.zaehlerStart ?? 1)}"></label>
+        <label title="Nur wirksam bei Zähler-Start 0: mehrere Fahrzeuge eines Typs werden dann ab 1 durchnummeriert, ein Einzelstück bleibt ohne Nummer.">
+          <input type="checkbox" id="lssp-zabeins" ${S.opts.zaehlerAbEins ? 'checked' : ''}>
+          bei mehreren eines Typs ab 1</label>
+        <label title="Die echte Grenze des Spiels ist unbekannt — die Formularfelder tragen kein maxlength. 150 ist die Annahme von LSSM v3. Längere Namen werden übersprungen, nie gekürzt.">
+          Länge höchstens
+          <input type="number" id="lssp-namemax" min="10" max="500" style="width:70px"
+                 value="${Number(S.opts.nameMax ?? NAME_MAX_STANDARD)}"></label>
+      </div>
+      ${aliasBlock()}
+    </div>`;
   b.innerHTML = `<p class="hint">${esc(hint)}<br><br>
       <b>Lass „Nur Vorschau“ zunächst angehakt.</b> Dann passiert nichts im Spiel, du siehst unten
       nur die Liste dessen, was getan würde. Erst wenn das stimmt, Haken entfernen und erneut drücken.</p>
-      ${einzelAnsicht()}${einzeln}${heimwarnung}${vollopt}${modus}${buildingList()}
+      ${einzelAnsicht()}${einzeln}${heimwarnung}${vollopt}${namensopt}${modus}${buildingList()}
     <div class="row tun">
       <label style="color:var(--lp-dim)"><input type="checkbox" id="lssp-dry" ${S.opts.dry ? 'checked' : ''}> Nur Vorschau</label>
       <label style="color:${S.opts.gruenFrei ? 'var(--lp-err)' : 'var(--lp-dim)'}" title="Ohne diesen Haken bleibt alles unberührt, was ${HAKEN} trägt">
@@ -3969,6 +4277,81 @@ function render() {
   });
   auswahlBinden(b);
   einzelBinden(b);
+  /* ── Namensvorlagen: Bedienung ──────────────────────────────────────
+     Die Vorschau rechnet mit MUSTER_KONTEXT, also ohne einen einzigen Abruf.
+     So sieht man beim Tippen, was herauskommt — und ob die Vorlage wächst. */
+  const vorschauZeichnen = welche => {
+    const feld = b.querySelector(`.lssp-vorlage-feld[data-vorlage="${welche}"]`);
+    const ziel = b.querySelector(`.lssp-vorschau[data-vorlage="${welche}"]`);
+    if (!feld || !ziel) return;
+    const liste = welche === 'fz' ? MARKEN_FZ : MARKEN_WACHE;
+    const marken = markenFuer(liste);
+    const roh = feld.value;
+    const vorlage = mitPunkt(roh);
+    const grenze = Number(S.opts.nameMax ?? NAME_MAX_STANDARD);
+    const name = nameAus(vorlage, marken, MUSTER_KONTEXT);
+    const warn = [];
+    if (!HAT_PUNKT.test(roh))
+      warn.push('kein {punkt} — er kommt vorn hin; ohne ihn gäbe es keinen Schutz');
+    const unbekannt = [...String(roh).matchAll(/\{(.*?)\}/g)].map(m => m[1]).filter(x => !marken[x]);
+    if (unbekannt.length) warn.push(`bleibt wörtlich stehen: ${unbekannt.map(x => '{' + x + '}').join(', ')}`);
+    const w = wachsendeVorlage(vorlage, marken, MUSTER_KONTEXT);
+    if (w) warn.push(`wächst bei jedem Lauf: „${w.einmal}" → „${w.zweimal}" — der Lauf wird abgelehnt`);
+    if (!name) warn.push('ergibt einen leeren Namen');
+    if (name.length > grenze) warn.push(`${name.length} Zeichen, Grenze ${grenze}`);
+    ziel.innerHTML = `<span style="color:var(--lp-dim2)">Beispiel:</span> <b>${esc(name || '—')}</b>`
+      + (warn.length ? `<br><span style="color:${w || !name ? 'var(--lp-err)' : 'var(--lp-akzent)'}">`
+          + warn.map(esc).join(' · ') + '</span>' : '');
+  };
+
+  b.querySelectorAll('.lssp-vorlage-feld').forEach(feld => {
+    feld.addEventListener('input', () => {
+      const welche = feld.dataset.vorlage;
+      S.opts[welche === 'fz' ? 'vorlageFz' : 'vorlageWache'] = feld.value;
+      store.set(KEY_OPTS, S.opts);
+      vorschauZeichnen(welche);
+    });
+  });
+  /* Die Marke an der Schreibmarke einfügen, nicht am Ende — sonst muß man sie
+     jedes Mal von Hand an die richtige Stelle schieben. */
+  b.querySelectorAll('.lssp-marke').forEach(kn => kn.onclick = () => {
+    const welche = kn.dataset.vorlage;
+    const feld = b.querySelector(`.lssp-vorlage-feld[data-vorlage="${welche}"]`);
+    if (!feld) return;
+    const marke = `{${kn.dataset.marke}}`;
+    const a = feld.selectionStart ?? feld.value.length;
+    const e = feld.selectionEnd ?? feld.value.length;
+    feld.value = feld.value.slice(0, a) + marke + feld.value.slice(e);
+    feld.focus();
+    feld.setSelectionRange(a + marke.length, a + marke.length);
+    feld.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  b.querySelector('#lssp-zstart')?.addEventListener('change', e => {
+    S.opts.zaehlerStart = Math.max(0, Number(e.target.value) || 0);
+    store.set(KEY_OPTS, S.opts);
+  });
+  b.querySelector('#lssp-zabeins')?.addEventListener('change', e => {
+    S.opts.zaehlerAbEins = e.target.checked; store.set(KEY_OPTS, S.opts);
+  });
+  b.querySelector('#lssp-namemax')?.addEventListener('change', e => {
+    S.opts.nameMax = Math.max(10, Number(e.target.value) || NAME_MAX_STANDARD);
+    store.set(KEY_OPTS, S.opts);
+    ['fz', 'wache'].forEach(vorschauZeichnen);
+  });
+  /* Aliasse: nur Abweichungen im Speicher. Wer das Feld leert, streicht den
+     Alias — sonst sammelte sich dort mit der Zeit jeder Katalogname. */
+  b.querySelectorAll('.lssp-alias').forEach(feld => {
+    feld.addEventListener('change', () => {
+      const wo = feld.dataset.art === 'typ' ? aliasTypAlle : aliasWacheAlle;
+      const wert = feld.value.trim();
+      if (wert) wo[String(feld.dataset.id)] = wert;
+      else delete wo[String(feld.dataset.id)];
+      store.set(feld.dataset.art === 'typ' ? KEY_ALIAS_TYP : KEY_ALIAS_WACHE, wo);
+      ['fz', 'wache'].forEach(vorschauZeichnen);
+    });
+  });
+  if (tab === 'haken') ['fz', 'wache'].forEach(vorschauZeichnen);
+
   b.querySelector('#lssp-dry').onchange = e => {
     S.opts.dry = e.target.checked;
     store.set(KEY_OPTS, S.opts);

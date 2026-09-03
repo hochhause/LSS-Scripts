@@ -21,6 +21,8 @@ Form der Seite, nicht der Inhalt eines Kontos.
 | `/schoolings` | HTML | zwei Tabellen, siehe unten |
 | `/schoolings/<id>` | HTML | Anmeldeseite eines offenen Lehrgangs |
 | `/vehicles/<id>/refit` | HTML | Umrüstformular; schickt an `POST /refit_vehicle/<id>` |
+| `/vehicles/<id>/edit` | HTML | `#vehicle_caption` (`vehicle[caption]`) — **kein `maxlength`**, kein `pattern`, nicht `required` |
+| `/buildings/<id>/edit` | HTML | `#building_name` (`building[name]`) — ebenso ohne jede Längengrenze |
 
 Zwischenspeicher: `/api/buildings` und `/api/v2/vehicles` antworten mit
 `cache-control: max-age=60, private`. Das Spiel erlaubt also ausdrücklich, eine

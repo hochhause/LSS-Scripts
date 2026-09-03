@@ -215,3 +215,8 @@ GET  /schoolings                                    Übersicht, data-education-k
   `<span data-education-key="…">Im Unterricht: …</span>`; das Filter-Dropdown
   derselben Seite liefert nebenbei Schlüssel → Klartext.
 - Lehrgang fasst 10 Personen je Klassenraum.
+- **Namenslänge:** die Formulare des Spiels setzen **keine** Grenze — weder
+  `vehicle[caption]` noch `building[name]` tragen `maxlength` oder `pattern`
+  (nachgemessen, D-86). Ob der Server eine hat, ist ohne Schreibversuch nicht
+  zu erfahren. Der Planer nimmt 150 als einstellbare Sicherung (LSSMs Annahme)
+  und überspringt längere Namen, statt sie zu kürzen.

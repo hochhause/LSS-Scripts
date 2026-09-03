@@ -1675,3 +1675,102 @@ Einsätze daneben. Der größte Anhänger ist die Zahl, die immer reicht.
 verlangt.** Die Rangfolge bevorzugt freie Zugfahrzeuge, aber sie hängt nichts
 um, nur um es hübscher zu machen. Umhängen war der Fehler, den diese
 Entscheidung behebt.
+
+
+## D-86 Namensvorlagen nach LSSM v3, mit `{punkt}` (v0.59.0)
+
+**Lage.** Sasha wollte Fahrzeuge nicht nur mit dem grünen Punkt benennen,
+sondern mit Variablen, und nannte LSSM v3 als Vorbild: dort tut das Modul
+`modules/lss-RenameFZ` genau das. Die Quelle wurde gelesen, nicht geraten
+(1575 Zeilen, davon rund 900 Übersetzungen).
+
+Bis v0.58.0 besaß `hakenAbgleichen` den Namen vollständig:
+`kern = ohneHaken(caption)`, dann `punkt ? '🟢 ' + kern : kern`. Der Punkt
+stand immer vorn, alles andere war der von Hand gewählte Name.
+
+**Übernommen, wörtlich.** Die zehn Marken von LSSM (`{id} {old} {vehicleType}
+{tagging} {stationName} {stationAlias} {number} {numberRoman} {dispatch}
+{dispatchAlias}`), die Ersetzung als eine Zeile (`/{(.*?)}/g`, unbekannte
+Marken bleiben **wörtlich stehen**), der Typzähler samt Startwert und der
+Sonderregel „Start 0 plus Schalter ⇒ Einzelstück ohne Nummer, mehrere ab 1",
+und die römischen Zahlen.
+
+Bei den römischen Zahlen eine Kleinigkeit zusammengezogen: LSSM gibt für 0 den
+Text „0" zurück und ersetzt ihn beim Aufrufer durch Leertext. Hier kommt gleich
+Leertext heraus — gleiches Ergebnis, eine Stelle weniger, an der man es
+vergessen kann.
+
+**Ergänzt: `{punkt}`.** Er sagt, **wo** der grüne Punkt steht. Die Vorgabe
+`{punkt} {old}` ist Zeichen für Zeichen das Verhalten bis v0.58.0 — wer nichts
+einstellt, merkt nichts. Fehlt `{punkt}` in einer Vorlage, kommt er an die
+Standardstelle vorn (Sashas Entscheidung), und der Lauf sagt es. Wegfallen darf
+er nicht: der grüne Punkt ist der **Schutzmarker**, den `geschuetzt()` liest.
+Eine Vorlage ohne ihn nähme jedem Fahrzeug den Schutz, und „Überzählige
+zerstören" verschonte danach nichts mehr.
+
+**Ergänzt: eine Vorlage für Wachen.** LSSMs Modul kann nur Fahrzeuge. Wachen
+bekommen eine eigene Vorlage mit den sieben Marken, die für sie einen Sinn
+haben. `{old}` und `{stationName}` sind dort dasselbe; beides ist erlaubt.
+
+**Ergänzt: die Ablehnung wachsender Vorlagen.** `RTW {old}` verlängert den
+Namen bei jedem Lauf — „RTW RTW RTW …", bis die Längengrenze zuschlägt. Erkannt
+wird das, indem die Vorlage **zweimal** angewandt wird: einmal auf den Namen,
+dann auf das Ergebnis. Sind beide verschieden, wächst sie, und der Lauf bricht
+ab, bevor ein Name geschrieben ist. LSSM darf das ignorieren — dort drückt ein
+Mensch einmal auf einen Knopf und sieht das Ergebnis. Der Planer läuft
+unbeaufsichtigt und wiederholt.
+
+Geprüft wird gegen einen **Musterkontext**, ohne Spielstand. Deshalb urteilt
+die Vorschau in der Oberfläche schon beim Tippen.
+
+**Modular, weil verlangt.** Die Marken stehen in **einer** Tabelle `MARKEN`,
+jede mit Hilfetext und einer `wert(kontext)`-Funktion, die ausschließlich aus
+dem Kontext liest. Zwei Listen (`MARKEN_FZ`, `MARKEN_WACHE`) sagen, welche Marke
+wo gilt — kein Eintrag steht doppelt. Eine neue Variable ist damit **eine Zeile
+in `MARKEN` plus ein Feld im Kontext**, sonst nichts. Weil die Tabelle nichts
+außer dem Kontext liest, ist sie ohne Spielstand prüfbar; alle 73 Namensproben
+laufen ohne einen einzigen Abruf.
+
+**Eine bewußte Abweichung: die Zählreihenfolge.** LSSM zählt in der Reihenfolge
+der Fahrzeugtabelle auf der Spielseite. Der Planer hat keine Tabelle, also wird
+nach **Fahrzeugnummer aufsteigend** gezählt. Das ist hier mehr wert als die
+Nachahmung: eine wechselnde Reihenfolge ließe die Nummern zwischen zwei Läufen
+wandern und benannte jedes Mal alles um.
+
+**Die Längengrenze ist nachgemessen — und es gibt keine.** LSSM nimmt 150 an.
+Nachgesehen mit Playwright, rein lesend: `vehicle[caption]` und `building[name]`
+tragen **kein** `maxlength`, kein `pattern` und sind nicht `required`. LSSMs
+Zahl stammt also nicht aus dem Formular; woher, ist nicht zu sehen. Die echte
+Grenze wäre nur durch einen Schreibversuch zu erfahren.
+
+Deshalb: 150 als **einstellbare** Vorgabe, im Code als Annahme gekennzeichnet,
+und zu lange Namen werden **übersprungen und gemeldet**, nie stillschweigend
+gekürzt. LSSM kürzt auf 150 — ein halber Name ist schlimmer als ein alter.
+
+**Mitgenommen: `esc()` dichtet jetzt auch Anführungszeichen ab.** Es steckte
+schon vor dieser Änderung in Attributen (`data-ausbau="${esc(...)}"`), und ein
+Fahrzeugname mit einem `"` hätte das Attribut aufgebrochen. Namen kommen aus
+dem Spiel, sind also fremder Text. Eine Zeile, alle Stellen dicht. Nachgesehen,
+ob das etwas bricht: die Protokollzeilen gehen über `textContent` und nicht
+durch `esc`, dort erscheint also kein `&quot;`.
+
+**Verworfen: zusätzliche eigene Marken** (`{profil}`, `{sitze}`, `{fms}`).
+Sasha fielen keine ein, und `{fms}` wäre eine Falle: der Status ändert sich
+ständig, also würde jeder Lauf alle 1583 Fahrzeuge umbenennen. Die Tabelle ist
+so gebaut, daß eine Marke nachträglich eine Zeile kostet — das ist besser als
+Vorräte anzulegen.
+
+**Verworfen: getrennte Vorlagen je Gebäudeart.** Eine Vorlage für Fahrzeuge und
+eine für Wachen. Wenn eine dritte fehlt, wird sie eingebaut; vorher ist es
+Vorratsbau.
+
+**Verworfen: LSSMs Weg.** Formulare in die Spielseite injizieren,
+`MutationObserver` auf `#vehicle_table`, ein `printError`-Wrapper um jede
+Funktion, zwölf Übersetzungen. Der Planer hat eigene Wege für Abruf, Vorschau,
+Protokoll und Schutz — und leere `catch`-Blöcke fängt hier `pruefer.js`.
+
+**Verworfen: den alten Namen sichern, um `{old}` dauerhaft zu haben.** Wer eine
+Vorlage ohne `{old}` einstellt, verliert die von Hand gewählten Namen — das ist
+der Sinn der Sache und in der Vorschau Zeile für Zeile zu sehen. Ein zweiter
+Speicher, der den „echten" Namen mitführt, wäre eine weitere Quelle für
+dieselbe Zahl, und die laufen auseinander (siehe D-47).
