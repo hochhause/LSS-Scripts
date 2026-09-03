@@ -58,11 +58,13 @@ const echteVon = b => mineOf(b).filter(v => !istPlatzhalter(v));
 const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
            bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
            courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
-           verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll };`)();
+           verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
+           anhaengerAn, PB_TYPEN: PB };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
-        verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll } = kern;
+        verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
+        anhaengerAn, PB_TYPEN } = kern;
 
 let fehler = 0;
 const pruefe = (name, ist, soll) => {
@@ -488,13 +490,23 @@ console.log('\n14. est über der Sitzzahl');
 /* ── 15. Warum ein Gespann nicht aufgeht, muss dastehen ────────────── */
 console.log('\n15. Zwei Anhänger an einem Zugfahrzeug');
 {
+  /* Diese Probe verlangte bis v0.57.0 sechs Leute: `anforderung` summierte
+     die Anhänger (4+4), gedeckelt auf die Sitzzahl. Sie kodierte damit die
+     falsche Regel. Ein Zugfahrzeug darf an mehreren Anhängern hängen, zieht
+     aber nur einen — also fordert das Gespann so viel wie sein größter
+     Anhänger, nicht wie alle zusammen (D-85). */
   const gw = fz(64);                                  // 1 eigener, 6 Sitze
   const m1 = fz(70, { zugfahrzeug: 0 }), m2 = fz(70, { zugfahrzeug: 0 });
   m1.zugfahrzeug = gw.id; m2.zugfahrzeug = gw.id;     // zwei MZB an einem Zug
   const b = wache([gw, m1, m2]);
   const a = anforderung(gw);
-  // Auch zwei Boote fordern nie mehr, als Sitze da sind
-  pruefe('auf die sechs Sitze gedeckelt', a.min, 6);
+  pruefe('zwei MZB an einem GW: es zaehlt eines, nicht beide', a.min, 4);
+  pruefe('ein MZB allein fordert dasselbe', (() => {
+    wache([gw, m1]);
+    const eins = anforderung(gw).min;
+    wache([gw, m1, m2]);
+    return eins;
+  })(), a.min);
   const plan = planeWache(b, { people: [] }, false);
   pruefe('ohne Personal lahm, aber nicht wegen der Sitze',
     !!plan.lahm.find(y => y.v.id === gw.id)?.zuEng, false);
@@ -929,6 +941,75 @@ const zahl = (l, id) => l.find(x => String(x.id) === String(id))?.n || 0;
   // Kein Soll: alles ueberzaehlig, nichts fehlt, keine Sitze.
   const g = bestandGegenSoll({ [RTW]: 1 }, undefined);
   pruefe('ohne Soll ist alles ueberzaehlig', [zahl(g.zuviel, RTW), g.fehlt.length, g.sitze], [1, 0, 0]);
+}
+
+/* ── 27. Ein Zugfahrzeug traegt mehrere Anhaenger, zieht aber einen ── */
+console.log('\n27. Mehrere Anhaenger an einem Zugfahrzeug');
+/* Sashas Regel (03.09.): erlaubt ist die Kopplung an mehrere, nur nicht das
+   gleichzeitige Ziehen. Vorher summierte `anforderung` die Anhaenger und
+   hielt das Zugfahrzeug fuer unbesetzbar. */
+{
+  const WLF = 46, GG = 77, EL = 78, NEA = 180;   // AB-Gefahrgut/-Einsatzleitung/-NEA200: est 1
+  pruefe('Vorbedingung: WLF hat 3 Sitze, min 1', [vehMeta(WLF).min, vehMeta(WLF).max], [1, 3]);
+  pruefe('Vorbedingung: die drei AB fordern je 1 an der Einsatzstelle',
+         [GG, EL, NEA].map(t => vehMeta(t).est || vehMeta(t).min || 0), [1, 1, 1]);
+
+  const zug = fz(WLF, { caption: 'WLF' });
+  wache([zug]);
+  pruefe('WLF ohne Anhaenger: min 1', anforderung(zug).min, 1);
+
+  const eins = fz(GG, { caption: 'AB 1', zugfahrzeug: zug.id });
+  wache([zug, eins]);
+  pruefe('ein Anhaenger est 1: min bleibt 1', anforderung(zug).min, 1);
+
+  const zwei = fz(EL, { caption: 'AB 2', zugfahrzeug: zug.id });
+  wache([zug, eins, zwei]);
+  pruefe('zwei Anhaenger est 1: min bleibt 1, nicht 2',
+         anforderung(zug).min, 1);
+  pruefe('und beide werden auch gesehen', anhaengerAn(zug).length, 2);
+
+  const drei = fz(NEA, { caption: 'AB 3', zugfahrzeug: zug.id });
+  wache([zug, eins, zwei, drei]);
+  pruefe('drei Anhaenger est 1: min bleibt 1, nicht 3 (waere Vollbesetzung)',
+         anforderung(zug).min, 1);
+  pruefe('drei Anhaenger werden gesehen', anhaengerAn(zug).length, 3);
+}
+{
+  // Der groesste Anhaenger bestimmt weiter, und die Sitzzahl deckelt.
+  const WLF = 46, DEKON = 54, GG = 77;
+  const gross = vehMeta(DEKON).est || vehMeta(DEKON).min || 0;
+  const zug = fz(WLF, { caption: 'WLF' });
+  const a = fz(DEKON, { caption: 'AB gross', zugfahrzeug: zug.id });
+  wache([zug, a]);
+  const alleinGross = anforderung(zug).min;
+  pruefe('grosser Anhaenger allein: gedeckelt auf die Sitzzahl',
+         alleinGross, Math.max(1, Math.min(gross, 3)));
+
+  const b2 = fz(GG, { caption: 'AB klein', zugfahrzeug: zug.id });
+  wache([zug, a, b2]);
+  pruefe('gross plus klein: der grosse bestimmt, nicht die Summe',
+         anforderung(zug).min, alleinGross);
+}
+{
+  // Lehrgaenge kommen von allen Anhaengern, nicht nur vom groessten —
+  // welcher gezogen wird, steht vorher nicht fest.
+  const WLF = 46;
+  const zug = fz(WLF, { caption: 'WLF' });
+  const kurseVon = t => new Set((vehMeta(t).kurse || []).map(k => k.k));
+  const mitKurs = Object.keys(PB_TYPEN).filter(t => !vehMeta(t).max && kurseVon(t).size
+    && (vehMeta(t).zug || []).includes(WLF));
+  if (mitKurs.length >= 2) {
+    const [t1, t2] = mitKurs;
+    const a = fz(Number(t1), { caption: 'AB A', zugfahrzeug: zug.id });
+    const b2 = fz(Number(t2), { caption: 'AB B', zugfahrzeug: zug.id });
+    wache([zug, a, b2]);
+    const gefordert = new Set([...anforderung(zug).alle, ...anforderung(zug).mind.keys()]);
+    const erwartet = [...kurseVon(t1), ...kurseVon(t2)].filter(k => k !== 'wechsellader');
+    pruefe('Kurse beider Anhaenger werden gefordert',
+           erwartet.every(k => gefordert.has(k)), true);
+  } else {
+    pruefe('kein Paar kursfordernder AB am WLF — Probe entfaellt', true, true);
+  }
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');

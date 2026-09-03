@@ -1606,3 +1606,72 @@ ausschließlich, was der Planer ohnehin liest.
 Zugfahrzeugen, 10 mit mehreren), und **16 von 1583** Fahrzeugen standen auf
 Status 6. Der alte Filter `fms_real !== 2` hat also nicht theoretisch, sondern
 laufend Fahrzeuge liegenlassen.
+
+
+## D-85 Ein Zugfahrzeug trägt mehrere Anhänger, zieht aber einen (v0.58.0)
+
+**Lage.** Sasha nannte zwei Spielregeln (03.09.2026):
+
+1. Personal kann auch Fahrzeugen zugewiesen werden, die **nicht** auf Status
+   2 oder 6 stehen.
+2. Ein Zugfahrzeug **darf** an mehreren Anhängern hängen — es kann sie nur
+   nicht gleichzeitig ziehen.
+
+**Regel 1 war schon erfüllt.** Die Zuweisung selbst (`sitzplanSchritte` →
+`POST /vehicles/<fz>/zuweisungDo/<person>`) läuft über
+`bemannbar = mineOf(b).filter(max > 0)` — kein Statusfilter, nirgends. Alle
+FMS-Prüfungen in `assignStaff` sitzen in der **Bereitschafts**-Hälfte, und die
+braucht sie: `set_fms` geht laut Spiel ausschließlich aus Status 2 heraus, ein
+Fahrzeug im Einsatz wird über `merkeWarte` vorgemerkt und beim nächsten Lauf
+nachgeholt.
+
+Was fehlte, war die Auskunft. Die Meldung lautete „N Fahrzeuge waren unterwegs
+— Umschaltung vorgemerkt" und ließ sich als „Personal übersprungen" lesen. Sie
+sagt jetzt beides: „Personal ist zugewiesen, nur die Statusumschaltung ist
+vorgemerkt." Nichts am Verhalten, alles an der Klarheit — und genau die
+Verwechslung war der Anlaß, die Regel überhaupt zu nennen.
+
+**Regel 2 war verletzt, an zwei Stellen — und die zweite war die Ursache.**
+
+`anforderung` **summierte** den Bedarf aller Anhänger eines Zugfahrzeugs
+(`anhEst += …`). Zwei Mehrzweckboote an einem GW-Wasserrettung forderten
+4 + 4 = 8 Leute, gedeckelt auf sechs Sitze: Vollbesetzung, obwohl das Gespann
+mit jedem Boot einzeln längst ausrückt. Gezählt wird jetzt der **größte**
+Anhänger. Die Lehrgänge kamen schon vorher über `Math.max` und bleiben
+unverändert von **allen** Anhängern gefordert — welcher gezogen wird, steht
+vorher nicht fest.
+
+`linkTrailers` behandelte das Symptom: eine Map `belegt` hielt fest, welches
+Zugfahrzeug schon einen Anhänger hat, und **hängte den zweiten um** („hängt am
+selben Zugfahrzeug wie … — wird umgehängt"). Das löste zulässige Gespanne auf,
+kostete Schreibanfragen und ordnete Sashas Spiel um. Im gemessenen Bestand
+(D-84) trugen **10 von 72** Zugfahrzeugen mehrere Anhänger — die Regel ist der
+Normalfall, nicht die Ausnahme.
+
+**Entschieden.** Rangfolge statt Ausschluß, wie schon bei der Zugfahrzeug-Wahl
+darüber: wer noch keinen Anhänger trägt, kommt zuerst, damit möglichst viele
+Gespanne gleichzeitig ausrücken. `sort` ist stabil, die bestehende Vorliebe
+(gleicher Lehrgang, dann mehr Sitze) bleibt im Rang erhalten. Eine bestehende,
+zulässige Kopplung wird **nie** gelöst. Trägt ein Fahrzeug danach mehr als
+einen, sagt das Protokoll es („trägt jetzt 2 Anhänger").
+
+Der Zweig „kein freies Zugfahrzeug" ist damit unerreichbar und gestrichen; wer
+gar kein zugelassenes Zugfahrzeug hat, bekommt weiter seine eigene Meldung.
+
+**Eine alte Probe war falsch, nicht der neue Code.** Probe 15 verlangte
+ausdrücklich „auf die sechs Sitze gedeckelt" — sie kodierte die Summierung.
+Sie fordert jetzt 4 und sagt im Kommentar, warum sie sich geändert hat.
+Festgehalten, weil eine Probe, die man ändert, um grün zu werden, sonst
+aussieht wie eine Probe, die man weggeräumt hat. Der Deckel auf die Sitzzahl
+wird weiter geprüft — an einem einzelnen Anhänger, der mehr fordert als das
+Zugfahrzeug Sitze hat (Abschnitt 27).
+
+**Verworfen: die Anhänger im Sitzplan nach „welcher hängt gerade" zu
+gewichten.** Das Spiel entscheidet beim Alarm, nicht der Planer. Wer die
+Besatzung auf einen bestimmten Anhänger auslegt, liegt in der Hälfte der
+Einsätze daneben. Der größte Anhänger ist die Zahl, die immer reicht.
+
+**Verworfen: Anhänger gleichmäßig zu verteilen, wo es der Plan nicht
+verlangt.** Die Rangfolge bevorzugt freie Zugfahrzeuge, aber sie hängt nichts
+um, nur um es hübscher zu machen. Umhängen war der Fehler, den diese
+Entscheidung behebt.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.57.0
+// @version      0.58.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.57.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.58.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -1438,12 +1438,17 @@ function anforderung(v) {
     }
   };
   merken(meta, false);
-  // Anhänger bringen Anforderung und Sitzbedarf auf das Zugfahrzeug
+  /* Anhänger bringen Anforderung und Sitzbedarf auf das Zugfahrzeug.
+     Gezählt wird der **größte** Anhänger, nicht die Summe: ein Zugfahrzeug
+     darf an mehreren Anhängern hängen, kann sie aber nicht gleichzeitig
+     ziehen (Sasha, 03.09. — im gemessenen Bestand tragen 10 Zugfahrzeuge
+     mehrere). Summiert galt ein WLF mit zwei kleinen Abrollbehältern als
+     unbesetzbar, obwohl es mit jedem einzeln längst ausrückt (D-85). */
   let anhEst = 0;
   for (const a of anhaengerAn(v)) {
     const am = T.veh(a.vehicle_type) || {};
     merken(am, true);
-    anhEst += am.est || am.min || 0;
+    anhEst = Math.max(anhEst, am.est || am.min || 0);
   }
   /* Die vier Leute für das Boot sind die Besatzung, nicht zusätzlich zu ihr —
      einer davon fährt. Deshalb das Größere von beidem, nicht die Summe. Und
@@ -2064,28 +2069,35 @@ async function linkTrailers(sel, dry) {
       });
     }
 
-    /* Ein Zugfahrzeug hält einen Anhänger. Vorher wurde jede bestehende
-       Kopplung übernommen, ohne zu prüfen, ob sie schon vergeben ist — hingen
-       zwei Boote am selben Fahrzeug, blieb es dabei, und das Gespann galt
-       fortan als nicht besetzbar. Deshalb merkt sich `belegt` jetzt, wer das
-       Zugfahrzeug hat, und der zweite bekommt ein eigenes. */
-    const belegt = new Map();                              // Zugfahrzeug -> Anhänger
+    /* Ein Zugfahrzeug darf an mehreren Anhängern hängen — es kann sie nur
+       nicht gleichzeitig ziehen (Sasha, 03.09.). Hier stand ein Ausschluß:
+       der zweite Anhänger am selben Fahrzeug wurde **umgehängt**. Das löste
+       zulässige Gespanne auf, und zwar aus dem falschen Grund — daß so ein
+       Gespann „nicht besetzbar" galt, lag an `anforderung`, das die Anhänger
+       summierte. Das ist an der Wurzel behoben (D-85).
+
+       Geblieben ist eine Rangfolge statt eines Ausschlusses: wer noch keinen
+       Anhänger trägt, kommt zuerst, damit möglichst viele Gespanne
+       gleichzeitig ausrücken können. `sort` ist stabil, die Vorliebe aus
+       `opts` (gleicher Lehrgang, mehr Sitze) bleibt im Rang erhalten. */
+    const traegt = new Map();                              // Zugfahrzeug -> Anzahl
+    const zaehle = id => traegt.set(String(id), (traegt.get(String(id)) || 0) + 1);
+    const wieViele = id => traegt.get(String(id)) || 0;
     const passt = x => x.cur && !x.zufall && x.opts.includes(x.cur);
-    for (const x of stand) if (passt(x) && !belegt.has(x.cur)) belegt.set(x.cur, x);
+    for (const x of stand) if (passt(x)) zaehle(x.cur);
     for (const x of stand) {
-      if (belegt.get(x.cur) === x) continue;               // hängt schon richtig
-      if (passt(x)) log(`${b.caption}: ${x.v.caption} hängt am selben Zugfahrzeug wie `
-        + `${belegt.get(x.cur).v.caption} — wird umgehängt`, 'warn');
+      if (passt(x)) continue;                              // hängt schon zulässig
       /* Steht „Zufälliges Zugfahrzeug“ an, gilt die Kopplung als offen — auch
          wenn schon das richtige Fahrzeug eingetragen ist. Dann soll der
          Anhänger dort bleiben und nur der Haken fallen, statt grundlos an ein
          anderes Fahrzeug zu wandern. */
-      const bleibt = x.cur && x.opts.includes(x.cur) && !belegt.has(x.cur);
-      const frei = bleibt ? x.cur : x.opts.find(o => !belegt.has(o));
-      if (!frei) { log(`${b.caption}: ${x.v.caption} — kein freies Zugfahrzeug`, 'warn'); continue; }
-      belegt.set(frei, x);
-      log(`${b.caption}: ${x.v.caption} → ${nameVon(frei)}`
-        + (bleibt && x.zufall ? ' (hing schon dort, „zufälliges Zugfahrzeug“ wird abgewählt)' : ''));
+      const bleibt = x.cur && x.opts.includes(x.cur);
+      const ziel = bleibt ? x.cur
+        : [...x.opts].sort((o1, o2) => wieViele(o1) - wieViele(o2))[0];
+      zaehle(ziel);
+      log(`${b.caption}: ${x.v.caption} → ${nameVon(ziel)}`
+        + (bleibt && x.zufall ? ' (hing schon dort, „zufälliges Zugfahrzeug“ wird abgewählt)' : '')
+        + (wieViele(ziel) > 1 ? ` (trägt jetzt ${wieViele(ziel)} Anhänger)` : ''));
       if (!dry) {
         await postForm(`/vehicles/${x.v.id}`, {
           _method: 'patch',
@@ -2094,11 +2106,11 @@ async function linkTrailers(sel, dry) {
           // sich das Spiel bei jedem Einsatz ein anderes und die feste
           // Zuordnung, auf der die Personalplanung rechnet, ist hinfällig
           'vehicle[tractive_random]': '0',
-          'vehicle[tractive_vehicle_id]': frei
+          'vehicle[tractive_vehicle_id]': ziel
         });
         // Bestand gleich nachziehen: die Personalplanung läuft danach und
         // rechnet die Anhänger über genau dieses Feld ein.
-        x.v.zugfahrzeug = Number(frei);
+        x.v.zugfahrzeug = Number(ziel);
         merkeAenderung();
       }
       n++;
@@ -2282,7 +2294,12 @@ async function assignStaff(sel, dry) {
     }
   }
 
-  if (unterwegs) log(`${unterwegs} Fahrzeuge waren unterwegs — Umschaltung vorgemerkt.`, 'warn');
+  /* „Unterwegs" betrifft nur die Statusumschaltung: `set_fms` geht laut
+     Spiel ausschließlich aus Status 2 heraus. Personal wird unabhängig davon
+     zugewiesen — das stand hier nicht und ließ sich als „übersprungen"
+     lesen (D-85). */
+  if (unterwegs) log(`${unterwegs} Fahrzeuge waren unterwegs — Personal ist zugewiesen, `
+    + `nur die Statusumschaltung ist vorgemerkt.`, 'warn');
   schutzMelden();
   if (ueberzaehlig.length) {
     log('', '');
