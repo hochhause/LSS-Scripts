@@ -185,6 +185,8 @@ POST /vehicles/<vid>/zuweisungDo/<pid>              zuweisen/lösen (Umschalter)
 GET  /vehicles/<id>/set_fms/<n>                     FMS setzen (nur aus 2 heraus)
 GET  /vehicles/<id>/edit                            Zugfahrzeug-Auswahl des Anhängers
 PATCH/vehicles/<id>                                 umbenennen, Anhänger koppeln
+POST /vehicles/<id>  _method=delete                 Fahrzeug ZERSTÖREN (nicht verkaufen —
+                                                    das kennt das Spiel nicht), gemessen D-84
 GET  /buildings/<id>/edit                           Wache umbenennen: Feld `building[name]`
 POST /schoolings/<id>/education                     personal_ids[] + commit
 GET  /schoolings                                    Übersicht, data-education-key je Zeile
@@ -201,6 +203,14 @@ GET  /schoolings                                    Übersicht, data-education-k
   Zahl steht in `trainingAtScene` (`est`). Sie hebt dort auch die
   Mindestbesetzung — aber nicht zusätzlich: die vier Plätze der MZB *sind* die
   Besatzung, einer davon fährt.
+- Ein Zugfahrzeug **darf an mehreren Anhängern hängen**; ziehen kann es nur
+  einen davon. Der Bedarf eines Gespanns ist deshalb der **größte** Anhänger,
+  nicht die Summe — die Lehrgänge fordern trotzdem alle, weil vorher nicht
+  feststeht, welcher gezogen wird. Bestehende Kopplungen werden nie gelöst
+  (D-85). Im gemessenen Bestand trugen 10 von 72 Zugfahrzeugen mehrere.
+- **Personal** läßt sich unabhängig vom FMS zuweisen, auch bei einem Fahrzeug
+  im Einsatz. Nur die Statusumschaltung braucht Status 2
+  (`GET /vehicles/<id>/set_fms/<n>`) und wird sonst vorgemerkt (D-85).
 - Auf der Zuweisungsseite steht je Person der laufende Kurs als
   `<span data-education-key="…">Im Unterricht: …</span>`; das Filter-Dropdown
   derselben Seite liefert nebenbei Schlüssel → Klartext.

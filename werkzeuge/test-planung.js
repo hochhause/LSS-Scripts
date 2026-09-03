@@ -36,6 +36,7 @@ const saveQuals = () => {};
 const log = () => {};        // im Test still
 const T = {
   veh: id => vehMeta(id),
+  vehName: id => vehMeta(id)?.name || ('Typ ' + id),
   profileOf(b) {
     const ps = S.plan?.model?.types?.[b.building_type]?.profiles || {};
     const a = S.plan?.model?.assignment?.[b.id];
@@ -56,10 +57,14 @@ const echteVon = b => mineOf(b).filter(v => !istPlatzhalter(v));
 
 const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
            bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
-           courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte };`)();
+           courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
+           verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
+           anhaengerAn, PB_TYPEN: PB };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
-        courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte } = kern;
+        courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
+        verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
+        anhaengerAn, PB_TYPEN } = kern;
 
 let fehler = 0;
 const pruefe = (name, ist, soll) => {
@@ -485,13 +490,23 @@ console.log('\n14. est über der Sitzzahl');
 /* ── 15. Warum ein Gespann nicht aufgeht, muss dastehen ────────────── */
 console.log('\n15. Zwei Anhänger an einem Zugfahrzeug');
 {
+  /* Diese Probe verlangte bis v0.57.0 sechs Leute: `anforderung` summierte
+     die Anhänger (4+4), gedeckelt auf die Sitzzahl. Sie kodierte damit die
+     falsche Regel. Ein Zugfahrzeug darf an mehreren Anhängern hängen, zieht
+     aber nur einen — also fordert das Gespann so viel wie sein größter
+     Anhänger, nicht wie alle zusammen (D-85). */
   const gw = fz(64);                                  // 1 eigener, 6 Sitze
   const m1 = fz(70, { zugfahrzeug: 0 }), m2 = fz(70, { zugfahrzeug: 0 });
   m1.zugfahrzeug = gw.id; m2.zugfahrzeug = gw.id;     // zwei MZB an einem Zug
   const b = wache([gw, m1, m2]);
   const a = anforderung(gw);
-  // Auch zwei Boote fordern nie mehr, als Sitze da sind
-  pruefe('auf die sechs Sitze gedeckelt', a.min, 6);
+  pruefe('zwei MZB an einem GW: es zaehlt eines, nicht beide', a.min, 4);
+  pruefe('ein MZB allein fordert dasselbe', (() => {
+    wache([gw, m1]);
+    const eins = anforderung(gw).min;
+    wache([gw, m1, m2]);
+    return eins;
+  })(), a.min);
   const plan = planeWache(b, { people: [] }, false);
   pruefe('ohne Personal lahm, aber nicht wegen der Sitze',
     !!plan.lahm.find(y => y.v.id === gw.id)?.zuEng, false);
@@ -747,6 +762,254 @@ console.log('24. Fachkraefte bleiben frei, solange es einfachere gibt');
   ] }, false);
   pruefe('ohne Y-Only springt der Doppelte ein', auf(plan, yF), ['1']);
   pruefe('das X-Fahrzeug bleibt trotzdem besetzt', auf(plan, xF), ['2', '3']);
+}
+
+/* ── 25. Verkauf: irgendeiner des Typs, aber der unschaedlichste ───── */
+console.log('\n25. Verkauf waehlt unter den Fahrzeugen eines Typs');
+/* Namen sind hier die Probe: welches Fahrzeug faellt, nicht wie viele. */
+const namen = l => l.map(v => v.caption).sort();
+const gruende = r => r.bleiben.map(x => `${x.v.caption}: ${x.grund}`).sort();
+const RTW = 28, WLF = 46, AB = 49;      // AB-Oel hat keine Sitze, ist also Anhaenger
+
+{
+  // B1: Status 6 heisst abgestellt auf der Wache, nicht unterwegs.
+  // F1: und genau der geht zuerst, weil er gerade niemandem fehlt.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A' }), b2 = fz(RTW, { caption: 'RTW B', fms_real: 6 }),
+        c = fz(RTW, { caption: 'RTW C' });
+  const b = wache([a, b2, c]);
+  const r = verkaufsKandidaten(b, RTW, 1);
+  pruefe('abgestellter RTW faellt, nicht der erste der Liste', namen(r.fallen), ['RTW B']);
+  pruefe('die einsatzbereiten bleiben ungenannt', r.bleiben.length, 0);
+}
+{
+  // Ohne Abgestellten bleibt die Reihenfolge der API — kein Wuerfeln.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A' }), b2 = fz(RTW, { caption: 'RTW B' });
+  const b = wache([a, b2]);
+  pruefe('gleicher Rang: erster der Liste', namen(verkaufsKandidaten(b, RTW, 1).fallen), ['RTW A']);
+}
+{
+  // Zwei zu viel: beide faellige werden benannt, nicht nur einer.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A' }), b2 = fz(RTW, { caption: 'RTW B', fms_real: 6 }),
+        c = fz(RTW, { caption: 'RTW C' });
+  const b = wache([a, b2, c]);
+  pruefe('Ueberzahl 2 nimmt zwei', namen(verkaufsKandidaten(b, RTW, 2).fallen), ['RTW A', 'RTW B']);
+}
+{
+  // B2: der Grund gehoert an das Fahrzeug. Vorher hiess jeder Ausfall
+  // pauschal „nicht auf der Wache" — auch bei grün und bei unterwegs.
+  S.opts = {};
+  const a = fz(RTW, { caption: '🟢 RTW A' }), b2 = fz(RTW, { caption: 'RTW B', fms_real: 3 });
+  const b = wache([a, b2]);
+  const r = verkaufsKandidaten(b, RTW, 1);
+  pruefe('gruen und unterwegs: nichts faellt', r.fallen, []);
+  pruefe('jeder mit eigenem Grund',
+         gruende(r), ['RTW B: unterwegs (Status 3)', '🟢 RTW A: grün markiert']);
+  pruefe('nur der gruene zaehlt als geschuetzt', r.bleiben.filter(x => x.gruen).length, 1);
+}
+{
+  // Grün freigegeben: der gruene ist verkaeuflich, aber zuletzt.
+  const a = fz(RTW, { caption: '🟢 RTW A' }), b2 = fz(RTW, { caption: 'RTW B' });
+  const b = wache([a, b2]);
+  S.opts = { gruenFrei: true };
+  pruefe('mit Freigabe faellt trotzdem der ungruene', namen(verkaufsKandidaten(b, RTW, 1).fallen), ['RTW B']);
+  pruefe('bei Freigabe und Ueberzahl 2 faellt auch der gruene',
+         namen(verkaufsKandidaten(b, RTW, 2).fallen), ['RTW B', '🟢 RTW A']);
+  S.opts = {};
+}
+{
+  // Die ganze Wache gruen: nichts faellt, und der Grund nennt die Wache.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A' });
+  const b = { ...wache([a]), caption: '🟢 Testwache' };
+  const r = verkaufsKandidaten(b, RTW, 1);
+  pruefe('gruene Wache schuetzt ihre Fahrzeuge', r.fallen, []);
+  pruefe('und sagt das auch so', gruende(r), ['RTW A: Wache ist grün markiert']);
+}
+{
+  // F2: ein Zugfahrzeug mit Anhaenger bleibt stehen — sonst haengt der
+  // Anhaenger an nichts mehr. Der freie WLF geht.
+  S.opts = {};
+  const w1 = fz(WLF, { caption: 'WLF A' }), w2 = fz(WLF, { caption: 'WLF B' });
+  const ab = fz(AB, { caption: 'AB-Oel', zugfahrzeug: w1.id });
+  const b = wache([w1, w2, ab]);
+  const r = verkaufsKandidaten(b, WLF, 1);
+  pruefe('der freie WLF faellt, nicht der bespannte', namen(r.fallen), ['WLF B']);
+  pruefe('und der bespannte sagt warum', gruende(r), ['WLF A: Anhänger hängt dran']);
+}
+{
+  // Haengt an beiden ein Anhaenger, faellt keiner — lieber Ueberzahl als
+  // eine Waise.
+  S.opts = {};
+  const w1 = fz(WLF, { caption: 'WLF A' }), w2 = fz(WLF, { caption: 'WLF B' });
+  const b = wache([w1, w2, fz(AB, { caption: 'AB 1', zugfahrzeug: w1.id }),
+                          fz(AB, { caption: 'AB 2', zugfahrzeug: w2.id })]);
+  pruefe('beide bespannt: nichts faellt', verkaufsKandidaten(b, WLF, 1).fallen, []);
+}
+{
+  // B4/B2: ein eben gekauftes Fahrzeug gibt es serverseitig noch nicht.
+  // Vorher meldete es „Fahrzeuge nicht auf der Wache" — falsch und irre-
+  // fuehrend, denn es steht ja da.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A (neu)', id: -1, platzhalter: true });
+  const b = wache([a]);
+  const r = verkaufsKandidaten(b, RTW, 1);
+  pruefe('Platzhalter faellt nicht', r.fallen, []);
+  pruefe('Platzhalter nennt den richtigen Grund',
+         gruende(r), ['RTW A (neu): gerade gekauft, dem Server noch unbekannt']);
+  pruefe('und gilt nicht als grün uebergangen', r.bleiben.filter(x => x.gruen).length, 0);
+}
+{
+  // Ein anderer Typ auf derselben Wache bleibt unbeteiligt.
+  S.opts = {};
+  const r = fz(RTW, { caption: 'RTW A' }), w = fz(WLF, { caption: 'WLF A' });
+  const b = wache([r, w]);
+  pruefe('nur der ueberzaehlige Typ wird angefasst',
+         namen(verkaufsKandidaten(b, RTW, 1).fallen), ['RTW A']);
+  pruefe('fremder Typ steht nicht in den Gruenden', verkaufsKandidaten(b, RTW, 1).bleiben, []);
+}
+{
+  // F3: Vorschau und Verkauf muessen dasselbe Fahrzeug nennen. Der Eintrag
+  // kommt hier in der Form, die vehSurplus liefert: { id, n, name }.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A' }), b2 = fz(RTW, { caption: 'RTW B', fms_real: 6 });
+  const b = wache([a, b2]);
+  const eintrag = { id: RTW, n: 1, name: 'RTW' };
+  pruefe('Anzeige nennt das Fahrzeug, das auch faellt',
+         verkaufsNamen(b, eintrag), 'RTW B');
+  pruefe('Anzeige und Verkauf stimmen ueberein',
+         verkaufsNamen(b, eintrag),
+         verkaufsKandidaten(b, eintrag.id, eintrag.n).fallen.map(v => v.caption).join(', '));
+  pruefe('Ueberzahl 2 nennt beide in der Rangfolge',
+         verkaufsNamen(b, { id: RTW, n: 2, name: 'RTW' }), 'RTW B, RTW A');
+}
+{
+  // Nichts verkaeuflich muss auch so heissen — und nicht leer bleiben.
+  S.opts = {};
+  const b = wache([fz(RTW, { caption: 'RTW A', fms_real: 3 })]);
+  pruefe('nichts verkaeuflich gibt leeren Namen zurueck',
+         verkaufsNamen(b, { id: RTW, n: 1, name: 'RTW' }), '');
+}
+{
+  // Rang als Zahl, damit die Absicht nicht nur indirekt geprueft wird.
+  pruefe('Rang: abgestellt vor einsatzbereit',
+         verkaufsRang({ caption: 'X', fms_real: 6 }) < verkaufsRang({ caption: 'X', fms_real: 2 }), true);
+  pruefe('Rang: ungruen vor gruen',
+         verkaufsRang({ caption: 'X', fms_real: 2 }) < verkaufsRang({ caption: '🟢 X', fms_real: 6 }), true);
+}
+
+/* ── 26. Bestand gegen Soll: die Invarianten hinter B4 ──────────────── */
+console.log('\n26. Bestand gegen Soll');
+/* Die Sorge hinter B4 war: ein eben gekauftes Fahrzeug treibt die Überzahl
+   hoch und meldet dann stumm „nicht zerstört". Nachgerechnet an
+   buyVehicles kann das nicht sein — hier steht es geprüft statt begründet. */
+const zahl = (l, id) => l.find(x => String(x.id) === String(id))?.n || 0;
+{
+  const soll = { [RTW]: 2, [WLF]: 1 };
+  for (let da = 0; da <= 4; da++) {
+    const g = bestandGegenSoll({ [RTW]: da }, soll);
+    const fehltRTW = zahl(g.fehlt, RTW), zuvielRTW = zahl(g.zuviel, RTW);
+    pruefe(`${da} von 2 RTW: nie fehlend UND ueberzaehlig`,
+           fehltRTW > 0 && zuvielRTW > 0, false);
+    pruefe(`${da} von 2 RTW: genau eine Richtung stimmt`,
+           [fehltRTW, zuvielRTW], [Math.max(0, 2 - da), Math.max(0, da - 2)]);
+    /* Kauf wie buyVehicles: genau das Fehlende, Stellplaetze frei.
+       Die Invariante ist nicht „danach null" — eine Ueberzahl, die schon
+       vorher bestand, bleibt zu Recht stehen. Sie ist: der Kauf macht sie
+       nicht groesser. */
+    pruefe(`${da} RTW: der Kauf vergroessert die Ueberzahl nicht`,
+           zahl(bestandGegenSoll({ [RTW]: da + fehltRTW }, soll).zuviel, RTW), zuvielRTW);
+  }
+}
+{
+  // Ein Typ, den der Plan nicht kennt, ist vollstaendig ueberzaehlig.
+  const g = bestandGegenSoll({ [WLF]: 3 }, { [RTW]: 1 });
+  pruefe('ungeplanter Typ ist ganz ueberzaehlig', zahl(g.zuviel, WLF), 3);
+  pruefe('und der geplante fehlt trotzdem', zahl(g.fehlt, RTW), 1);
+}
+{
+  // Sitze: der Plan zaehlt, nicht der Bestand — sonst waechst der
+  // Personalbedarf mit jedem gekauften Fahrzeug nachtraeglich.
+  const leer = bestandGegenSoll({}, { [RTW]: 2 });
+  const voll = bestandGegenSoll({ [RTW]: 2 }, { [RTW]: 2 });
+  pruefe('Sitze haengen am Soll, nicht am Bestand', leer.sitze, voll.sitze);
+  pruefe('Sitze: 2 RTW mal 2 Plaetze', leer.sitze, 4);
+}
+{
+  // Kein Soll: alles ueberzaehlig, nichts fehlt, keine Sitze.
+  const g = bestandGegenSoll({ [RTW]: 1 }, undefined);
+  pruefe('ohne Soll ist alles ueberzaehlig', [zahl(g.zuviel, RTW), g.fehlt.length, g.sitze], [1, 0, 0]);
+}
+
+/* ── 27. Ein Zugfahrzeug traegt mehrere Anhaenger, zieht aber einen ── */
+console.log('\n27. Mehrere Anhaenger an einem Zugfahrzeug');
+/* Sashas Regel (03.09.): erlaubt ist die Kopplung an mehrere, nur nicht das
+   gleichzeitige Ziehen. Vorher summierte `anforderung` die Anhaenger und
+   hielt das Zugfahrzeug fuer unbesetzbar. */
+{
+  const WLF = 46, GG = 77, EL = 78, NEA = 180;   // AB-Gefahrgut/-Einsatzleitung/-NEA200: est 1
+  pruefe('Vorbedingung: WLF hat 3 Sitze, min 1', [vehMeta(WLF).min, vehMeta(WLF).max], [1, 3]);
+  pruefe('Vorbedingung: die drei AB fordern je 1 an der Einsatzstelle',
+         [GG, EL, NEA].map(t => vehMeta(t).est || vehMeta(t).min || 0), [1, 1, 1]);
+
+  const zug = fz(WLF, { caption: 'WLF' });
+  wache([zug]);
+  pruefe('WLF ohne Anhaenger: min 1', anforderung(zug).min, 1);
+
+  const eins = fz(GG, { caption: 'AB 1', zugfahrzeug: zug.id });
+  wache([zug, eins]);
+  pruefe('ein Anhaenger est 1: min bleibt 1', anforderung(zug).min, 1);
+
+  const zwei = fz(EL, { caption: 'AB 2', zugfahrzeug: zug.id });
+  wache([zug, eins, zwei]);
+  pruefe('zwei Anhaenger est 1: min bleibt 1, nicht 2',
+         anforderung(zug).min, 1);
+  pruefe('und beide werden auch gesehen', anhaengerAn(zug).length, 2);
+
+  const drei = fz(NEA, { caption: 'AB 3', zugfahrzeug: zug.id });
+  wache([zug, eins, zwei, drei]);
+  pruefe('drei Anhaenger est 1: min bleibt 1, nicht 3 (waere Vollbesetzung)',
+         anforderung(zug).min, 1);
+  pruefe('drei Anhaenger werden gesehen', anhaengerAn(zug).length, 3);
+}
+{
+  // Der groesste Anhaenger bestimmt weiter, und die Sitzzahl deckelt.
+  const WLF = 46, DEKON = 54, GG = 77;
+  const gross = vehMeta(DEKON).est || vehMeta(DEKON).min || 0;
+  const zug = fz(WLF, { caption: 'WLF' });
+  const a = fz(DEKON, { caption: 'AB gross', zugfahrzeug: zug.id });
+  wache([zug, a]);
+  const alleinGross = anforderung(zug).min;
+  pruefe('grosser Anhaenger allein: gedeckelt auf die Sitzzahl',
+         alleinGross, Math.max(1, Math.min(gross, 3)));
+
+  const b2 = fz(GG, { caption: 'AB klein', zugfahrzeug: zug.id });
+  wache([zug, a, b2]);
+  pruefe('gross plus klein: der grosse bestimmt, nicht die Summe',
+         anforderung(zug).min, alleinGross);
+}
+{
+  // Lehrgaenge kommen von allen Anhaengern, nicht nur vom groessten —
+  // welcher gezogen wird, steht vorher nicht fest.
+  const WLF = 46;
+  const zug = fz(WLF, { caption: 'WLF' });
+  const kurseVon = t => new Set((vehMeta(t).kurse || []).map(k => k.k));
+  const mitKurs = Object.keys(PB_TYPEN).filter(t => !vehMeta(t).max && kurseVon(t).size
+    && (vehMeta(t).zug || []).includes(WLF));
+  if (mitKurs.length >= 2) {
+    const [t1, t2] = mitKurs;
+    const a = fz(Number(t1), { caption: 'AB A', zugfahrzeug: zug.id });
+    const b2 = fz(Number(t2), { caption: 'AB B', zugfahrzeug: zug.id });
+    wache([zug, a, b2]);
+    const gefordert = new Set([...anforderung(zug).alle, ...anforderung(zug).mind.keys()]);
+    const erwartet = [...kurseVon(t1), ...kurseVon(t2)].filter(k => k !== 'wechsellader');
+    pruefe('Kurse beider Anhaenger werden gefordert',
+           erwartet.every(k => gefordert.has(k)), true);
+  } else {
+    pruefe('kein Paar kursfordernder AB am WLF — Probe entfaellt', true, true);
+  }
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');

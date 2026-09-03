@@ -1463,3 +1463,215 @@ wird auf 0 gezogen (sonst hält „Haken abgleichen" die Wache für besetzt und
 hakt leere Fahrzeuge ab), und das Protokoll nennt den Fahrzeugnamen statt der
 nackten Nummer. Nachgezogen wird nur, was der Lauf wirklich angefaßt hat — ein
 Abbruch soll nicht behaupten, er sei durchgelaufen.
+
+
+## D-83 Überzählig ist ein Typ, nicht ein Fahrzeug (v0.55.0)
+
+**Lage.** Sasha berichtete, der Verkauf wolle „diesen einen RTW" loswerden,
+obwohl drei gleichwertige auf der Wache stehen. Nachgemessen war das nicht der
+Fall: `sellSurplus` filterte schon immer über **alle** Fahrzeuge des Typs und
+übersprang Unverkäufliches mit `continue`, nicht `break`. Der Eindruck kam von
+drei anderen Stellen.
+
+`fms_real !== 2` schloß Status **6** mit aus. Status 6 heißt aber *abgestellt
+auf der Wache*, nicht unterwegs — das Skript wußte es an drei eigenen Stellen
+schon (`abgestellt`, `bereit`, und die Überzähligen-Liste im Bereitschaftslauf
+prüft `[2, 6]`). Ein außer Dienst geparkter RTW wurde also übergangen und dabei
+als „ist unterwegs (FMS 6)" gemeldet.
+
+Diese Begründung ging danach verloren: sie landete in `res.blocked`, und
+`res.blocked` hatte im ganzen Skript **keinen Leser**. Übrig blieb die
+Sammelmeldung „Fahrzeuge nicht auf der Wache" — die bei *jedem* Grund feuerte,
+auch bei grün markiert und bei gerade gekauft. Wer daneben drei RTW stehen
+sieht, liest daraus zwangsläufig „es will diesen einen".
+
+**Entschieden.** Die Auswahl wandert in `verkaufsKandidaten(b, typId, anzahl)`
+und liefert `{ fallen, bleiben }` — bleiben je mit eigenem Grund. Eine Quelle
+für Vorschau, Wachenkasten und Verkauf; liefen sie getrennt, könnte die
+Bestätigung ein anderes Fahrzeug nennen als der Verkauf trifft (dieselbe Falle
+wie bei „zwei Quellen für dieselbe Zahl").
+
+Vier Regeln stecken darin:
+
+- **Status 2 und 6 sind beide greifbar.** 6 zuerst: ein abgestelltes Fahrzeug
+  fehlt gerade niemandem.
+- **Ungrün vor grün.** Grün heißt fertig, also der teurere Verlust. Greift nur
+  bei gesetztem „Grüne freigeben" — sonst bleiben grüne ohnehin stehen.
+- **Ein Zugfahrzeug mit Anhänger bleibt stehen.** Fällt es weg, hängt der
+  Anhänger an nichts mehr und verliert seinen Punkt. Über den Rang rutscht
+  ohnehin zuerst ein freies Fahrzeug nach vorn; bleibt keins, bleibt die
+  Überzahl bestehen. Lieber ein Fahrzeug zu viel als eine Waise.
+- **Jeder Grund steht am Fahrzeug**, nicht als Pauschale an der Zahl. Die
+  Schutzmeldung zählt nur die grünen, die den Ausfall auch verursachen — nicht
+  jedes grüne, das gar nicht an der Reihe war.
+
+`res.blocked` ist gestrichen. Es war eine stille Senke: beschrieben, nie
+gelesen, und bei wiederholtem Lauf wuchs es in das gemerkte Analyseergebnis
+hinein.
+
+**Nicht gebaut: die Überzahl gegen `echteVon` rechnen** statt gegen den Bestand
+samt Platzhaltern — weil es nichts zu beheben gibt. Nachgerechnet an
+`buyVehicles`: `vehMissing` führt `n = soll − have`, gekauft wird
+`Math.min(n, frei)`, also gilt danach `have ≤ soll`. Ein Kauf des Planers kann
+**keine Überzahl erzeugen**, und Platzhalter entstehen nur beim Kauf. Die
+befürchtete Phantommeldung „x nicht verkauft" nach einem Kauf ist auf diesem
+Weg nicht erreichbar.
+
+Erreichbar bleibt ein enger Fall: kaufen, dann **Profil wechseln**, dann
+verkaufen — alles vor dem nächsten Bestandsladen. Dann sind Platzhalter
+überzählig. Dafür ist die Sperre richtig (eine negative Nummer darf in keine
+Anfrage), und die Meldung nennt den Grund: „gerade gekauft, dem Server noch
+unbekannt".
+
+Zwei frühere Begründungen hier waren falsch und sind ersetzt: daß die
+Phantommeldung im Normalbetrieb auftrete, und daß eine eigene Zählung aus
+`echteVon` zu einem Doppelkauf führen müßte. Sie hätte `have` und damit
+`vehMissing` gar nicht angefaßt — sie wird nur einfach nicht gebraucht.
+Festgehalten, weil eine plausible Fehlerursache, die es nicht gibt, sonst beim
+nächsten Lesen erneut „behoben" wird.
+
+**Statt eines Fehlers ein Nachweis (v0.57.0).** „Kann nicht passieren" ist eine
+Begründung, kein Netz. Die Rechnung, an der Kauf und Zerstören gemeinsam
+hängen, steht deshalb jetzt als `bestandGegenSoll(have, sollFahrzeuge)` für
+sich und ist in `test-planung.js` (Abschnitt 26) festgenagelt: ein Typ ist
+nie fehlend **und** überzählig, und **ein Kauf vergrößert die Überzahl nicht**.
+Die zweite Probe war beim ersten Anlauf selbst falsch — sie verlangte „danach
+keine Überzahl", obwohl eine schon vorher bestehende Überzahl zu Recht
+stehenbleibt. Die Invariante lautet: der Kauf macht sie nicht größer.
+
+**Verworfen: den Rang einstellbar machen.** Es gibt keinen Fall, in dem man das
+einsatzbereite vor dem abgestellten Fahrzeug verkaufen will.
+
+**Eingelöst in D-84:** die Anfrage ist nachgemessen und war richtig — falsch
+war das Wort ‚verkaufen‘. Der ursprüngliche Vermerk lautete: `POST
+/vehicles/<id>` mit `_method=delete` steht seit je im Code, ist aber **nie
+nachgemessen** — sie fehlt in `SPIELSEITEN.md`. Genau die Kategorie, die hier
+schon dreimal jahrelang falsch war, und diesmal auf dem unumkehrbaren Pfad.
+Diese Änderung verbreitert nur die Kandidatenauswahl; der abgeschickte Aufruf
+ist Zeichen für Zeichen der alte. Vor dem nächsten scharfen Lauf gehört er
+nachgemessen (siehe [[NAECHSTER_SCHRITT]]).
+
+
+## D-84 Das Spiel kennt keinen Verkauf — es heißt zerstören (v0.56.0)
+
+**Lage.** D-83 ließ den Endpunkt offen: `POST /vehicles/<id>` mit
+`_method=delete` stand seit je im Code, aber nie in `SPIELSEITEN.md`.
+Nachgemessen mit Playwright und angemeldetem Browser, rein lesend.
+
+Der Aufruf **stimmt**. Auf `/vehicles/<id>` steht genau ein Verweis mit
+`data-method="delete"` auf dieselbe Adresse; Rails-UJS baut daraus ein `POST`
+mit `_method=delete` und `authenticity_token`, und `postForm` schickt beides.
+Nach drei Adressen, die hier jahrelang falsch waren, war diese richtig.
+
+**Falsch war das Wort.** Die Rückfrage des Spiels lautet „Wirklich das
+Fahrzeug **zerstören**?", der Knopf trägt einen Papierkorb mit `title="Löschen"`.
+Der Planer nannte dieselbe Handlung durchgehend „verkaufen" — Reiter,
+Knopfbeschriftung, Protokoll („VERKAUFE …"), und die letzte Rückfrage vor der
+Tat: „Wirklich Fahrzeuge verkaufen?". Wer das liest, rechnet mit Credits
+zurück und trifft eine andere Entscheidung als bei „zerstören".
+
+Gesucht wurde ausdrücklich nach einem Verkauf: `/vehicles/<id>`,
+`/vehicles/<id>/edit` und `/buildings/<id>`, jeder Verweis, Knopf und
+Textabschnitt mit *verkauf*, *sell*, *erlös*, *credits*. Getroffen wurden nur
+die **Kauf**-Verweise der Wachenseite. Es gibt keinen Verkauf.
+
+**Entschieden.** Die Oberfläche sagt, was passiert: Reiter „Zerstören", Knopf
+„Überzählige zerstören", Protokoll „ZERSTÖRE", und die Rückfrage nennt beides —
+daß nichts zurückkommt und daß es nicht rückgängig zu machen ist.
+
+Der Endpunkt bleibt unangetastet; er war richtig. `SPIELSEITEN.md` trägt die
+Messung jetzt, samt dem negativen Befund.
+
+**Nicht gemessen, deshalb nicht behauptet:** ob beim Zerstören Credits
+zurückfließen. Das wäre nur zu erfahren, indem man ein Fahrzeug zerstört. Die
+Rückfrage des Spiels nennt keinen Betrag, also verspricht der Planer auch
+keinen. Die Oberfläche sagt genau zwei Dinge, und beide sind gemessen: einen
+Verkauf kennt das Spiel nicht, und einen Erlös nennt es nicht. Ein flaches
+„es kommt nichts zurück" stand kurz im Knopftext und ist wieder heraus — das
+wäre geraten gewesen, und geraten wird hier nicht.
+
+**Verworfen: `sellSurplus` und `verkaufsKandidaten` umbenennen.** Der
+Reiterschlüssel `verkauf` hängt an gemerkten Antworten und an
+`TABGRUPPEN`/`TABNAME`; ein Umbenennen hätte nur Reibung erzeugt. Statt dessen
+steht über `sellSurplus` ein Kommentar, der sagt, daß die Funktion `destroy`
+tut. Die Oberfläche ist die Stelle, an der die Wahrheit zählt.
+
+**Verworfen: `/vehicles/<id>/sell` und ähnliche Adressen probeweise aufrufen.**
+In diesem Spiel lösen auch `GET`-Verweise Handlungen aus — der Kauf läuft über
+`GET .../credits`. Ein Probeaufruf wäre selbst die Tat gewesen. Gemessen wurde
+ausschließlich, was der Planer ohnehin liest.
+
+**Mitgenommen.** Dieselbe Messung hat zwei Annahmen aus D-83 belegt:
+`tractive_vehicle_id` trägt echte Kopplungen (86 Anhänger an 72
+Zugfahrzeugen, 10 mit mehreren), und **16 von 1583** Fahrzeugen standen auf
+Status 6. Der alte Filter `fms_real !== 2` hat also nicht theoretisch, sondern
+laufend Fahrzeuge liegenlassen.
+
+
+## D-85 Ein Zugfahrzeug trägt mehrere Anhänger, zieht aber einen (v0.58.0)
+
+**Lage.** Sasha nannte zwei Spielregeln (03.09.2026):
+
+1. Personal kann auch Fahrzeugen zugewiesen werden, die **nicht** auf Status
+   2 oder 6 stehen.
+2. Ein Zugfahrzeug **darf** an mehreren Anhängern hängen — es kann sie nur
+   nicht gleichzeitig ziehen.
+
+**Regel 1 war schon erfüllt.** Die Zuweisung selbst (`sitzplanSchritte` →
+`POST /vehicles/<fz>/zuweisungDo/<person>`) läuft über
+`bemannbar = mineOf(b).filter(max > 0)` — kein Statusfilter, nirgends. Alle
+FMS-Prüfungen in `assignStaff` sitzen in der **Bereitschafts**-Hälfte, und die
+braucht sie: `set_fms` geht laut Spiel ausschließlich aus Status 2 heraus, ein
+Fahrzeug im Einsatz wird über `merkeWarte` vorgemerkt und beim nächsten Lauf
+nachgeholt.
+
+Was fehlte, war die Auskunft. Die Meldung lautete „N Fahrzeuge waren unterwegs
+— Umschaltung vorgemerkt" und ließ sich als „Personal übersprungen" lesen. Sie
+sagt jetzt beides: „Personal ist zugewiesen, nur die Statusumschaltung ist
+vorgemerkt." Nichts am Verhalten, alles an der Klarheit — und genau die
+Verwechslung war der Anlaß, die Regel überhaupt zu nennen.
+
+**Regel 2 war verletzt, an zwei Stellen — und die zweite war die Ursache.**
+
+`anforderung` **summierte** den Bedarf aller Anhänger eines Zugfahrzeugs
+(`anhEst += …`). Zwei Mehrzweckboote an einem GW-Wasserrettung forderten
+4 + 4 = 8 Leute, gedeckelt auf sechs Sitze: Vollbesetzung, obwohl das Gespann
+mit jedem Boot einzeln längst ausrückt. Gezählt wird jetzt der **größte**
+Anhänger. Die Lehrgänge kamen schon vorher über `Math.max` und bleiben
+unverändert von **allen** Anhängern gefordert — welcher gezogen wird, steht
+vorher nicht fest.
+
+`linkTrailers` behandelte das Symptom: eine Map `belegt` hielt fest, welches
+Zugfahrzeug schon einen Anhänger hat, und **hängte den zweiten um** („hängt am
+selben Zugfahrzeug wie … — wird umgehängt"). Das löste zulässige Gespanne auf,
+kostete Schreibanfragen und ordnete Sashas Spiel um. Im gemessenen Bestand
+(D-84) trugen **10 von 72** Zugfahrzeugen mehrere Anhänger — die Regel ist der
+Normalfall, nicht die Ausnahme.
+
+**Entschieden.** Rangfolge statt Ausschluß, wie schon bei der Zugfahrzeug-Wahl
+darüber: wer noch keinen Anhänger trägt, kommt zuerst, damit möglichst viele
+Gespanne gleichzeitig ausrücken. `sort` ist stabil, die bestehende Vorliebe
+(gleicher Lehrgang, dann mehr Sitze) bleibt im Rang erhalten. Eine bestehende,
+zulässige Kopplung wird **nie** gelöst. Trägt ein Fahrzeug danach mehr als
+einen, sagt das Protokoll es („trägt jetzt 2 Anhänger").
+
+Der Zweig „kein freies Zugfahrzeug" ist damit unerreichbar und gestrichen; wer
+gar kein zugelassenes Zugfahrzeug hat, bekommt weiter seine eigene Meldung.
+
+**Eine alte Probe war falsch, nicht der neue Code.** Probe 15 verlangte
+ausdrücklich „auf die sechs Sitze gedeckelt" — sie kodierte die Summierung.
+Sie fordert jetzt 4 und sagt im Kommentar, warum sie sich geändert hat.
+Festgehalten, weil eine Probe, die man ändert, um grün zu werden, sonst
+aussieht wie eine Probe, die man weggeräumt hat. Der Deckel auf die Sitzzahl
+wird weiter geprüft — an einem einzelnen Anhänger, der mehr fordert als das
+Zugfahrzeug Sitze hat (Abschnitt 27).
+
+**Verworfen: die Anhänger im Sitzplan nach „welcher hängt gerade" zu
+gewichten.** Das Spiel entscheidet beim Alarm, nicht der Planer. Wer die
+Besatzung auf einen bestimmten Anhänger auslegt, liegt in der Hälfte der
+Einsätze daneben. Der größte Anhänger ist die Zahl, die immer reicht.
+
+**Verworfen: Anhänger gleichmäßig zu verteilen, wo es der Plan nicht
+verlangt.** Die Rangfolge bevorzugt freie Zugfahrzeuge, aber sie hängt nichts
+um, nur um es hübscher zu machen. Umhängen war der Fehler, den diese
+Entscheidung behebt.

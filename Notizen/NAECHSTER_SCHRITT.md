@@ -1,7 +1,23 @@
 # Nächster Schritt
 
-Stand v0.52.0. Was hier steht, ist offen — alles darüber ist erledigt und in
+Stand v0.56.0. Was hier steht, ist offen — alles darüber ist erledigt und in
 `DECISIONS.md` begründet.
+
+## Im Spiel anzusehen: der Reiter heißt jetzt „Zerstören"
+
+Der Endpunkt ist nachgemessen und war richtig (D-84, `SPIELSEITEN.md`). Falsch
+war das Wort: das Spiel kennt keinen Verkauf, nur den Papierkorb mit der
+Rückfrage „Wirklich das Fahrzeug zerstören?". Reiter, Knopf, Protokoll und
+Rückfrage sagen das seit v0.56.0.
+
+Anzusehen bleibt, wie es im Fenster aussieht — die Oberfläche ist nicht
+abgedeckt. Mit „Nur Vorschau" an: Reitername, Knopftext, die Zeile
+„ZERSTÖRE …" und die Überzählig-Zeile, die jetzt das Fahrzeug nennt
+(`2× RTW → RTW B, RTW A`).
+
+**Offen und nur durch eine echte Tat zu klären:** ob beim Zerstören Credits
+zurückfließen. Die Rückfrage des Spiels nennt keinen Betrag. Wer das einmal an
+einem Fahrzeug prüft, das ohnehin weg soll, schreibt es in D-84 nach.
 
 ## Ungeprüft im laufenden Spiel
 
