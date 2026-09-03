@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.55.0
+// @version      0.56.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.55.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.56.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -1085,7 +1085,7 @@ const HAKEN_ALLE = new RegExp(`[${HAKEN_ZEICHEN}]+\\s*`, 'gu');
    wie „Nur Vorschau“ auch: Freigabe gilt für einen Handgriff, nicht für
    den Rest des Abends.
 
-   Geschützt heißt: nichts wegnehmen. Nicht umbenennen, nicht verkaufen,
+   Geschützt heißt: nichts wegnehmen. Nicht umbenennen, nicht zerstören,
    nicht ab- oder ankoppeln, kein Personal abziehen, keine Wache oder
    Erweiterung abschalten. Hinzufügen bleibt erlaubt — werben, ausbilden,
    freie Sitze auffüllen —, denn davon verliert niemand etwas.
@@ -1927,18 +1927,22 @@ async function buyVehicles(sel, dry) {
       }
     }
   }
-  if (uebersprungen) log(`${uebersprungen} Wachen übersprungen — dort erst Ausbauten bauen oder Überzählige verkaufen.`, 'warn');
+  if (uebersprungen) log(`${uebersprungen} Wachen übersprungen — dort erst Ausbauten bauen oder Überzählige zerstören.`, 'warn');
   if (vertagt) log(`${vertagt} Fahrzeuge nicht gekauft, weil kein Stellplatz frei ist.`, 'warn');
   return n;
 }
 
+/* Heißt weiter `sellSurplus`, tut aber `destroy`: das Spiel bietet keinen
+   Verkauf an, nur den Papierkorb auf der Fahrzeugseite (D-84). Der Name
+   bleibt, weil er an Reiterschlüssel und gemerkten Antworten hängt — die
+   Oberfläche sagt überall „zerstören". */
 async function sellSurplus(sel, dry) {
   let n = 0;
   for (const b of sel) {
     for (const s of analyse(b).vehSurplus) {
       const { fallen, bleiben } = verkaufsKandidaten(b, s.id, s.n);
       for (const v of fallen) {
-        log(`${b.caption}: VERKAUFE ${s.name} „${v.caption}"`);
+        log(`${b.caption}: ZERSTÖRE ${s.name} „${v.caption}"`);
         if (!dry) { await postForm(`/vehicles/${v.id}`, { _method: 'delete' }); fahrzeugWeg(b, v.id); }
         n++;
       }
@@ -1951,7 +1955,7 @@ async function sellSurplus(sel, dry) {
       /* Der Grund gehört an die Zahl. Vorher stand hier pauschal „Fahrzeuge
          nicht auf der Wache" — auch dann, wenn sie sehr wohl dastanden und
          nur grün markiert oder mit einem Anhänger belegt waren. */
-      log(`  ${s.name}: ${fehlt} nicht verkauft — `
+      log(`  ${s.name}: ${fehlt} nicht zerstört — `
         + (bleiben.map(x => `${x.v.caption}: ${x.grund}`).join(' · ')
            || 'kein Fahrzeug dieses Typs greifbar'), 'warn');
     }
@@ -2264,7 +2268,7 @@ async function assignStaff(sel, dry) {
     log('', '');
     log(`${ueberzaehlig.length} Fahrzeuge stehen, die der Plan nicht vorsieht:`, 'warn');
     ueberzaehlig.forEach(x => log(`   ${x.wache}: ${x.v.caption}`));
-    log('Über den Reiter „Verkaufen" lassen sie sich abstoßen.', 'warn');
+    log('Über den Reiter „Zerstören" lassen sie sich abstoßen — einen Verkauf kennt das Spiel nicht.', 'warn');
   }
   return n;
 }
@@ -2905,7 +2909,7 @@ const GRUPPEN = [
   { id: 'haken',      name: 'Namen',      tabs: ['haken'] }
 ];
 const TABNAME = {
-  ausbau: 'Ausbauten', kaufen: 'Kaufen', verkauf: 'Verkaufen',
+  ausbau: 'Ausbauten', kaufen: 'Kaufen', verkauf: 'Zerstören',
   personal: 'Zuweisen', werben: 'Werben', anhaenger: 'Anhänger koppeln', leeren: 'Alles lösen'
 };
 const gruppeVon = t => GRUPPEN.find(g => g.tabs.includes(t)) || GRUPPEN[0];
@@ -3393,9 +3397,15 @@ function render() {
     kaufen:   ['Fahrzeuge kaufen',     buyVehicles,
       'Kauft alle Fahrzeuge, die gegenüber dem Plan fehlen. Kostet Credits. '
       + 'Achtung: Stellplätze müssen vorher gebaut sein.'],
-    verkauf:  ['Überzählige verkaufen', sellSurplus,
-      'Verkauft Fahrzeuge, die der Plan nicht vorsieht. Das lässt sich nicht rückgängig machen. '
-      + 'Fahrzeuge im Einsatz werden übersprungen.'],
+    /* „Zerstören", nicht „verkaufen": das Spiel kennt keinen Verkauf. Auf
+       der Fahrzeugseite steht genau ein Knopf, und der fragt „Wirklich das
+       Fahrzeug zerstören?" (D-84, nachgemessen). Wer „verkaufen" liest,
+       rechnet mit Credits zurück; ob welche fließen, ist ungemessen — also
+       wird auch keine versprochen. */
+    verkauf:  ['Überzählige zerstören', sellSurplus,
+      'Zerstört Fahrzeuge, die der Plan nicht vorsieht — dasselbe wie der Papierkorb '
+      + 'auf der Fahrzeugseite. Einen Verkauf kennt das Spiel nicht, und einen Erlös '
+      + 'nennt es nicht. Nicht rückgängig zu machen. Fahrzeuge im Einsatz werden übersprungen.'],
     werben:   ['3 Tage werben',        hire,
       'Startet an unterbesetzten Wachen eine dreitägige Bewerbungsphase. Kostet nichts.'],
     anhaenger:['Anhänger koppeln',     linkTrailers,
@@ -3943,10 +3953,12 @@ function render() {
     const sel = selectedBuildings();
     if (!sel.length) return log('Keine Wache ausgewählt', 'warn');
     const dry = b.querySelector('#lssp-dry').checked;
-    /* Der Verkauf bekommt bewusst kein „nicht mehr fragen“ — er ist die
-       einzige Aktion, die sich nicht rückgängig machen lässt. */
+    /* Das Zerstören bekommt bewusst kein „nicht mehr fragen“ — es ist die
+       einzige Aktion, die sich nicht rückgängig machen lässt. Und sie sagt
+       „zerstören", weil das Spiel das so nennt und keinen Erlös nennt. */
     if (!dry && tab === 'verkauf' &&
-        !await frage(`Wirklich Fahrzeuge verkaufen? Das lässt sich nicht rückgängig machen.\n${sel.length} Wachen betroffen.`)) return;
+        !await frage(`Wirklich Fahrzeuge ZERSTÖREN? Einen Verkauf kennt das Spiel nicht, `
+          + `und einen Erlös nennt es nicht. Nicht rückgängig zu machen.\n${sel.length} Wachen betroffen.`)) return;
     if (!dry && !await frage(`${label} für ${sel.length} Wachen ausführen?`, 'ausfuehren-' + tab)) return;
     S.busy = true; ev.target.disabled = true; laufStarten();
     S.log = []; log(dry ? '── Vorschau ──' : '── Ausführung ──', 'good');

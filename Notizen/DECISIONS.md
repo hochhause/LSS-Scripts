@@ -1533,10 +1533,67 @@ nächsten Lesen erneut „behoben" wird.
 **Verworfen: den Rang einstellbar machen.** Es gibt keinen Fall, in dem man das
 einsatzbereite vor dem abgestellten Fahrzeug verkaufen will.
 
-**Offen und bewußt nicht angefaßt:** die Verkaufsanfrage selbst. `POST
+**Eingelöst in D-84:** die Anfrage ist nachgemessen und war richtig — falsch
+war das Wort ‚verkaufen‘. Der ursprüngliche Vermerk lautete: `POST
 /vehicles/<id>` mit `_method=delete` steht seit je im Code, ist aber **nie
 nachgemessen** — sie fehlt in `SPIELSEITEN.md`. Genau die Kategorie, die hier
 schon dreimal jahrelang falsch war, und diesmal auf dem unumkehrbaren Pfad.
 Diese Änderung verbreitert nur die Kandidatenauswahl; der abgeschickte Aufruf
 ist Zeichen für Zeichen der alte. Vor dem nächsten scharfen Lauf gehört er
 nachgemessen (siehe [[NAECHSTER_SCHRITT]]).
+
+
+## D-84 Das Spiel kennt keinen Verkauf — es heißt zerstören (v0.56.0)
+
+**Lage.** D-83 ließ den Endpunkt offen: `POST /vehicles/<id>` mit
+`_method=delete` stand seit je im Code, aber nie in `SPIELSEITEN.md`.
+Nachgemessen mit Playwright und angemeldetem Browser, rein lesend.
+
+Der Aufruf **stimmt**. Auf `/vehicles/<id>` steht genau ein Verweis mit
+`data-method="delete"` auf dieselbe Adresse; Rails-UJS baut daraus ein `POST`
+mit `_method=delete` und `authenticity_token`, und `postForm` schickt beides.
+Nach drei Adressen, die hier jahrelang falsch waren, war diese richtig.
+
+**Falsch war das Wort.** Die Rückfrage des Spiels lautet „Wirklich das
+Fahrzeug **zerstören**?", der Knopf trägt einen Papierkorb mit `title="Löschen"`.
+Der Planer nannte dieselbe Handlung durchgehend „verkaufen" — Reiter,
+Knopfbeschriftung, Protokoll („VERKAUFE …"), und die letzte Rückfrage vor der
+Tat: „Wirklich Fahrzeuge verkaufen?". Wer das liest, rechnet mit Credits
+zurück und trifft eine andere Entscheidung als bei „zerstören".
+
+Gesucht wurde ausdrücklich nach einem Verkauf: `/vehicles/<id>`,
+`/vehicles/<id>/edit` und `/buildings/<id>`, jeder Verweis, Knopf und
+Textabschnitt mit *verkauf*, *sell*, *erlös*, *credits*. Getroffen wurden nur
+die **Kauf**-Verweise der Wachenseite. Es gibt keinen Verkauf.
+
+**Entschieden.** Die Oberfläche sagt, was passiert: Reiter „Zerstören", Knopf
+„Überzählige zerstören", Protokoll „ZERSTÖRE", und die Rückfrage nennt beides —
+daß nichts zurückkommt und daß es nicht rückgängig zu machen ist.
+
+Der Endpunkt bleibt unangetastet; er war richtig. `SPIELSEITEN.md` trägt die
+Messung jetzt, samt dem negativen Befund.
+
+**Nicht gemessen, deshalb nicht behauptet:** ob beim Zerstören Credits
+zurückfließen. Das wäre nur zu erfahren, indem man ein Fahrzeug zerstört. Die
+Rückfrage des Spiels nennt keinen Betrag, also verspricht der Planer auch
+keinen. Die Oberfläche sagt genau zwei Dinge, und beide sind gemessen: einen
+Verkauf kennt das Spiel nicht, und einen Erlös nennt es nicht. Ein flaches
+„es kommt nichts zurück" stand kurz im Knopftext und ist wieder heraus — das
+wäre geraten gewesen, und geraten wird hier nicht.
+
+**Verworfen: `sellSurplus` und `verkaufsKandidaten` umbenennen.** Der
+Reiterschlüssel `verkauf` hängt an gemerkten Antworten und an
+`TABGRUPPEN`/`TABNAME`; ein Umbenennen hätte nur Reibung erzeugt. Statt dessen
+steht über `sellSurplus` ein Kommentar, der sagt, daß die Funktion `destroy`
+tut. Die Oberfläche ist die Stelle, an der die Wahrheit zählt.
+
+**Verworfen: `/vehicles/<id>/sell` und ähnliche Adressen probeweise aufrufen.**
+In diesem Spiel lösen auch `GET`-Verweise Handlungen aus — der Kauf läuft über
+`GET .../credits`. Ein Probeaufruf wäre selbst die Tat gewesen. Gemessen wurde
+ausschließlich, was der Planer ohnehin liest.
+
+**Mitgenommen.** Dieselbe Messung hat zwei Annahmen aus D-83 belegt:
+`tractive_vehicle_id` trägt echte Kopplungen (86 Anhänger an 72
+Zugfahrzeugen, 10 mit mehreren), und **16 von 1583** Fahrzeugen standen auf
+Status 6. Der alte Filter `fms_real !== 2` hat also nicht theoretisch, sondern
+laufend Fahrzeuge liegenlassen.

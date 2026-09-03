@@ -1,22 +1,23 @@
 # Nächster Schritt
 
-Stand v0.55.0. Was hier steht, ist offen — alles darüber ist erledigt und in
+Stand v0.56.0. Was hier steht, ist offen — alles darüber ist erledigt und in
 `DECISIONS.md` begründet.
 
-## Zuerst: der Verkaufs-Endpunkt ist ungemessen
+## Im Spiel anzusehen: der Reiter heißt jetzt „Zerstören"
 
-`POST /vehicles/<id>` mit `_method=delete` (in `sellSurplus`) steht seit je im
-Code und **fehlt in `SPIELSEITEN.md`**. Drei Adressen waren hier schon
-jahrelang falsch, ohne aufzufallen — diese sitzt auf der einzigen Aktion, die
-sich nicht zurücknehmen läßt.
+Der Endpunkt ist nachgemessen und war richtig (D-84, `SPIELSEITEN.md`). Falsch
+war das Wort: das Spiel kennt keinen Verkauf, nur den Papierkorb mit der
+Rückfrage „Wirklich das Fahrzeug zerstören?". Reiter, Knopf, Protokoll und
+Rückfrage sagen das seit v0.56.0.
 
-Nachzumessen mit angemeldetem Browser: Formular auf der Fahrzeugseite, Methode,
-Felder, Antwortseite. Danach `SPIELSEITEN.md` und `PROJECT_CONTEXT.md`
-fortschreiben. Bis dahin gilt: Verkauf nur mit „Nur Vorschau" oder an **einem**
-Fahrzeug, das man ohnehin loswerden will.
+Anzusehen bleibt, wie es im Fenster aussieht — die Oberfläche ist nicht
+abgedeckt. Mit „Nur Vorschau" an: Reitername, Knopftext, die Zeile
+„ZERSTÖRE …" und die Überzählig-Zeile, die jetzt das Fahrzeug nennt
+(`2× RTW → RTW B, RTW A`).
 
-Die **Auswahl** ist seit v0.55.0 abgedeckt (D-83, 22 Proben in
-`test-planung.js`) — nur der abgeschickte Aufruf ist es nicht.
+**Offen und nur durch eine echte Tat zu klären:** ob beim Zerstören Credits
+zurückfließen. Die Rückfrage des Spiels nennt keinen Betrag. Wer das einmal an
+einem Fahrzeug prüft, das ohnehin weg soll, schreibt es in D-84 nach.
 
 ## Ungeprüft im laufenden Spiel
 

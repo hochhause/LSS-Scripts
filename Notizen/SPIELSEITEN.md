@@ -214,3 +214,60 @@ richtig — mit der ersten Umrüstung der Kabinengröße gilt das nicht mehr.
 103 Gebäude · 1.449 Fahrzeuge (29.08.2026: 1.567) · 28 Schulen, davon 27 im Verband über vier
 Schularten. `loadAll` kostet drei Abrufe (≈ 4 s), der Bestand im Speicher rund
 232 KB JSON — etwa ein Zehntel der Browserquote, nicht ein Viertel.
+
+
+## Fahrzeug abstoßen — es gibt keinen Verkauf
+
+Nachgemessen am 03.09.2026 mit Playwright und angemeldetem Browser, rein
+lesend. Es wurde nichts geklickt und nichts abgeschickt.
+
+**Auf `/vehicles/<id>` steht genau eine verändernde Aktion:**
+
+```
+a  data-method="delete"  href="/vehicles/<id>"
+   class="btn btn-danger"
+   data-confirm="Wirklich das Fahrzeug zerstören?"
+   innen: <span title="Löschen" class="glyphicon glyphicon-trash"></span>
+```
+
+Kein `<form>` auf der Seite (0 Formulare). Der Verweis ist ein
+Rails-UJS-Verweis: UJS baut daraus ein `POST` auf dieselbe Adresse mit den
+versteckten Feldern `_method=delete` und `authenticity_token`. Genau das
+schickt `postForm('/vehicles/<id>', { _method: 'delete' })` — der Aufruf im
+Planer ist richtig. `<meta name="csrf-param">` trägt `authenticity_token`,
+`<meta name="csrf-token">` ist vorhanden, und `csrf()` liest genau dieses Feld.
+
+**Der negative Befund ist der wichtigere:** durchsucht wurden
+`/vehicles/<id>`, `/vehicles/<id>/edit` und `/buildings/<id>` nach jedem
+Verweis, Knopf und Textstück mit *verkauf*, *sell*, *erlös*, *credits*.
+Getroffen wurden nur die **Kauf**-Verweise der Wachenseite
+(`POST /buildings/<id>/extension/credits/<nr>`, `POST /building_specializations`).
+Eine Verkaufsmöglichkeit existiert an keiner dieser Stellen. Das Spiel kennt
+nur „zerstören".
+
+Ob beim Zerstören Credits zurückfließen, ist **nicht gemessen** — dafür müßte
+man ein Fahrzeug zerstören. Die Rückfrage des Spiels nennt keinen Betrag.
+Deshalb sagt der Planer seit v0.56.0 „zerstören" und verspricht nichts (D-84).
+
+**Nicht geraten:** Adressen wie `/vehicles/<id>/sell` wurden **nicht**
+probeweise aufgerufen. In diesem Spiel lösen auch `GET`-Verweise Handlungen
+aus — der Kauf läuft über `GET .../credits` —, ein Probeaufruf wäre also
+selbst die Tat gewesen.
+
+### Feldnamen in `/api/v2/vehicles`, gegengeprüft
+
+Alle Felder, auf die der Planer baut, sind da: `id`, `vehicle_type`,
+`building_id`, `fms_real`, `fms_show`, `caption`, `tractive_vehicle_id`.
+
+Im gemessenen Bestand (1583 Fahrzeuge):
+
+| | |
+|---|---|
+| Status 1 / 2 / 3 / 4 / 6 / 7 | 7 / 1456 / 24 / 76 / **16** / 4 |
+| Anhänger mit Zugfahrzeug | 86 an 72 Zugfahrzeugen |
+| Zugfahrzeuge mit mehr als einem Anhänger | 10 |
+
+**Status 6 ist kein Randfall** — 16 Fahrzeuge standen abgestellt auf ihrer
+Wache. Der alte Filter `fms_real !== 2` hat sie alle als „unterwegs"
+liegenlassen (D-83). Und `tractive_vehicle_id` trägt echte Kopplungen, die
+Anhänger-Sperre aus D-83 greift also nicht ins Leere.
