@@ -1,7 +1,22 @@
 # Nächster Schritt
 
-Stand v0.52.0. Was hier steht, ist offen — alles darüber ist erledigt und in
+Stand v0.55.0. Was hier steht, ist offen — alles darüber ist erledigt und in
 `DECISIONS.md` begründet.
+
+## Zuerst: der Verkaufs-Endpunkt ist ungemessen
+
+`POST /vehicles/<id>` mit `_method=delete` (in `sellSurplus`) steht seit je im
+Code und **fehlt in `SPIELSEITEN.md`**. Drei Adressen waren hier schon
+jahrelang falsch, ohne aufzufallen — diese sitzt auf der einzigen Aktion, die
+sich nicht zurücknehmen läßt.
+
+Nachzumessen mit angemeldetem Browser: Formular auf der Fahrzeugseite, Methode,
+Felder, Antwortseite. Danach `SPIELSEITEN.md` und `PROJECT_CONTEXT.md`
+fortschreiben. Bis dahin gilt: Verkauf nur mit „Nur Vorschau" oder an **einem**
+Fahrzeug, das man ohnehin loswerden will.
+
+Die **Auswahl** ist seit v0.55.0 abgedeckt (D-83, 22 Proben in
+`test-planung.js`) — nur der abgeschickte Aufruf ist es nicht.
 
 ## Ungeprüft im laufenden Spiel
 

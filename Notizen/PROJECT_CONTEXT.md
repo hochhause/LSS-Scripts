@@ -185,6 +185,8 @@ POST /vehicles/<vid>/zuweisungDo/<pid>              zuweisen/lösen (Umschalter)
 GET  /vehicles/<id>/set_fms/<n>                     FMS setzen (nur aus 2 heraus)
 GET  /vehicles/<id>/edit                            Zugfahrzeug-Auswahl des Anhängers
 PATCH/vehicles/<id>                                 umbenennen, Anhänger koppeln
+POST /vehicles/<id>  _method=delete                 verkaufen — UNGEMESSEN, steht
+                                                    nicht in SPIELSEITEN.md (D-83)
 GET  /buildings/<id>/edit                           Wache umbenennen: Feld `building[name]`
 POST /schoolings/<id>/education                     personal_ids[] + commit
 GET  /schoolings                                    Übersicht, data-education-key je Zeile

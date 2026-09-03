@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.54.0
+// @version      0.55.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.54.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.55.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -924,7 +924,7 @@ function analyse(b) {
 function analyseIntern(b) {
   const tgt = T.target(b);
   const res = { building: b, profile: T.profileOf(b), vehMissing: [], vehSurplus: [],
-                extMissing: [], staffNeed: 0, blocked: [] };
+                extMissing: [], staffNeed: 0 };
   if (!tgt) return res;
 
   const have = {};
@@ -1347,6 +1347,47 @@ async function hakenAbgleichen(sel, dry) {
 /** Anhänger, die an diesem Fahrzeug hängen. */
 const anhaengerAn = v => (S.byBuilding.get(v.building_id) || [])
   .filter(a => a.zugfahrzeug === v.id && (T.veh(a.vehicle_type)?.max || 0) === 0);
+
+/** Reihenfolge unter den verkäuflichen Fahrzeugen. Klein fällt zuerst.
+    „Irgendeiner davon" heißt nicht „der erste, den die API nennt":
+    abgestellt (Status 6) fehlt gerade niemandem, also geht der vor dem
+    einsatzbereiten; ungrün geht vor grün, weil grün „fertig" heißt und
+    damit der teurere Verlust ist. */
+const verkaufsRang = v => (hatHaken(v.caption) ? 2 : 0) + (v.fms_real === 6 ? 0 : 1);
+
+/** Wer von einer Überzahl fällt — und warum die anderen bleiben.
+    Eine Quelle für Vorschau und Verkauf: liefen sie getrennt, könnte die
+    Bestätigung ein anderes Fahrzeug nennen als der Verkauf trifft.
+
+    Status 2 und 6 stehen beide auf der Wache; 6 heißt abgestellt, nicht
+    unterwegs. Der frühere Filter `!== 2` hat abgestellte Fahrzeuge als
+    „unterwegs" gemeldet und liegenlassen, obwohl sie greifbar waren.
+
+    Ein Zugfahrzeug mit Anhänger bleibt stehen: fällt es weg, hängt der
+    Anhänger an nichts mehr und verliert seinen Punkt. Über den Rang rutscht
+    ohnehin zuerst ein freies Fahrzeug nach vorn. */
+function verkaufsKandidaten(b, typId, anzahl) {
+  const bleiben = [], frei = [];
+  for (const v of mineOf(b).filter(x => String(x.vehicle_type) === String(typId))) {
+    /* Platzhalter zuerst prüfen, damit `gruen` nur wahr ist, wenn der Schutz
+       auch wirklich der Grund ist — daran hängt die Schutzmeldung. */
+    const gruen = !istPlatzhalter(v) && (geschuetzt(b) || geschuetzt(v));
+    const grund =
+        istPlatzhalter(v)                      ? 'gerade gekauft, dem Server noch unbekannt'
+      : gruen                                  ? (geschuetzt(b) ? 'Wache ist grün markiert' : 'grün markiert')
+      : anhaengerAn(v).length                  ? 'Anhänger hängt dran'
+      : (v.fms_real !== 2 && v.fms_real !== 6) ? `unterwegs (Status ${v.fms_real})`
+      : null;
+    grund ? bleiben.push({ v, grund, gruen }) : frei.push(v);
+  }
+  frei.sort((x, y) => verkaufsRang(x) - verkaufsRang(y));   // stabil: API-Reihenfolge bleibt im Rang
+  return { fallen: frei.slice(0, anzahl), bleiben };
+}
+
+/** Für die Anzeige: welche Fahrzeuge diese Überzahl treffen würde.
+    Der Haken bleibt im Namen — er ist hier die Auskunft „grün freigegeben". */
+const verkaufsNamen = (b, s) =>
+  verkaufsKandidaten(b, s.id, s.n).fallen.map(v => v.caption).join(', ');
 
 /** Was ein Fahrzeug samt Anhängern an Personal und Kursen verlangt. */
 function anforderung(v) {
@@ -1894,24 +1935,25 @@ async function buyVehicles(sel, dry) {
 async function sellSurplus(sel, dry) {
   let n = 0;
   for (const b of sel) {
-    const a = analyse(b);
-    const mine = S.byBuilding.get(b.id) || [];
-    for (const s of a.vehSurplus) {
-      const cands = mine.filter(v => String(v.vehicle_type) === String(s.id));
-      let done = 0;
-      for (const v of cands) {
-        if (done >= s.n) break;
-        if (istPlatzhalter(v)) continue;          // gibt es serverseitig noch gar nicht
-        if (geschuetzt(v) || geschuetzt(b)) { schutzZaehlen(); continue; }
-        if (v.fms_real !== 2) {                    // nur was auf der Wache steht
-          a.blocked.push(`${v.caption} ist unterwegs (FMS ${v.fms_real})`);
-          continue;
-        }
+    for (const s of analyse(b).vehSurplus) {
+      const { fallen, bleiben } = verkaufsKandidaten(b, s.id, s.n);
+      for (const v of fallen) {
         log(`${b.caption}: VERKAUFE ${s.name} „${v.caption}"`);
         if (!dry) { await postForm(`/vehicles/${v.id}`, { _method: 'delete' }); fahrzeugWeg(b, v.id); }
-        done++; n++;
+        n++;
       }
-      if (done < s.n) log(`  ${s.name}: ${s.n - done} nicht verkauft — Fahrzeuge nicht auf der Wache`, 'warn');
+      const fehlt = s.n - fallen.length;
+      if (!fehlt) continue;
+      /* Die Schutzmeldung nur für die Fahrzeuge, die den Ausfall auch
+         verursachen — nicht für jedes grüne, das gar nicht dran war. */
+      const gruen = Math.min(bleiben.filter(x => x.gruen).length, fehlt);
+      for (let i = 0; i < gruen; i++) schutzZaehlen();
+      /* Der Grund gehört an die Zahl. Vorher stand hier pauschal „Fahrzeuge
+         nicht auf der Wache" — auch dann, wenn sie sehr wohl dastanden und
+         nur grün markiert oder mit einem Anhänger belegt waren. */
+      log(`  ${s.name}: ${fehlt} nicht verkauft — `
+        + (bleiben.map(x => `${x.v.caption}: ${x.grund}`).join(' · ')
+           || 'kein Fahrzeug dieses Typs greifbar'), 'warn');
     }
   }
   schutzMelden();
@@ -2941,9 +2983,13 @@ function detailWache(b) {
     + teil('Fahrzeuge fehlen', a.vehMissing.map(v =>
         dZeile(v.name, `${v.n}×`, 'gap', `data-fahrzeug="${v.id}"`)),
         'Alle geplanten Fahrzeuge stehen da.')
-    + teil('Überzählig', a.vehSurplus.map(v =>
-        dZeile(v.name, `${v.n}×`, 'warn', `data-fahrzeug="${v.id}"`)),
-        'Nichts überzählig.')
+    + teil('Überzählig', a.vehSurplus.map(v => {
+        /* Welches Fahrzeug fällt, muß vor dem Klick dastehen — der Verkauf
+           ist die einzige Aktion, die sich nicht zurücknehmen läßt. */
+        const wer = verkaufsNamen(b, v);
+        return dZeile(v.name, `${v.n}× ${wer ? `→ ${wer}` : '→ nichts verkäuflich'}`,
+                      'warn', `data-fahrzeug="${v.id}"`);
+      }), 'Nichts überzählig.')
     + teil('Ausbauten fehlen', a.extMissing.map(e =>
         dZeile(e.caption, e.n > 1 ? `${e.n}×` : '', 'gap', `data-ausbau="${esc(e.caption)}"`)),
         'Alle geplanten Ausbauten sind gebaut.')
@@ -3950,7 +3996,10 @@ function wachenSeite() {
       <a href="#" id="lssp-wache-zu" style="font-size:11px">ausblenden</a></div>`
     + (f.fertig ? '<div style="color:#3c763d">Diese Wache ist nach Plan vollständig.</div>' : '')
     + zeile('Fahrzeuge fehlen', a.vehMissing.map(v => `${v.n}× ${v.name}`), '#a94442')
-    + zeile('Überzählig', a.vehSurplus.map(v => `${v.n}× ${v.name}`), '#8a6d3b')
+    + zeile('Überzählig', a.vehSurplus.map(v => {
+        const wer = verkaufsNamen(b, v);
+        return `${v.n}× ${v.name}${wer ? ` → ${wer}` : ' → nichts verkäuflich'}`;
+      }), '#8a6d3b')
     + zeile('Ausbauten fehlen', a.extMissing.map(e => e.caption), '#a94442')
     + zeile('Lehrgänge fehlen', kurse, '#a94442')
     + (f.personal ? `<div style="margin:3px 0"><b style="color:#8a6d3b">Unterbesetzt:</b> ${f.personal} Fahrzeuge</div>` : '')

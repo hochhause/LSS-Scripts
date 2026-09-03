@@ -56,10 +56,12 @@ const echteVon = b => mineOf(b).filter(v => !istPlatzhalter(v));
 
 const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
            bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
-           courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte };`)();
+           courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
+           verkaufsKandidaten, verkaufsRang, verkaufsNamen };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
-        courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte } = kern;
+        courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
+        verkaufsKandidaten, verkaufsRang, verkaufsNamen } = kern;
 
 let fehler = 0;
 const pruefe = (name, ist, soll) => {
@@ -747,6 +749,142 @@ console.log('24. Fachkraefte bleiben frei, solange es einfachere gibt');
   ] }, false);
   pruefe('ohne Y-Only springt der Doppelte ein', auf(plan, yF), ['1']);
   pruefe('das X-Fahrzeug bleibt trotzdem besetzt', auf(plan, xF), ['2', '3']);
+}
+
+/* ── 25. Verkauf: irgendeiner des Typs, aber der unschaedlichste ───── */
+console.log('\n25. Verkauf waehlt unter den Fahrzeugen eines Typs');
+/* Namen sind hier die Probe: welches Fahrzeug faellt, nicht wie viele. */
+const namen = l => l.map(v => v.caption).sort();
+const gruende = r => r.bleiben.map(x => `${x.v.caption}: ${x.grund}`).sort();
+const RTW = 28, WLF = 46, AB = 49;      // AB-Oel hat keine Sitze, ist also Anhaenger
+
+{
+  // B1: Status 6 heisst abgestellt auf der Wache, nicht unterwegs.
+  // F1: und genau der geht zuerst, weil er gerade niemandem fehlt.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A' }), b2 = fz(RTW, { caption: 'RTW B', fms_real: 6 }),
+        c = fz(RTW, { caption: 'RTW C' });
+  const b = wache([a, b2, c]);
+  const r = verkaufsKandidaten(b, RTW, 1);
+  pruefe('abgestellter RTW faellt, nicht der erste der Liste', namen(r.fallen), ['RTW B']);
+  pruefe('die einsatzbereiten bleiben ungenannt', r.bleiben.length, 0);
+}
+{
+  // Ohne Abgestellten bleibt die Reihenfolge der API — kein Wuerfeln.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A' }), b2 = fz(RTW, { caption: 'RTW B' });
+  const b = wache([a, b2]);
+  pruefe('gleicher Rang: erster der Liste', namen(verkaufsKandidaten(b, RTW, 1).fallen), ['RTW A']);
+}
+{
+  // Zwei zu viel: beide faellige werden benannt, nicht nur einer.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A' }), b2 = fz(RTW, { caption: 'RTW B', fms_real: 6 }),
+        c = fz(RTW, { caption: 'RTW C' });
+  const b = wache([a, b2, c]);
+  pruefe('Ueberzahl 2 nimmt zwei', namen(verkaufsKandidaten(b, RTW, 2).fallen), ['RTW A', 'RTW B']);
+}
+{
+  // B2: der Grund gehoert an das Fahrzeug. Vorher hiess jeder Ausfall
+  // pauschal „nicht auf der Wache" — auch bei grün und bei unterwegs.
+  S.opts = {};
+  const a = fz(RTW, { caption: '🟢 RTW A' }), b2 = fz(RTW, { caption: 'RTW B', fms_real: 3 });
+  const b = wache([a, b2]);
+  const r = verkaufsKandidaten(b, RTW, 1);
+  pruefe('gruen und unterwegs: nichts faellt', r.fallen, []);
+  pruefe('jeder mit eigenem Grund',
+         gruende(r), ['RTW B: unterwegs (Status 3)', '🟢 RTW A: grün markiert']);
+  pruefe('nur der gruene zaehlt als geschuetzt', r.bleiben.filter(x => x.gruen).length, 1);
+}
+{
+  // Grün freigegeben: der gruene ist verkaeuflich, aber zuletzt.
+  const a = fz(RTW, { caption: '🟢 RTW A' }), b2 = fz(RTW, { caption: 'RTW B' });
+  const b = wache([a, b2]);
+  S.opts = { gruenFrei: true };
+  pruefe('mit Freigabe faellt trotzdem der ungruene', namen(verkaufsKandidaten(b, RTW, 1).fallen), ['RTW B']);
+  pruefe('bei Freigabe und Ueberzahl 2 faellt auch der gruene',
+         namen(verkaufsKandidaten(b, RTW, 2).fallen), ['RTW B', '🟢 RTW A']);
+  S.opts = {};
+}
+{
+  // Die ganze Wache gruen: nichts faellt, und der Grund nennt die Wache.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A' });
+  const b = { ...wache([a]), caption: '🟢 Testwache' };
+  const r = verkaufsKandidaten(b, RTW, 1);
+  pruefe('gruene Wache schuetzt ihre Fahrzeuge', r.fallen, []);
+  pruefe('und sagt das auch so', gruende(r), ['RTW A: Wache ist grün markiert']);
+}
+{
+  // F2: ein Zugfahrzeug mit Anhaenger bleibt stehen — sonst haengt der
+  // Anhaenger an nichts mehr. Der freie WLF geht.
+  S.opts = {};
+  const w1 = fz(WLF, { caption: 'WLF A' }), w2 = fz(WLF, { caption: 'WLF B' });
+  const ab = fz(AB, { caption: 'AB-Oel', zugfahrzeug: w1.id });
+  const b = wache([w1, w2, ab]);
+  const r = verkaufsKandidaten(b, WLF, 1);
+  pruefe('der freie WLF faellt, nicht der bespannte', namen(r.fallen), ['WLF B']);
+  pruefe('und der bespannte sagt warum', gruende(r), ['WLF A: Anhänger hängt dran']);
+}
+{
+  // Haengt an beiden ein Anhaenger, faellt keiner — lieber Ueberzahl als
+  // eine Waise.
+  S.opts = {};
+  const w1 = fz(WLF, { caption: 'WLF A' }), w2 = fz(WLF, { caption: 'WLF B' });
+  const b = wache([w1, w2, fz(AB, { caption: 'AB 1', zugfahrzeug: w1.id }),
+                          fz(AB, { caption: 'AB 2', zugfahrzeug: w2.id })]);
+  pruefe('beide bespannt: nichts faellt', verkaufsKandidaten(b, WLF, 1).fallen, []);
+}
+{
+  // B4/B2: ein eben gekauftes Fahrzeug gibt es serverseitig noch nicht.
+  // Vorher meldete es „Fahrzeuge nicht auf der Wache" — falsch und irre-
+  // fuehrend, denn es steht ja da.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A (neu)', id: -1, platzhalter: true });
+  const b = wache([a]);
+  const r = verkaufsKandidaten(b, RTW, 1);
+  pruefe('Platzhalter faellt nicht', r.fallen, []);
+  pruefe('Platzhalter nennt den richtigen Grund',
+         gruende(r), ['RTW A (neu): gerade gekauft, dem Server noch unbekannt']);
+  pruefe('und gilt nicht als grün uebergangen', r.bleiben.filter(x => x.gruen).length, 0);
+}
+{
+  // Ein anderer Typ auf derselben Wache bleibt unbeteiligt.
+  S.opts = {};
+  const r = fz(RTW, { caption: 'RTW A' }), w = fz(WLF, { caption: 'WLF A' });
+  const b = wache([r, w]);
+  pruefe('nur der ueberzaehlige Typ wird angefasst',
+         namen(verkaufsKandidaten(b, RTW, 1).fallen), ['RTW A']);
+  pruefe('fremder Typ steht nicht in den Gruenden', verkaufsKandidaten(b, RTW, 1).bleiben, []);
+}
+{
+  // F3: Vorschau und Verkauf muessen dasselbe Fahrzeug nennen. Der Eintrag
+  // kommt hier in der Form, die vehSurplus liefert: { id, n, name }.
+  S.opts = {};
+  const a = fz(RTW, { caption: 'RTW A' }), b2 = fz(RTW, { caption: 'RTW B', fms_real: 6 });
+  const b = wache([a, b2]);
+  const eintrag = { id: RTW, n: 1, name: 'RTW' };
+  pruefe('Anzeige nennt das Fahrzeug, das auch faellt',
+         verkaufsNamen(b, eintrag), 'RTW B');
+  pruefe('Anzeige und Verkauf stimmen ueberein',
+         verkaufsNamen(b, eintrag),
+         verkaufsKandidaten(b, eintrag.id, eintrag.n).fallen.map(v => v.caption).join(', '));
+  pruefe('Ueberzahl 2 nennt beide in der Rangfolge',
+         verkaufsNamen(b, { id: RTW, n: 2, name: 'RTW' }), 'RTW B, RTW A');
+}
+{
+  // Nichts verkaeuflich muss auch so heissen — und nicht leer bleiben.
+  S.opts = {};
+  const b = wache([fz(RTW, { caption: 'RTW A', fms_real: 3 })]);
+  pruefe('nichts verkaeuflich gibt leeren Namen zurueck',
+         verkaufsNamen(b, { id: RTW, n: 1, name: 'RTW' }), '');
+}
+{
+  // Rang als Zahl, damit die Absicht nicht nur indirekt geprueft wird.
+  pruefe('Rang: abgestellt vor einsatzbereit',
+         verkaufsRang({ caption: 'X', fms_real: 6 }) < verkaufsRang({ caption: 'X', fms_real: 2 }), true);
+  pruefe('Rang: ungruen vor gruen',
+         verkaufsRang({ caption: 'X', fms_real: 2 }) < verkaufsRang({ caption: '🟢 X', fms_real: 6 }), true);
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');

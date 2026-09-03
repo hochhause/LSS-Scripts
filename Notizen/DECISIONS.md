@@ -1463,3 +1463,66 @@ wird auf 0 gezogen (sonst hält „Haken abgleichen" die Wache für besetzt und
 hakt leere Fahrzeuge ab), und das Protokoll nennt den Fahrzeugnamen statt der
 nackten Nummer. Nachgezogen wird nur, was der Lauf wirklich angefaßt hat — ein
 Abbruch soll nicht behaupten, er sei durchgelaufen.
+
+
+## D-83 Überzählig ist ein Typ, nicht ein Fahrzeug (v0.55.0)
+
+**Lage.** Sasha berichtete, der Verkauf wolle „diesen einen RTW" loswerden,
+obwohl drei gleichwertige auf der Wache stehen. Nachgemessen war das nicht der
+Fall: `sellSurplus` filterte schon immer über **alle** Fahrzeuge des Typs und
+übersprang Unverkäufliches mit `continue`, nicht `break`. Der Eindruck kam von
+drei anderen Stellen.
+
+`fms_real !== 2` schloß Status **6** mit aus. Status 6 heißt aber *abgestellt
+auf der Wache*, nicht unterwegs — das Skript wußte es an drei eigenen Stellen
+schon (`abgestellt`, `bereit`, und die Überzähligen-Liste im Bereitschaftslauf
+prüft `[2, 6]`). Ein außer Dienst geparkter RTW wurde also übergangen und dabei
+als „ist unterwegs (FMS 6)" gemeldet.
+
+Diese Begründung ging danach verloren: sie landete in `res.blocked`, und
+`res.blocked` hatte im ganzen Skript **keinen Leser**. Übrig blieb die
+Sammelmeldung „Fahrzeuge nicht auf der Wache" — die bei *jedem* Grund feuerte,
+auch bei grün markiert und bei gerade gekauft. Wer daneben drei RTW stehen
+sieht, liest daraus zwangsläufig „es will diesen einen".
+
+**Entschieden.** Die Auswahl wandert in `verkaufsKandidaten(b, typId, anzahl)`
+und liefert `{ fallen, bleiben }` — bleiben je mit eigenem Grund. Eine Quelle
+für Vorschau, Wachenkasten und Verkauf; liefen sie getrennt, könnte die
+Bestätigung ein anderes Fahrzeug nennen als der Verkauf trifft (dieselbe Falle
+wie bei „zwei Quellen für dieselbe Zahl").
+
+Vier Regeln stecken darin:
+
+- **Status 2 und 6 sind beide greifbar.** 6 zuerst: ein abgestelltes Fahrzeug
+  fehlt gerade niemandem.
+- **Ungrün vor grün.** Grün heißt fertig, also der teurere Verlust. Greift nur
+  bei gesetztem „Grüne freigeben" — sonst bleiben grüne ohnehin stehen.
+- **Ein Zugfahrzeug mit Anhänger bleibt stehen.** Fällt es weg, hängt der
+  Anhänger an nichts mehr und verliert seinen Punkt. Über den Rang rutscht
+  ohnehin zuerst ein freies Fahrzeug nach vorn; bleibt keins, bleibt die
+  Überzahl bestehen. Lieber ein Fahrzeug zu viel als eine Waise.
+- **Jeder Grund steht am Fahrzeug**, nicht als Pauschale an der Zahl. Die
+  Schutzmeldung zählt nur die grünen, die den Ausfall auch verursachen — nicht
+  jedes grüne, das gar nicht an der Reihe war.
+
+`res.blocked` ist gestrichen. Es war eine stille Senke: beschrieben, nie
+gelesen, und bei wiederholtem Lauf wuchs es in das gemerkte Analyseergebnis
+hinein.
+
+**Verworfen: die Überzahl gegen `echteVon` rechnen** statt gegen den Bestand
+samt Platzhaltern. Das hätte die Phantommeldung nach einem Kauf beseitigt —
+aber `have` speist auch `vehMissing`, und ohne Platzhalter hätte der nächste
+Lauf dasselbe Fahrzeug **ein zweites Mal gekauft**. Ein bezahlter Fehler gegen
+eine unschöne Meldung: die Meldung sagt jetzt einfach die Wahrheit („gerade
+gekauft, dem Server noch unbekannt").
+
+**Verworfen: den Rang einstellbar machen.** Es gibt keinen Fall, in dem man das
+einsatzbereite vor dem abgestellten Fahrzeug verkaufen will.
+
+**Offen und bewußt nicht angefaßt:** die Verkaufsanfrage selbst. `POST
+/vehicles/<id>` mit `_method=delete` steht seit je im Code, ist aber **nie
+nachgemessen** — sie fehlt in `SPIELSEITEN.md`. Genau die Kategorie, die hier
+schon dreimal jahrelang falsch war, und diesmal auf dem unumkehrbaren Pfad.
+Diese Änderung verbreitert nur die Kandidatenauswahl; der abgeschickte Aufruf
+ist Zeichen für Zeichen der alte. Vor dem nächsten scharfen Lauf gehört er
+nachgemessen (siehe [[NAECHSTER_SCHRITT]]).
