@@ -30,21 +30,12 @@ gemeinsam erarbeiteten Profile.
 
 Im Bestand: **23** Gebäude, Stufe 19
 
-### Profil `crafted` — Standardwache
+Nachgearbeitet am 03.09.2026 (D-87). Leitgedanke: wo es ein selbstfahrendes
+Gegenstück gibt, kommt der Selbstfahrer in den Plan; Abrollbehälter und
+Anhänger sitzen auf ihren eigenen Stellplätzen und kosten kein Personal,
+darum stehen oft gebrauchte doppelt.
 
-**Stellplätze**
-
-| Topf | Herkunft | Plätze |
-|---|---|---|
-| Normal | Stufe 19, +10 je Großwache | 20 |
-| Abrollbehälter | Abrollbehälter-Stellplatz × 1 | 14 |
-| Anhänger | Anhänger-Stellplatz × 1 | 5 |
-| Drohne | Drohneneinheit × 1 | 1 |
-| Verpflegung | Verpflegungsdienst × 2 | 2 |
-| Bahnrettung | Bahnrettung × 1 | 1 |
-| Tierrettung | Tierrettung × 1 | 1 |
-| NEA200 | Netzersatzanlage 200 × 2 | 0 |
-| **gesamt** | | **44** |
+### Profil `standard`
 
 **Ausbauten**
 
@@ -55,62 +46,42 @@ Abrollbehälter-Stellplatz ×14 · Anhänger-Stellplatz ×5 · Netzersatzanlage 
 | Fahrzeug | Anzahl | Topf | Besatzung | Ausbildung | EST |
 |---|---|---|---|---|---|
 | HLF 20 | 6 | normal | 1 / 9 | — | — |
+| GW-L2-Wasser | 3 | normal | 1 / 3 | — | — |
 | DLK 23 | 2 | normal | 1 / 3 | — | — |
-| GW-L2 | 3 | normal | 1 / 6 | — | — |
 | WLF | 2 | normal | 1 / 3 | wechsellader: alle | — |
+| Dekon-P | 1 | normal | 1 / 6 | dekon_p: an der EST | 6 |
 | ELW 2 | 1 | normal | 1 / 6 | elw2: alle | — |
-| TLF 3000 | 1 | normal | 1 / 3 | — | — |
-| MTW | 1 | normal | 1 / 9 | — | — |
-| GW-Messtechnik | 1 | normal | 1 / 3 | gw_messtechnik: alle | — |
-| GW-Gefahrgut | 1 | normal | 1 / 3 | gw_gefahrgut: alle | — |
-| Dekon-P | 1 | normal | 1 / 6 | dekon_p: nur an der EST | 6 |
 | FwK | 1 | normal | 1 / 2 | fwk: alle | — |
-| AB-Rüst | 1 | ab | 0 / 0 | — | — |
-| AB-Atemschutz | 1 | ab | 0 / 0 | — | — |
-| AB-Öl | 1 | ab | 0 / 0 | — | — |
-| AB-Schlauch | 1 | ab | 0 / 0 | — | — |
-| AB-Tank | 1 | ab | 0 / 0 | — | — |
-| AB-Lösch | 1 | ab | 0 / 0 | — | — |
-| AB-L | 1 | ab | 0 / 0 | — | — |
-| AB-Lüfter | 1 | ab | 0 / 0 | — | — |
-| AB-Sonderlöschmittel | 1 | ab | 0 / 0 | — | — |
-| AB-Wasser/Schaum | 1 | ab | 0 / 0 | — | — |
-| AB-Küche | 1 | ab | 0 / 0 | — | — |
-| AB-Schiene | 1 | ab | 0 / 0 | — | — |
-| AB-Einsatzleitung | 1 | ab | 0 / 0 | elw2: alle | 1 |
+| GTLF | 1 | normal | 1 / 3 | — | — |
+| GW-A | 1 | normal | 1 / 3 | — | — |
+| GW-Gefahrgut | 1 | normal | 1 / 3 | gw_gefahrgut: alle | — |
+| GW-Lüfter | 1 | normal | 1 / 2 | — | — |
+| GW-Messtechnik | 1 | normal | 1 / 3 | gw_messtechnik: alle | — |
+| SW 2000-Tr | 1 | normal | 1 / 3 | — | — |
+| TLF 3000 | 1 | normal | 1 / 3 | — | — |
+| AB-Atemschutz | 2 | ab | 0 / 0 | — | — |
+| AB-L | 2 | ab | 0 / 0 | — | — |
+| AB-Lüfter | 2 | ab | 0 / 0 | — | — |
+| AB-Öl | 2 | ab | 0 / 0 | — | — |
+| AB-Schiene | 2 | ab | 0 / 0 | — | — |
 | AB-Gefahrgut | 1 | ab | 0 / 0 | gw_gefahrgut: alle | 1 |
-| NEA50 | 1 | anh | 0 / 0 | — | — |
+| AB-Küche | 1 | ab | 0 / 0 | — | — |
 | Anh Lüfter | 1 | anh | 0 / 0 | — | — |
 | Anh Schlauch | 1 | anh | 0 / 0 | — | — |
-| Anh Sonderlöschmittel | 1 | anh | 0 / 0 | — | — |
 | Anh Tierrettung | 1 | anh | 0 / 0 | — | — |
+| FKH | 1 | anh | 0 / 0 | — | — |
+| NEA50 | 1 | anh | 0 / 0 | — | — |
 | ELW2 Drohne | 1 | drohne | 4 / 6 | fire_drone: alle<br>elw2: alle | — |
 | GW-Küche | 1 | vpfl | 3 / 3 | fire_care_service: min 1<br>care_service_equipment: min 2 | — |
 | GW-Verpflegung | 1 | vpfl | 3 / 6 | fire_care_service: min 1<br>care_service_equipment: min 2 | — |
 | HLF Schiene | 1 | bahn | 1 / 9 | railway_fire: alle | — |
 | GW-Tierrettung | 1 | tier | 2 / 6 | — | — |
 
- Fahrzeuge gesamt **44**, Vollbesetzung **146** Personen
+Fahrzeuge gesamt **45**, Vollbesetzung **139** Personen
 
-Lager: `"all"`
+Töpfe: Normal 23 · Abrollbehälter 12 · Anhänger 5 · Drohne 1 · Verpflegung 2 · Bahnrettung 1 · Tierrettung 1
 
-Ausrüstung: `"all"`
-
-### Profil `crafted-big` — Schwerpunktwache — je 10 Feuerwachen eine
-
-**Stellplätze**
-
-| Topf | Herkunft | Plätze |
-|---|---|---|
-| Normal | Stufe 19, +10 je Großwache | 30 |
-| Abrollbehälter | Abrollbehälter-Stellplatz × 1 | 14 |
-| Anhänger | Anhänger-Stellplatz × 1 | 5 |
-| Drohne | Drohneneinheit × 1 | 1 |
-| Verpflegung | Verpflegungsdienst × 2 | 2 |
-| Bahnrettung | Bahnrettung × 1 | 1 |
-| Tierrettung | Tierrettung × 1 | 1 |
-| NEA200 | Netzersatzanlage 200 × 2 | 2 |
-| **gesamt** | | **56** |
+### Profil `standard-groß`
 
 **Ausbauten**
 
@@ -121,61 +92,49 @@ Abrollbehälter-Stellplatz ×14 · Anhänger-Stellplatz ×5 · Netzersatzanlage 
 | Fahrzeug | Anzahl | Topf | Besatzung | Ausbildung | EST |
 |---|---|---|---|---|---|
 | HLF 20 | 6 | normal | 1 / 9 | — | — |
-| GW-L2 | 4 | normal | 1 / 6 | — | — |
+| GW-L2-Wasser | 4 | normal | 1 / 3 | — | — |
 | WLF | 3 | normal | 1 / 3 | wechsellader: alle | — |
 | DLK 23 | 2 | normal | 1 / 3 | — | — |
 | FLF | 2 | normal | 2 / 3 | arff: alle | — |
+| Dekon-P | 1 | normal | 1 / 6 | dekon_p: an der EST | 6 |
 | ELW 2 | 1 | normal | 1 / 6 | elw2: alle | — |
-| TLF 3000 | 1 | normal | 1 / 3 | — | — |
-| MTW | 1 | normal | 1 / 9 | — | — |
-| GW-Messtechnik | 1 | normal | 1 / 3 | gw_messtechnik: alle | — |
-| GW-Gefahrgut | 1 | normal | 1 / 3 | gw_gefahrgut: alle | — |
-| Dekon-P | 1 | normal | 1 / 6 | dekon_p: nur an der EST | 6 |
 | FwK | 1 | normal | 1 / 2 | fwk: alle | — |
+| GTLF | 1 | normal | 1 / 3 | — | — |
+| GW-A | 1 | normal | 1 / 3 | — | — |
+| GW-Gefahrgut | 1 | normal | 1 / 3 | gw_gefahrgut: alle | — |
 | GW-Höhenrettung | 1 | normal | 1 / 9 | gw_hoehenrettung: alle | — |
-| Rettungstreppe | 1 | normal | 2 / 2 | rettungstreppe: alle | — |
+| GW-Lüfter | 1 | normal | 1 / 2 | — | — |
+| GW-Messtechnik | 1 | normal | 1 / 3 | gw_messtechnik: alle | — |
 | GW-Werkfeuerwehr | 1 | normal | 1 / 9 | werkfeuerwehr: alle | — |
-| ULF mit Löscharm | 1 | normal | 1 / 3 | werkfeuerwehr: alle | — |
+| Rettungstreppe | 1 | normal | 2 / 2 | rettungstreppe: alle | — |
+| SW 2000-Tr | 1 | normal | 1 / 3 | — | — |
+| TLF 3000 | 1 | normal | 1 / 3 | — | — |
 | TM 50 | 1 | normal | 1 / 3 | werkfeuerwehr: alle | — |
 | Turbolöscher | 1 | normal | 1 / 3 | werkfeuerwehr: alle | — |
-| AB-Rüst | 1 | ab | 0 / 0 | — | — |
-| AB-Atemschutz | 1 | ab | 0 / 0 | — | — |
-| AB-Öl | 1 | ab | 0 / 0 | — | — |
-| AB-Schlauch | 1 | ab | 0 / 0 | — | — |
-| AB-Tank | 1 | ab | 0 / 0 | — | — |
-| AB-Lösch | 1 | ab | 0 / 0 | — | — |
-| AB-L | 1 | ab | 0 / 0 | — | — |
-| AB-Lüfter | 1 | ab | 0 / 0 | — | — |
-| AB-Sonderlöschmittel | 1 | ab | 0 / 0 | — | — |
-| AB-Wasser/Schaum | 1 | ab | 0 / 0 | — | — |
-| AB-Küche | 1 | ab | 0 / 0 | — | — |
-| AB-Schiene | 1 | ab | 0 / 0 | — | — |
-| AB-Einsatzleitung | 1 | ab | 0 / 0 | elw2: alle | 1 |
+| ULF mit Löscharm | 1 | normal | 1 / 3 | werkfeuerwehr: alle | — |
+| AB-Atemschutz | 2 | ab | 0 / 0 | — | — |
+| AB-L | 2 | ab | 0 / 0 | — | — |
+| AB-Lüfter | 2 | ab | 0 / 0 | — | — |
+| AB-Öl | 2 | ab | 0 / 0 | — | — |
+| AB-Schiene | 2 | ab | 0 / 0 | — | — |
 | AB-Gefahrgut | 1 | ab | 0 / 0 | gw_gefahrgut: alle | 1 |
-| NEA200 | 1 | nea200 | 0 / 0 | energy_supply: min 1 | — |
-| AB-NEA200 | 1 | nea200 | 0 / 0 | energy_supply: min 1 | — |
-| NEA50 | 1 | anh | 0 / 0 | — | — |
+| AB-Küche | 1 | ab | 0 / 0 | — | — |
 | Anh Lüfter | 1 | anh | 0 / 0 | — | — |
 | Anh Schlauch | 1 | anh | 0 / 0 | — | — |
-| Anh Sonderlöschmittel | 1 | anh | 0 / 0 | — | — |
 | Anh Tierrettung | 1 | anh | 0 / 0 | — | — |
+| FKH | 1 | anh | 0 / 0 | — | — |
+| NEA50 | 1 | anh | 0 / 0 | — | — |
+| AB-NEA200 | 1 | nea200 | 0 / 0 | energy_supply: min 1 | 1 |
+| NEA200 | 1 | nea200 | 0 / 0 | energy_supply: min 1 | 1 |
 | ELW2 Drohne | 1 | drohne | 4 / 6 | fire_drone: alle<br>elw2: alle | — |
 | GW-Küche | 1 | vpfl | 3 / 3 | fire_care_service: min 1<br>care_service_equipment: min 2 | — |
 | GW-Verpflegung | 1 | vpfl | 3 / 6 | fire_care_service: min 1<br>care_service_equipment: min 2 | — |
 | HLF Schiene | 1 | bahn | 1 / 9 | railway_fire: alle | — |
 | GW-Tierrettung | 1 | tier | 2 / 6 | — | — |
 
- Fahrzeuge gesamt **56**, Vollbesetzung **190** Personen
+Fahrzeuge gesamt **57**, Vollbesetzung **180** Personen
 
-Lager: `"all"`
-
-Ausrüstung: `"all"`
-
-**Ausbauten, die das Spiel anbietet** (30 insgesamt)
-
-Nicht im Profil: Rettungsdienst `#0` · Wasserrettung `#6`
-
----
+Töpfe: Normal 33 · Abrollbehälter 12 · Anhänger 5 · NEA200 2 · Drohne 1 · Verpflegung 2 · Bahnrettung 1 · Tierrettung 1
 
 ## Rettungswache  `Typ 2`
 
