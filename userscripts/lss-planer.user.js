@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.59.0
+// @version      0.60.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.59.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.60.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -245,7 +245,8 @@ const LAYOUTS_STANDARD = {
 };
 
 const MODELL_STANDARD = {
-  "0": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"30":6,"2":2,"105":3,"46":2,"34":1,"18":1,"36":1,"12":1,"27":1,"53":1,"57":1,"47":1,"48":1,"49":1,"62":1,"117":1,"119":1,"108":1,"116":1,"169":1,"170":1,"142":1,"164":1,"78":1,"77":1,"111":1,"115":1,"143":1,"168":1,"186":1,"129":1,"139":1,"138":1,"163":1,"185":1},"pools":{"30":"normal","2":"normal","105":"normal","46":"normal","34":"normal","18":"normal","36":"normal","12":"normal","27":"normal","53":"normal","57":"normal","47":"ab","48":"ab","49":"ab","62":"ab","117":"ab","119":"ab","108":"ab","116":"ab","169":"ab","170":"ab","142":"ab","164":"ab","78":"ab","77":"ab","111":"anh","115":"anh","143":"anh","168":"anh","186":"anh","129":"drohne","139":"vpfl","138":"vpfl","163":"bahn","185":"tier"},"extensions":{"Abrollbehälter-Stellplatz":14,"Anhänger-Stellplatz":5,"Netzersatzanlage 50":1,"Großlüfter":1,"Drohneneinheit":1,"Verpflegungsdienst":1,"Bahnrettung":1,"Tierrettung":1}},"standard-groß":{"vehicles":{"30":6,"105":4,"46":3,"2":2,"75":2,"34":1,"18":1,"36":1,"12":1,"27":1,"53":1,"57":1,"33":1,"76":1,"83":1,"84":1,"85":1,"86":1,"47":1,"48":1,"49":1,"62":1,"117":1,"119":1,"108":1,"116":1,"169":1,"170":1,"142":1,"164":1,"78":1,"77":1,"113":1,"180":1,"111":1,"115":1,"143":1,"168":1,"186":1,"129":1,"139":1,"138":1,"163":1,"185":1},"pools":{"30":"normal","105":"normal","46":"normal","2":"normal","75":"normal","34":"normal","18":"normal","36":"normal","12":"normal","27":"normal","53":"normal","57":"normal","33":"normal","76":"normal","83":"normal","84":"normal","85":"normal","86":"normal","47":"ab","48":"ab","49":"ab","62":"ab","117":"ab","119":"ab","108":"ab","116":"ab","169":"ab","170":"ab","142":"ab","164":"ab","78":"ab","77":"ab","113":"nea200","180":"nea200","111":"anh","115":"anh","143":"anh","168":"anh","186":"anh","129":"drohne","139":"vpfl","138":"vpfl","163":"bahn","185":"tier"},"extensions":{"Abrollbehälter-Stellplatz":14,"Anhänger-Stellplatz":5,"Netzersatzanlage 50":1,"Großlüfter":1,"Drohneneinheit":1,"Verpflegungsdienst":1,"Bahnrettung":1,"Tierrettung":1,"Großwache":1,"Flughafenfeuerwehr":1,"Netzersatzanlage 200":1,"Werkfeuerwehr":1}}}},
+  "0": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"2":2,"5":1,"11":3,"12":1,"15":1,"18":1,"27":1,"30":6,"34":1,"46":2,"48":2,"49":2,"53":1,"57":1,"77":1,"108":2,"111":1,"114":1,"115":1,"116":2,"121":1,"129":1,"138":1,"139":1,"141":1,"142":1,"143":1,"163":1,"164":2,"185":1,"186":1},"pools":{"2":"normal","5":"normal","11":"normal","12":"normal","15":"normal","18":"normal","27":"normal","30":"normal","34":"normal","46":"normal","48":"ab","49":"ab","53":"normal","57":"normal","77":"ab","108":"ab","111":"anh","114":"normal","115":"anh","116":"ab","121":"normal","129":"drohne","138":"vpfl","139":"vpfl","141":"anh","142":"ab","143":"anh","163":"bahn","164":"ab","185":"tier","186":"anh"},"extensions":{"Abrollbehälter-Stellplatz":14,"Anhänger-Stellplatz":5,"Netzersatzanlage 50":1,"Großlüfter":1,"Drohneneinheit":1,"Verpflegungsdienst":1,"Bahnrettung":1,"Tierrettung":1}},"standard-groß":{"vehicles":{"2":2,"5":1,"11":4,"12":1,"15":1,"18":1,"27":1,"30":6,"33":1,"34":1,"46":3,"48":2,"49":2,"53":1,"57":1,"75":2,"76":1,"77":1,"83":1,"84":1,"85":1,"86":1,"108":2,"111":1,"113":1,"114":1,"115":1,"116":2,"121":1,"129":1,"138":1,"139":1,"141":1,"142":1,"143":1,"163":1,"164":2,"180":1,"185":1,"186":1},"pools":{"2":"normal","5":"normal","11":"normal","12":"normal","15":"normal","18":"normal","27":"normal","30":"normal","33":"normal","34":"normal","46":"normal","48":"ab","49":"ab","53":"normal","57":"normal","75":"normal","76":"normal","77":"ab","83":"normal","84":"normal","85":"normal","86":"normal","108":"ab","111":"anh","113":"nea200","114":"normal","115":"anh","116":"ab","121":"normal","129":"drohne","138":"vpfl","139":"vpfl","141":"anh","142":"ab","143":"anh","163":"bahn","164":"ab","180":"nea200","185":"tier","186":"anh"},"extensions":{"Abrollbehälter-Stellplatz":14,"Anhänger-Stellplatz":5,"Netzersatzanlage 50":1,"Großlüfter":1,"Drohneneinheit":1,"Verpflegungsdienst":1,"Bahnrettung":1,"Tierrettung":1,"Großwache":1,"Flughafenfeuerwehr":1,"Netzersatzanlage 200":1,"Werkfeuerwehr":1}}}},
+
   "2": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"28":7,"38":2,"29":3,"74":1,"55":1,"56":1},"pools":{"28":"normal","38":"normal","29":"normal","74":"normal","55":"normal","56":"normal"},"extensions":{}},"standard-groß":{"vehicles":{"28":10,"38":4,"29":6,"74":1,"73":1,"97":1,"55":1,"56":1},"pools":{"28":"normal","38":"normal","29":"normal","74":"normal","73":"normal","97":"normal","55":"normal","56":"normal"},"extensions":{"Großwache":1}}}},
   "5": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"31":1,"157":1},"pools":{"31":"normal","157":"normal"},"extensions":{"Windenrettung":1}}}},
   "6": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"32":12,"98":3,"94":1,"103":1,"95":2,"184":2},"pools":{"32":"normal","98":"normal","94":"hund","103":"dgl","95":"motorrad","184":"ap"},"extensions":{"Zelle":10,"Diensthundestaffel":1,"Kriminalpolizei":1,"Dienstgruppenleitung":1,"Motorradstaffel":1,"Autobahnpolizei":1}},"standard-groß":{"vehicles":{"32":20,"98":5,"94":1,"103":1,"95":2,"184":2,"52":1},"pools":{"32":"normal","98":"normal","94":"hund","103":"dgl","95":"motorrad","184":"ap","52":"gefkw"},"extensions":{"Zelle":10,"Diensthundestaffel":1,"Kriminalpolizei":1,"Dienstgruppenleitung":1,"Motorradstaffel":1,"Autobahnpolizei":1,"Großwache":1,"Großgewahrsam":1}}}},
@@ -397,7 +398,7 @@ const PB = {
   "108":{"c":"AB-L","min":0,"max":0,"zug":[46]},
   "109":{"c":"MzGW SB","min":1,"max":9,"kurse":[{"k":"heavy_rescue","art":"alle","n":null}]},
   "110":{"c":"NEA50","min":0,"max":0,"zug":[41]},
-  "111":{"c":"NEA50","min":0,"max":0,"zug":[90,4,27,53,104,105,6,8,9,15,16,18,21,22]},
+  "111":{"c":"NEA50","min":0,"max":0,"zug":[90,4,27,53,104,105,6,8,9,15,16,18,21,22,1,83,46]},
   "112":{"c":"NEA200","min":0,"max":0,"est":1,"kurse":[{"k":"thw_energy_supply","art":"min","n":1}],"zug":[122]},
   "113":{"c":"NEA200","min":0,"max":0,"est":1,"kurse":[{"k":"energy_supply","art":"min","n":1}],"zug":[90,4,27,53,104,105,6,8,9,15,16,18,21,22]},
   "114":{"c":"GW-Lüfter","min":1,"max":2},

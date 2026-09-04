@@ -1774,3 +1774,92 @@ Vorlage ohne `{old}` einstellt, verliert die von Hand gewählten Namen — das i
 der Sinn der Sache und in der Vorschau Zeile für Zeile zu sehen. Ein zweiter
 Speicher, der den „echten" Namen mitführt, wäre eine weitere Quelle für
 dieselbe Zahl, und die laufen auseinander (siehe D-47).
+
+
+## D-87 Feuerwache: Selbstfahrer vor Last (v0.60.0)
+
+**Lage.** Sasha ist den Standardplan der Feuerwache durchgegangen. Der
+Kernbefund war eine Zahl: **14 Abrollbehälter, 2 WLF**. Jeder AB im Katalog
+hat `zug: [46]` — nur das WLF zieht ihn —, und seit D-85 gilt, daß ein
+Zugfahrzeug mehrere trägt, aber einen zieht. Von vierzehn Abrollbehältern
+konnten also zwei gleichzeitig ausrücken; die anderen zwölf standen auf
+gekauften Stellplatz-Ausbauten.
+
+**Leitgedanke.** Wo es zu einer Last ein selbstfahrendes Gegenstück gibt,
+kommt der Selbstfahrer in den Plan. Er braucht kein Zugfahrzeug, blockiert
+keines und rückt allein aus. Wo es keines gibt, bleibt die Last — sie kostet
+keinen Normalplatz und kein Personal, sitzt auf ihrem eigenen Stellplatztopf
+und ist deshalb auch doppelt kein Verlust.
+
+**Gestrichen** (Sashas Begründungen): `AB-Rüst` — jedes HLF ist ein
+Rüstwagen. `AB-Einsatzleitung` — es gibt genug ELW. `AB-Lösch` und
+`AB-Wasser/Schaum` — beides sinnlos neben den HLF. `AB-Sonderlöschmittel` —
+HLFs tragen Sonderlöschmittel ohnehin. `MTW` — war im Plan nur Zugfahrzeug für
+drei Anhänger, und die haben andere Züge.
+
+**Ersetzt.** `AB-Schlauch` → **`SW 2000-Tr (15)`**. `AB-Tank` → **`GTLF (121)`**.
+`GW-L2` → **`GW-L2-Wasser (11)`**. Neu dazu: **`GW-Lüfter (114)`** und
+**`GW-A (5)`** — der Atemschutz-GW, den es die ganze Zeit gab.
+
+**Verdoppelt**, weil zwei WLF zwei gleichzeitig ziehen können und die Plätze
+sonst leer stünden: `AB-Atemschutz`, `AB-Öl`, `AB-L`, `AB-Lüfter`,
+`AB-Schiene`. Einfach bleiben `AB-Gefahrgut` und `AB-Küche`. Zwölf von
+vierzehn Plätzen belegt, zwei bleiben bewußt frei.
+
+**Anhänger.** Fünf Plätze, fünf Anhänger: `NEA50`, `Anh Lüfter`,
+`Anh Tierrettung`, `Anh Schlauch`, **`FKH (141)`** — der Feldkochherd, dessen
+einziges zulässiges Zugfahrzeug der `GW-Verpflegung` ist, und der steht im
+Plan.
+
+```
+standard        44 → 45 Fahrzeuge   146 → 139 Sitze
+standard-groß   56 → 57 Fahrzeuge   190 → 180 Sitze
+Abrollbehälter  14 → 12 belegt (14 Plätze bleiben)
+Anhänger         5 →  5 belegt
+```
+
+Die Fahrzeugzahl steigt leicht, die **Personalzahl sinkt** — die neuen
+Selbstfahrer sind kleiner als das, was sie ersetzen (`GW-L2` 1/6 →
+`GW-L2-Wasser` 1/3), und Lasten kosten nie Personal.
+
+**Zwei Katalog-Einträge hatte meine Suche übersehen**, beide, weil sie
+abgekürzt heißen und nicht nach ihrer Fähigkeit: `SW 2000-Tr` (nicht
+„Schlauch") und `GW-A` (nicht „Atemschutz"). Wer im Katalog sucht, sucht ab
+jetzt nicht nach Wörtern allein.
+
+**`PB` war nachweislich unvollständig.** Sasha hat die Zugliste des `NEA50`
+im Spiel abgelesen; drei Einträge fehlten: `LF 10 (1)`, `GW-Werkfeuerwehr (83)`
+und `WLF (46)`. Das ist mehr als ein Datenfehler: `linkTrailers` liest die
+**echte** Auswahl aus `/vehicles/<id>/edit` und beschneidet sie danach mit
+`am.zug` aus `PB` — die gemessene Wahrheit wird also mit eingebauten Daten
+kleiner gemacht. Nachgetragen im Skript **und** im Auszug `daten/`.
+
+**Neue Prüfung in `pruefer.js`: „Wunschbild gegen Stellplätze".** Ein Profil,
+das mehr Fahrzeuge vorsieht, als sein Topf trägt, fällt beim Lesen nicht auf —
+der Kauflauf meldet nur „nur 3 von 5, Stellplätze belegt" und vertagt den Rest
+auf immer. Und ein Topfname, den das Layout nicht kennt, fällt stillschweigend
+in den ersten Topf (`poolsOf`: `bucket`) und verbraucht dort fremde Plätze.
+Beides ist Rechenarbeit auf zwei Tabellen, also statisch prüfbar. Alle 18
+Profile bestehen sie.
+
+**Bestätigt, nicht geändert:** der Planer kauft schon heute keinen Anhänger
+ohne freien Spezialplatz. `poolsOf` rechnet die Topfgröße aus
+`builtExtensions(b)`, und das zählt ausdrücklich nur **fertige und
+eingeschaltete** Ausbauten — was im Bau ist, zählt nicht. `buyVehicles` kauft
+`min(fehlend, cap − belegt)`. Auf eine Kaufreihenfolge kommt es nicht an.
+
+**Verworfen: `AB-MZB (71)`** — die Feuerwache macht keine Wasserrettung.
+**Verworfen: `AB-Dekon-P (54)`** als Lückenfüller — der selbstfahrende
+`Dekon-P (53)` steht im Plan, und ein AB daneben wäre genau die Doppelung, die
+diese Entscheidung abräumt. **Verworfen: die Stellplatzzahlen senken** —
+Sasha will die Plätze behalten und lieber doppelt kaufen, was oft gebraucht
+wird.
+
+**Offen, eigene Arbeit:** Sasha will, daß Lasten **unzugewiesen** bleiben
+(„zufälliges Zugfahrzeug"), damit das Spiel beim Alarm zwischen den WLF wählen
+kann. Der Planer tut heute das Gegenteil: `linkTrailers` wählt „zufällig"
+bewußt ab, und eine Last bekommt ihren Punkt nur, wenn sie an einem
+Zugfahrzeug mit Mindestbesetzung hängt. Drei Stellen müßten sich ändern, und
+eine davon ist heikel: eine frei hängende Last muß ihre Anforderung auf
+**jedes** zulässige Zugfahrzeug legen, sonst rückt das Gespann nicht aus, wenn
+das Spiel das falsche wählt. Steht in `NAECHSTER_SCHRITT.md`.

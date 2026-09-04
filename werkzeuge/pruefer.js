@@ -146,7 +146,50 @@ try {
   }
 } catch (e) { console.log('  nicht prüfbar: ' + e.message); }
 
-/* ── 5. Fassung ───────────────────────────────────────────────────────── */
+/* ── 5. Wunschbild gegen Stellplätze ──────────────────────────────────
+   Ein Profil, das mehr Fahrzeuge vorsieht, als sein Topf trägt, fällt beim
+   Lesen nicht auf: der Kauflauf meldet nur „nur 3 von 5 — Stellplätze
+   belegt" und vertagt den Rest auf immer. Und ein Topfname, den das Layout
+   nicht kennt, fällt stillschweigend in den ersten Topf zurück
+   (`poolsOf`: `bucket`), wo er fremde Plätze verbraucht. Beides ist reine
+   Rechenarbeit auf zwei Tabellen — also hier. */
+console.log('\nWunschbild gegen Stellplätze');
+try {
+  const stueck = (a, b) => { const i = src.indexOf(a); return src.slice(i, src.indexOf(b, i + a.length)); };
+  const LAY = new Function(stueck('const LAYOUTS_STANDARD = {', '\nconst ') + 'return LAYOUTS_STANDARD;')();
+  const MOD = new Function(stueck('const MODELL_STANDARD = {', '\nconst ') + 'return MODELL_STANDARD;')();
+  let schief = 0, geprueft = 0;
+  for (const [typ, eintrag] of Object.entries(MOD)) {
+    const lay = LAY[typ];
+    const bekannt = lay?.pools?.map(p => p.key) || ['normal'];
+    for (const [pname, prof] of Object.entries(eintrag.profiles || {})) {
+      geprueft++;
+      const proTopf = {};
+      for (const [id, n] of Object.entries(prof.vehicles || {})) {
+        const k = (prof.pools || {})[id] || 'normal';
+        proTopf[k] = (proTopf[k] || 0) + n;
+      }
+      for (const k of Object.keys(proTopf)) if (!bekannt.includes(k)) {
+        schief++;
+        melde('!', 1, `Typ ${typ} „${pname}": Topf „${k}" kennt das Layout nicht `
+          + `(bekannt: ${bekannt.join(', ')}) — die Fahrzeuge fallen in „${bekannt[0]}"`);
+      }
+      for (const topf of (lay?.pools || [])) {
+        if (topf.from === 'level' || topf.from === 'fixed') continue;   // wächst mit der Stufe
+        const geplant = proTopf[topf.key] || 0;
+        const kapazitaet = ((prof.extensions || {})[topf.from] || 0) * (topf.per || 1);
+        if (geplant > kapazitaet) {
+          schief++;
+          melde('!', 1, `Typ ${typ} „${pname}": ${geplant}× ${topf.label} geplant, `
+            + `aber nur ${kapazitaet} Plätze (${topf.from} ×${(prof.extensions || {})[topf.from] || 0})`);
+        }
+      }
+    }
+  }
+  if (!schief) console.log(`  ok  ${geprueft} Profile passen zu ihren Stellplatztöpfen`);
+} catch (e) { console.log('  nicht prüfbar: ' + e.message); }
+
+/* ── 6. Fassung ───────────────────────────────────────────────────────── */
 console.log('\nFassung');
 const kopf = (src.match(/@version\s+([\d.]+)/) || [])[1];
 const konst = (src.match(/const VERSION = '([\d.]+)'/) || [])[1];

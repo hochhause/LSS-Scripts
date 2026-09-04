@@ -39,7 +39,37 @@ Dinge sind gebaut, aber noch nie im Spiel gesehen worden:
 - **Zwei Leisten statt elf Reitern**: ob die sechs Gruppenknöpfe bei 520 px in
   eine Zeile passen.
 
+## Zuerst: Lasten sollen frei hängen dürfen
+
+Sasha will, daß Abrollbehälter und Anhänger **unzugewiesen** bleiben —
+„zufälliges Zugfahrzeug" angehakt —, damit das Spiel beim Alarm selbst
+zwischen den beiden WLF wählen kann. Der Planer tut heute das Gegenteil.
+
+Drei Stellen:
+
+1. `linkTrailers` wählt `vehicle[tractive_random]` bewußt **ab** und setzt ein
+   festes Zugfahrzeug. Das war eine begründete Entscheidung: sonst rechnet die
+   Personalplanung auf einer Kopplung, die es nicht gibt.
+2. Der Punkt einer Last hängt daran, daß sie an einem Zugfahrzeug mit
+   Mindestbesetzung hängt (Fortschritt, um Zeile 1269). Eine frei hängende
+   Last bekäme nie ihren Punkt und hielte die ganze Wache davon ab. Sashas
+   Regel: **„zufällig" angehakt zählt als fertig.**
+3. Der heikle Teil: eine frei hängende Last muß ihre Anforderung auf **jedes**
+   zulässige Zugfahrzeug legen, nicht auf keines. `AB-Gefahrgut` verlangt
+   `gw_gefahrgut` — hängt er frei, brauchen **beide** WLF den Lehrgang, sonst
+   rückt das Gespann nicht aus, wenn das Spiel das falsche wählt. Sasha hat
+   das so entschieden.
+
+Erleichternd: die meisten Lasten verlangen gar nichts (kein Lehrgang, kein
+`est`). Betroffen sind im Feuerwachenplan nur `AB-Gefahrgut` (est 1,
+`gw_gefahrgut`) und, wo sie vorkommen, `AB-Dekon-P`, `AB-MZB`, `AB-NEA200`.
+
 ## Offene Arbeit
+
+- **Die Schwerpunktwache eigens durchgehen.** `standard-groß` hat dieselbe
+  Kur bekommen wie `standard` (D-87), aber drei WLF statt zwei und eigene
+  Fahrzeuge (FLF, Werkfeuerwehr, Rettungstreppe, TM 50, Turbolöscher). Sasha
+  will sie später Stück für Stück ansehen.
 
 - **Profile inhaltlich durchgehen.** Feuerwache, Rettungswache, Polizeiwache und
   THW sind aus dem Soll-Papier übernommen, aber nicht Stück für Stück besprochen.
