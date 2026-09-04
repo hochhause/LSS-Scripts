@@ -1855,6 +1855,24 @@ diese Entscheidung abräumt. **Verworfen: die Stellplatzzahlen senken** —
 Sasha will die Plätze behalten und lieber doppelt kaufen, was oft gebraucht
 wird.
 
+**Nachtrag: GW-Höhenrettung.** Sasha vermißte ihn. Er steht im Katalog als
+Typ **33** (1/9, `gw_hoehenrettung`) und war bis dahin nur in `standard-groß`
+geplant — die normale Feuerwache sah ihn gar nicht vor. Nicht zu verwechseln
+mit `GW-Höhenrettung (Bergrettung) (158)`, 4/4, `mountain_height_rescue`, der
+an der Bergrettungswache hinter dem Ausbau `Höhenrettung` sitzt.
+
+Ob eine Feuerwache ihn überhaupt kaufen darf, stand nirgends — also
+nachgemessen, **bevor** er in den Plan kam: ja, er steht in der Kaufliste
+beider Feuerwachenarten (siehe `SPIELSEITEN.md`). Erst danach der Tausch, den
+Sasha wollte: ein `GW-L2-Wasser` weniger, dafür `GW-Höhenrettung` ×1. Das
+Profil `standard` steht damit bei 45 Fahrzeugen und **145** Sitzen.
+
+Dieselbe Messung hat den ganzen Plan abgeglichen: **jeder geplante Typ ist
+kaufbar**, in beiden Profilen. Und sie hat eine frühere Aussage berichtigt —
+`Tankwagen (120)` steht sehr wohl in der Kaufliste einer Feuerwache; Sasha
+hatte ihn im Spiel nicht gefunden und statt dessen den `GTLF` gewählt. Der
+GTLF bleibt, das ist eine Vorliebe, kein Fehler.
+
 **Offen, eigene Arbeit:** Sasha will, daß Lasten **unzugewiesen** bleiben
 („zufälliges Zugfahrzeug"), damit das Spiel beim Alarm zwischen den WLF wählen
 kann. Der Planer tut heute das Gegenteil: `linkTrailers` wählt „zufällig"
