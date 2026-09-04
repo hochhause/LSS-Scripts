@@ -273,3 +273,29 @@ Im gemessenen Bestand (1583 Fahrzeuge):
 Wache. Der alte Filter `fms_real !== 2` hat sie alle als „unterwegs"
 liegenlassen (D-83). Und `tractive_vehicle_id` trägt echte Kopplungen, die
 Anhänger-Sperre aus D-83 greift also nicht ins Leere.
+
+
+## Die Kaufliste `/buildings/<id>/vehicles/new`
+
+Nachgemessen am 03.09.2026 an zwei Feuerwachen, rein lesend. **Kein Verweis
+wurde angeklickt** — in diesem Spiel ist `/vehicle/<wache>/<typ>/credits` ein
+`GET` und damit bereits der Kauf.
+
+Je kaufbarem Typ trägt die Seite einen Verweis `/vehicle/<wache>/<typ>/credits`;
+genau daran liest `kaufbareLesen()` sie ab.
+
+**Die Liste ist nach Gebäudeart gefiltert, aber nicht nach Ausbauten.** Eine
+Feuerwache **ohne** Großwache und eine **mit** Großwache zeigten beide
+**dieselben 99 Typen** von 186 im Katalog. Was ein Ausbau freischaltet, steht
+also **nicht** in dieser Liste — sie sagt „diese Art Gebäude darf so etwas
+haben", nicht „dieses Gebäude darf es jetzt".
+
+Daraus folgt für den Planer: die Liste taugt zum Ausschließen (was nicht
+darin steht, kann diese Gebäudeart nie), nicht zum Zusichern (was darin steht,
+braucht vielleicht noch einen Ausbau oder einen Stellplatz).
+
+Abgeglichen wurde bei der Gelegenheit der ganze Feuerwachenplan: **alle 31
+geplanten Typen des Profils `standard` und alle 40 von `standard-groß` sind
+kaufbar** — keine Lücke. 68 beziehungsweise 59 kaufbare Typen stehen nicht im
+Plan, darunter `RW (4)`, `GW-Öl (10)`, `Tankwagen (120)`, `Kleintankwagen (118)`
+und `RW-Schiene (162)`.
