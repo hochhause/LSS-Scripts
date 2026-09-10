@@ -213,6 +213,13 @@ GET  /schoolings                                    Übersicht, data-education-k
   nicht die Summe — die Lehrgänge fordern trotzdem alle, weil vorher nicht
   feststeht, welcher gezogen wird. Bestehende Kopplungen werden nie gelöst
   (D-85). Im gemessenen Bestand trugen 10 von 72 Zugfahrzeugen mehrere.
+- Ein Anhänger kann auf **„zufälliges Zugfahrzeug"** stehen (`tractive_random`
+  in `/api/v2/vehicles`, Häkchen in `/vehicles/<id>/edit`). Dann ist
+  `tractive_vehicle_id` leer, und das Spiel wählt im Einsatzfall eines der
+  zugelassenen Fahrzeuge der Wache. Der Lehrgang des Anhängers gilt deshalb
+  für **jedes** in Frage kommende Zugfahrzeug, der Sitzbedarf weiter nur
+  einmal (D-88). Ein Anhänger **ohne** Kopplung und **ohne** Zufall rückt nicht
+  aus; seine Forderung wird gemeldet, aber keinem Fahrzeug zugerechnet.
 - **Personal** läßt sich unabhängig vom FMS zuweisen, auch bei einem Fahrzeug
   im Einsatz. Nur die Statusumschaltung braucht Status 2
   (`GET /vehicles/<id>/set_fms/<n>`) und wird sonst vorgemerkt (D-85).

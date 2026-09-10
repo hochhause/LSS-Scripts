@@ -63,14 +63,14 @@ const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, bes
            courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
            verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
            anhaengerAn, PB_TYPEN: PB,
-           MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler,
+           MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
            nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
         verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
         anhaengerAn, PB_TYPEN,
-        MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler,
+        MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
         nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken } = kern;
 
 let fehler = 0;
@@ -1064,7 +1064,7 @@ const kFull = {
          nameAus('{punkt} {vehicleTyp} X', mFz, kFull), HAKEN + ' {vehicleTyp} X');
   pruefe('Fahrzeugmarke in Wachenvorlage bleibt stehen',
          nameAus('{vehicleType}', mWa, kFull), '{vehicleType}');
-  pruefe('Wachenvorlage kennt sieben Marken', MARKEN_WACHE.length, 7);
+  pruefe('Wachenvorlage kennt neun Marken', MARKEN_WACHE.length, 9);
 }
 {
   // Alias faellt auf den Langnamen zurueck, wenn keiner gesetzt ist.
@@ -1140,6 +1140,133 @@ const kFull = {
   // Der Musterkontext muss jede Marke bedienen, sonst zeigt die Vorschau Luecken.
   for (const k of MARKEN_FZ)
     pruefe(`Musterkontext bedient {${k}}`, nameAus(`{${k}}`, mFz, MUSTER_KONTEXT) !== '', true);
+}
+
+console.log('\n29. Wachenzaehler fuer {number} und {numberRoman}');
+{
+  /* Gezaehlt wird je Gebaeudeart ueber den ganzen Bestand — nicht ueber die
+     Auswahl eines Laufs. Sonst hiesse dieselbe Wache je nach Haekchen anders
+     und jeder Lauf benannte alles um. */
+  const geb = (id, typ) => ({ id, building_type: typ, caption: 'W' + id });
+  const feuer1 = geb(30, 0), feuer2 = geb(10, 0), feuer3 = geb(20, 0);
+  const rw = geb(5, 2);
+  S.buildings = [feuer1, rw, feuer3, feuer2];   // absichtlich unsortiert
+
+  pruefe('nach Gebaeudenummer, nicht nach Bestandsreihenfolge',
+    [feuer2, feuer3, feuer1].map(b => wachenZaehler(b, 1, false)), [1, 2, 3]);
+  pruefe('andere Gebaeudeart zaehlt eigenstaendig', wachenZaehler(rw, 1, false), 1);
+  pruefe('Start 5', [feuer2, feuer3, feuer1].map(b => wachenZaehler(b, 5, false)), [5, 6, 7]);
+  pruefe('Start 0 ohne Schalter',
+    [feuer2, feuer3, feuer1].map(b => wachenZaehler(b, 0, false)), [0, 1, 2]);
+  pruefe('Start 0 mit "ab 1, wenn mehrere"',
+    [feuer2, feuer3, feuer1].map(b => wachenZaehler(b, 0, true)), [1, 2, 3]);
+  pruefe('Einzelstueck bleibt ohne Nummer', wachenZaehler(rw, 0, true), 0);
+  pruefe('unbekanntes Gebaeude gibt Leertext',
+    wachenZaehler(geb(999, 0), 1, false), '');
+
+  // Und die Marken loesen in einer Wachenvorlage wirklich auf
+  const mWa2 = markenFuer(MARKEN_WACHE);
+  const kWa = { punkt: HAKEN, id: 7, alt: 'Alt', wache: 'Wache Nord',
+                wacheKurz: 'WN', nummer: 4,
+                leitstelle: 'Leitstelle Mitte', leitstelleKurz: 'LM' };
+  pruefe('{number} in der Wachenvorlage', nameAus('{number}', mWa2, kWa), '4');
+  pruefe('{numberRoman} in der Wachenvorlage',
+    nameAus('{numberRoman}', mWa2, kWa), 'IV');
+  pruefe('zusammengesetzt', nameAus('{punkt} Feuerwache {numberRoman}', mWa2, kWa),
+    HAKEN + ' Feuerwache IV');
+  pruefe('{vehicleType} bleibt in der Wachenvorlage woertlich stehen',
+    nameAus('{vehicleType}', mWa2, kWa), '{vehicleType}');
+  S.buildings = [];
+}
+
+console.log('\n30. Anhaenger auf Zufall vererbt seinen Lehrgang');
+{
+  /* NEA200 (Typ 112) verlangt eine Fachkraft Elektroversorgung und darf nur
+     vom LKW 7 (FGr E, Typ 122) gezogen werden. Steht der Anhaenger auf
+     "zufaelliges Zugfahrzeug", gehoert er keinem Fahrzeug — vorher fiel seine
+     Forderung darum ganz weg und der LKW 7 bekam beliebige Leute (D-88). */
+  const lkw = fz(122);
+  const anh = fz(112, { zufallszug: true });
+  wache([lkw, anh]);
+  const a = anforderung(lkw);
+  pruefe('Zufalls-Anhaenger fordert seinen Kurs', a.mind.get('thw_energy_supply'), 1);
+  pruefe('und belegt einen Platz', a.min, 1);
+}
+{
+  // Fest gekoppelt muss weiter genauso wirken
+  const lkw = fz(122);
+  const anh = fz(112, { zugfahrzeug: lkw.id });
+  wache([lkw, anh]);
+  pruefe('gekoppelt fordert denselben Kurs',
+    anforderung(lkw).mind.get('thw_energy_supply'), 1);
+}
+{
+  // Weder gekoppelt noch Zufall: der Anhaenger rueckt nicht aus, fordert nichts
+  const lkw = fz(122);
+  const anh = fz(112);
+  wache([lkw, anh]);
+  pruefe('ungebunden fordert nichts',
+    anforderung(lkw).mind.get('thw_energy_supply'), undefined);
+}
+{
+  /* Zufall gilt fuer JEDES zugelassene Zugfahrzeug: das Spiel waehlt eines
+     aus, also muss jedes den Kurs koennen. */
+  const a1 = fz(122), a2 = fz(122);
+  const anh = fz(112, { zufallszug: true });
+  wache([a1, a2, anh]);
+  pruefe('beide LKW 7 fordern den Kurs',
+    [anforderung(a1).mind.get('thw_energy_supply'),
+     anforderung(a2).mind.get('thw_energy_supply')], [1, 1]);
+}
+{
+  // Ein Fahrzeug, das diesen Anhaenger nicht ziehen darf, bleibt unberuehrt
+  const lf = fz(0);
+  const anh = fz(112, { zufallszug: true });
+  wache([lf, anh]);
+  pruefe('fremder Typ bleibt ohne Forderung',
+    anforderung(lf).mind.get('thw_energy_supply'), undefined);
+}
+{
+  // Und die Besetzung zieht daraus die richtige Person
+  const lkw = fz(122);
+  const anh = fz(112, { zufallszug: true });
+  const b = wache([lkw, anh]);
+  const plan = planeWache(b, { people: [
+    person(1),
+    person(2, 'thw_energy_supply'),
+    person(3)
+  ] }, false);
+  pruefe('die Fachkraft landet auf dem LKW 7', auf(plan, lkw), ['2']);
+}
+{
+  /* Sitzbedarf: auch bei Zufall zaehlt der groesste Anhaenger, nicht die
+     Summe — ziehen kann das Fahrzeug am Ende nur einen (D-85). */
+  const lkw = fz(122);
+  wache([lkw, fz(112, { zufallszug: true }), fz(112, { zufallszug: true })]);
+  pruefe('zwei Zufalls-Anhaenger fordern keine zwei Plaetze',
+    anforderung(lkw).min, 1);
+}
+
+console.log('\n31. ELW2 Drohne wird zuerst besetzt');
+{
+  /* Der ELW2 Drohne verlangt von JEDEM Sitz zwei Lehrgaenge — fire_drone UND
+     elw2 — und ist damit der einzige Typ in allen 186 mit zwei "alle"-Auflagen.
+     Wer ihn nicht zuerst bedient, verteilt die Doppelqualifizierten vorher an
+     ELW 2 und ELW Drohne und laesst ihn leer stehen. Festgehalten, weil die
+     Reihenfolge nur aus einer Zahl in `hart` folgt und ein Griff daran sie
+     lautlos umwerfen kann. */
+  const elw2d = fz(129), elw2 = fz(34), drohne = fz(128);
+  const b = wache([elw2, drohne, elw2d]);   // absichtlich zuletzt im Bestand
+  const plan = planeWache(b, { people: [
+    person(1, 'fire_drone', 'elw2'), person(2, 'fire_drone', 'elw2'),
+    person(3, 'fire_drone', 'elw2'), person(4, 'fire_drone', 'elw2'),
+    person(5, 'elw2'), person(6, 'elw2'), person(7, 'elw2'), person(8, 'elw2'),
+    person(9, 'fire_drone'), person(10, 'fire_drone'),
+    person(11, 'fire_drone'), person(12, 'fire_drone')
+  ] }, false);
+  pruefe('die vier Doppelten gehen an den ELW2 Drohne',
+    auf(plan, elw2d), ['1', '2', '3', '4']);
+  pruefe('kein Fahrzeug bleibt lahm', plan.lahm.length, 0);
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');

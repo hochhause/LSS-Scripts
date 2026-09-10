@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.60.0
+// @version      0.61.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.60.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.61.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -712,7 +712,13 @@ const slimVehicle = v => ({
   caption: v.caption, fms_real: v.fms_real,
   // Für den Fortschritt: Besatzung und Anhängerkopplung, ohne Extra-Abruf
   besatzung: v.assigned_personnel_count ?? null,
-  zugfahrzeug: v.tractive_vehicle_id ?? null
+  zugfahrzeug: v.tractive_vehicle_id ?? null,
+  /* „Zufälliges Zugfahrzeug": dann steht in `tractive_vehicle_id` nichts, und
+     das Spiel hängt den Anhänger im Einsatzfall an ein beliebiges zugelassenes
+     Fahrzeug der Wache. Ohne dieses Feld fiel die Lehrgangsforderung des
+     Anhängers still unter den Tisch — niemand beanspruchte ihn, also verlangte
+     ihn auch niemand (D-88). */
+  zufallszug: v.tractive_random === true
 });
 
 function indexVehicles() {
@@ -744,7 +750,7 @@ function fahrzeugDazu(b, typId, name) {
      zählt für den Fortschritt, darf aber in keiner Anfrage vorkommen. */
   const v = { id: -Date.now() - Math.floor(Math.random() * 1000), building_id: b.id,
               vehicle_type: Number(typId), caption: name + ' (neu)', fms_real: 2,
-              besatzung: 0, zugfahrzeug: null, platzhalter: true };
+              besatzung: 0, zugfahrzeug: null, zufallszug: false, platzhalter: true };
   S.vehicles.push(v);
   if (!S.byBuilding.has(b.id)) S.byBuilding.set(b.id, []);
   S.byBuilding.get(b.id).push(v);
@@ -1126,7 +1132,9 @@ const MARKEN = {
   stationName:   { hilfe: 'Name der Wache, ohne Punkt',  wert: k => k.wache },
   stationAlias:  { hilfe: 'eigener Wachenname (sonst wie {stationName})',
                    wert: k => k.wacheKurz || k.wache },
-  number:        { hilfe: 'Zähler je Typ auf der Wache', wert: k => k.nummer },
+  number:        { hilfe: 'Zähler — bei Fahrzeugen je Typ auf der Wache, '
+                        + 'bei Wachen je Gebäudeart im ganzen Bestand',
+                   wert: k => k.nummer },
   numberRoman:   { hilfe: 'derselbe Zähler in römischen Zahlen',
                    wert: k => roemisch(k.nummer) },
   dispatch:      { hilfe: 'Name der Leitstelle',         wert: k => k.leitstelle },
@@ -1134,13 +1142,17 @@ const MARKEN = {
                    wert: k => k.leitstelleKurz || k.leitstelle }
 };
 
-/* Welche Marken wo gelten. Eine Wache hat keinen Fahrzeugtyp und keinen
-   Zähler; stünde `{vehicleType}` in einer Wachenvorlage, blieb es wörtlich
-   stehen — deshalb zeigt die Oberfläche je Vorlage nur die passenden. */
+/* Welche Marken wo gelten. Eine Wache hat keinen Fahrzeugtyp; stünde
+   `{vehicleType}` in einer Wachenvorlage, blieb es wörtlich stehen — deshalb
+   zeigt die Oberfläche je Vorlage nur die passenden.
+
+   `{number}` und `{numberRoman}` gelten seit v0.61.0 für beide (Sasha,
+   10.09.). Gezählt wird nur etwas anderes: beim Fahrzeug der Typ auf seiner
+   Wache, bei der Wache die Gebäudeart im ganzen Bestand. */
 const MARKEN_FZ = ['punkt', 'id', 'old', 'vehicleType', 'tagging', 'stationName',
                    'stationAlias', 'number', 'numberRoman', 'dispatch', 'dispatchAlias'];
 const MARKEN_WACHE = ['punkt', 'id', 'old', 'stationName', 'stationAlias',
-                      'dispatch', 'dispatchAlias'];
+                      'number', 'numberRoman', 'dispatch', 'dispatchAlias'];
 const markenFuer = liste => Object.fromEntries(liste.map(k => [k, MARKEN[k]]));
 
 /** Römische Zahlen, wie LSSM v3 sie rechnet. Ein Unterschied: dort gibt die
@@ -1167,14 +1179,30 @@ function roemisch(zahl) {
     Fahrzeugnummer aufsteigend gezählt. Das ist wichtiger als die Nachahmung —
     eine wechselnde Reihenfolge würde die Nummern zwischen zwei Läufen wandern
     lassen und jedes Mal alles umbenennen. */
-function typZaehler(fahrzeuge, v, start = 1, abBeiEins = false) {
-  const gleiche = fahrzeuge
-    .filter(x => String(x.vehicle_type) === String(v.vehicle_type))
+function zaehlerIn(liste, ding, feld, start = 1, abBeiEins = false) {
+  const gleiche = liste
+    .filter(x => String(x[feld]) === String(ding[feld]))
     .sort((x, y) => Number(x.id) - Number(y.id));
-  const i = gleiche.findIndex(x => String(x.id) === String(v.id));
+  const i = gleiche.findIndex(x => String(x.id) === String(ding.id));
   if (i < 0) return '';
   return i + start + (start === 0 && abBeiEins && gleiche.length > 1 ? 1 : 0);
 }
+const typZaehler = (fahrzeuge, v, start = 1, abBeiEins = false) =>
+  zaehlerIn(fahrzeuge, v, 'vehicle_type', start, abBeiEins);
+
+/** Zähler je Gebäudeart, dieselbe Formel.
+
+    Gezählt wird über **alle** eigenen Gebäude dieser Art, nicht über die
+    Auswahl des Laufs: sonst hieße dieselbe Wache je nach Häkchen anders, und
+    jeder Lauf mit anderer Auswahl benannte alles um. Aus demselben Grund
+    aufsteigend nach Gebäudenummer und nicht nach Namen — ein umbenanntes
+    Gebäude soll die Nummern der anderen nicht verschieben.
+
+    Bewußt der ganze Bestand und nicht die Leitstelle: Sashas Namen sind
+    kontoweit durchgezählt („Feuer 01", „THW 2"), und je Leitstelle neu
+    beginnend gäbe es „Feuerwache I" mehrfach. */
+const wachenZaehler = (b, start = 1, abBeiEins = false) =>
+  zaehlerIn(S.buildings || [], b, 'building_type', start, abBeiEins);
 
 /** Vorlage füllen. */
 function nameAus(vorlage, marken, kontext) {
@@ -1380,6 +1408,8 @@ function kontextWache(b, punkt) {
     alt:            ohneHaken(b.caption),
     wache:          ohneHaken(b.caption),
     wacheKurz:      aliasWache(b.id),
+    nummer:         wachenZaehler(b, Number(S.opts.zaehlerStart ?? 1),
+                                  !!S.opts.zaehlerAbEins),
     leitstelle:     ohneHaken(leitstelleName(b)),
     leitstelleKurz: aliasWache(b.leitstelle_building_id)
   };
@@ -1573,6 +1603,33 @@ async function hakenAbgleichen(sel, dry) {
 const anhaengerAn = v => (S.byBuilding.get(v.building_id) || [])
   .filter(a => a.zugfahrzeug === v.id && (T.veh(a.vehicle_type)?.max || 0) === 0);
 
+const istAnhaenger = a => (T.veh(a.vehicle_type)?.max || 0) === 0;
+
+/** Anhänger derselben Wache auf „zufälliges Zugfahrzeug", die dieses Fahrzeug
+    ziehen darf.
+
+    Steht ein Anhänger auf Zufall, gehört er keinem Fahrzeug — das Spiel wählt
+    im Einsatzfall eines der zugelassenen aus. Einsatzbereit ist die Wache
+    deshalb nur, wenn **jedes** in Frage kommende Zugfahrzeug den Lehrgang des
+    Anhängers mitbringt; wer nur eines ausbildet, hat mit derselben
+    Wahrscheinlichkeit das falsche erwischt.
+
+    Vorher zählte allein `anhaengerAn`, und die Forderung eines nicht fest
+    gekoppelten Anhängers verschwand vollständig: der NEA200 verlangt eine
+    Fachkraft Elektroversorgung, der LKW 7 (FGr E) bekam beliebige Leute
+    (D-88). */
+const zufallsAnhaengerFuer = v => (S.byBuilding.get(v.building_id) || [])
+  .filter(a => !a.zugfahrzeug && a.zufallszug && istAnhaenger(a)
+            && (T.veh(a.vehicle_type)?.zug || []).includes(v.vehicle_type));
+
+/** Anhänger einer Wache, die weder gekoppelt sind noch auf Zufall stehen und
+    einen Lehrgang verlangen. Sie rücken gar nicht aus, ihre Forderung ist
+    darum keinem Fahrzeug zuzurechnen — gemeldet wird sie trotzdem, sonst
+    fehlt die Ausbildung und niemand erfährt, warum. */
+const ungebundeneAnhaenger = b => (S.byBuilding.get(b.id) || [])
+  .filter(a => !a.zugfahrzeug && !a.zufallszug && istAnhaenger(a)
+            && (T.veh(a.vehicle_type)?.kurse || []).length);
+
 /** Bestand gegen Soll: was fehlt, was ist zu viel, wie viele Sitze der Plan
     verlangt. Herausgezogen, weil Kauf und Zerstören an derselben Rechnung
     hängen und sich nicht widersprechen dürfen — was fehlt, kann nicht
@@ -1675,7 +1732,10 @@ function anforderung(v) {
      mehrere). Summiert galt ein WLF mit zwei kleinen Abrollbehältern als
      unbesetzbar, obwohl es mit jedem einzeln längst ausrückt (D-85). */
   let anhEst = 0;
-  for (const a of anhaengerAn(v)) {
+  /* Fest gekoppelte zählen für ihr Zugfahrzeug, Zufalls-Anhänger für jedes,
+     das sie ziehen darf — beim Sitzbedarf gilt für beide dieselbe Regel: der
+     größte, nicht die Summe (D-85, D-88). */
+  for (const a of [...anhaengerAn(v), ...zufallsAnhaengerFuer(v)]) {
     const am = T.veh(a.vehicle_type) || {};
     merken(am, true);
     anhEst = Math.max(anhEst, am.est || am.min || 0);
@@ -1873,6 +1933,18 @@ function planeWache(b, roster, vollBesetzen = S.opts.vollBesetzen !== false) {
   const zuweisung = new Map();     // vehicleId -> Personen
   const lahm = [];                 // nicht besetzbar
   const luecken = new Map();       // Kurs -> fehlende Anzahl
+
+  /* Ein Anhänger ohne Zugfahrzeug und ohne Zufall rückt nicht aus. Seine
+     Lehrgangsforderung gehört deshalb an kein Fahrzeug — aber schweigen darf
+     der Planer darüber nicht, sonst sucht man den fehlenden Lehrgang beim
+     Zugfahrzeug statt bei der Kopplung. */
+  for (const a of ungebundeneAnhaenger(b)) {
+    const kurse = (T.veh(a.vehicle_type)?.kurse || [])
+      .map(k => kursNamen(k.k)[0] || k.k).join(', ');
+    log(`${b.caption}: ${a.caption} hängt an keinem Fahrzeug — `
+      + `verlangt ${kurse}, wird darum nicht eingeplant. `
+      + `„Anhänger koppeln" bindet ihn.`, 'warn');
+  }
 
   for (const { v } of fahrzeuge) {
     const anh = anhaengerAn(v);
@@ -2184,6 +2256,14 @@ async function buyVehicles(sel, dry) {
   }
   if (uebersprungen) log(`${uebersprungen} Wachen übersprungen — dort erst Ausbauten bauen oder Überzählige zerstören.`, 'warn');
   if (vertagt) log(`${vertagt} Fahrzeuge nicht gekauft, weil kein Stellplatz frei ist.`, 'warn');
+  /* Das Guthaben prüft der Planer nicht: `PB` kennt Personal, nicht Preise,
+     und ein abgelehnter Kauf antwortet mit demselben HTTP 200 wie ein
+     erfolgreicher. Gezählt wird deshalb der **Versuch**. Das gehört gesagt —
+     sonst liest man „+12" und hat sechs (D-88). */
+  if (n && !dry)
+    log(`${n} Käufe abgeschickt — ob alle durchgingen, weiß der Planer nicht: `
+      + `reicht das Guthaben nicht, lehnt das Spiel still ab. `
+      + `„Bestand neu laden" zeigt den wahren Stand.`, 'warn');
   return n;
 }
 

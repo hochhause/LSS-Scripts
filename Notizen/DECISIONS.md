@@ -1881,3 +1881,109 @@ Zugfahrzeug mit Mindestbesetzung hängt. Drei Stellen müßten sich ändern, und
 eine davon ist heikel: eine frei hängende Last muß ihre Anforderung auf
 **jedes** zulässige Zugfahrzeug legen, sonst rückt das Gespann nicht aus, wenn
 das Spiel das falsche wählt. Steht in `NAECHSTER_SCHRITT.md`.
+
+## D-88 — Ein Anhänger auf „zufälliges Zugfahrzeug" vererbt seinen Lehrgang (v0.61.0)
+
+Sasha, 10.09.: „der NEA200 am LKW 7 (FGr E) braucht Fachgruppe
+Elektroversorgung, bekommt aber beliebige Leute." Nachgerechnet, und der Befund
+ist eindeutig.
+
+`anhaengerAn(v)` fand nur Anhänger mit `zugfahrzeug === v.id`, also solche mit
+einer **festen** Kopplung. Steht ein Anhänger auf `tractive_random` — das Spiel
+hängt ihn im Einsatzfall an ein beliebiges zugelassenes Fahrzeug —, dann ist
+`tractive_vehicle_id` leer. Damit beanspruchte ihn kein Fahrzeug, also verlangte
+ihn auch keines: die Forderung des NEA200 kam nie in `mind`, der Kurs nie in
+`gebraucht`, `tabelleBauen` legte gar keine Spalte dafür an, und der LKW 7 wurde
+aus der billigsten Spalte gefüllt. Kein Fehler im Rechnen — eine Forderung, die
+nie ankam.
+
+Dazu warf `slimVehicle` das Feld `tractive_random` weg, obwohl
+`/api/v2/vehicles` es mitliefert. Dritter Fall derselben Art nach D-65
+(`enabled`) und D-78 (`leitstelle_building_id`): abmagern heißt aussortieren,
+und wer aussortiert, entscheidet über Sichtbarkeit. Bemerkenswert ist, daß
+`linkTrailers` den Zufallsschalter längst kannte — es hakt ihn beim Koppeln
+ausdrücklich ab (`vehicle[tractive_random]: '0'`). Gelesen wurde er nur nie.
+
+**Zufall gilt für jedes zugelassene Zugfahrzeug, nicht für eines.** Das Spiel
+wählt im Einsatzfall aus; einsatzbereit ist die Wache also nur, wenn jedes in
+Frage kommende Fahrzeug den Kurs mitbringt. Wer nur eines ausbildet, hat mit
+gleicher Wahrscheinlichkeit das falsche erwischt. Beim **Sitzbedarf** dagegen
+gilt weiter D-85: der größte Anhänger, nicht die Summe — ziehen kann das
+Fahrzeug am Ende nur einen.
+
+**Weder gekoppelt noch Zufall** heißt: der Anhänger rückt überhaupt nicht aus.
+Seine Forderung ist keinem Fahrzeug zuzurechnen, und das bleibt so. Gemeldet
+wird sie trotzdem, mit Verweis auf „Anhänger koppeln" — sonst sucht man den
+fehlenden Lehrgang beim Zugfahrzeug statt bei der Kopplung.
+
+Probe 30 hält es fest. Nimmt man den Zufallsteil wieder heraus, fallen drei ihrer
+acht Proben, darunter die entscheidende: der Ungelernte landet auf dem LKW 7,
+die Fachkraft bleibt frei. Sashas Meldung, in einer Zeile Testcode.
+
+### Was NICHT geändert wurde: die Reihenfolge beim ELW2 Drohne
+
+Zweite Meldung: der ELW2 Drohne solle wegen seiner Doppelanforderung früh
+besetzt werden. **Er wird es schon.** `planeWache` sortiert nach
+`hart = alle.length * 100 + mind.size * 10`, und der ELW2 Drohne ist mit zwei
+`alle`-Auflagen (`fire_drone` **und** `elw2`) der **einzige** Typ in allen 186
+mit `hart = 200`; alles andere liegt bei 100 oder darunter. Er steht damit
+zwingend an erster Stelle seiner Wache.
+
+Geändert wurde deshalb nichts — nach der Lehre aus D-77 wird nicht repariert,
+was funktioniert. Aber die Reihenfolge hing an einer einzigen Zahl, die niemand
+festhielt: ein Griff an `hart` hätte sie lautlos umgeworfen. Probe 31 pinnt sie
+jetzt. Daß sie gegen die alte Fassung ebenso durchläuft, ist kein Mangel der
+Probe, sondern der Beweis, daß hier nichts zu beheben war.
+
+### Was NICHT behoben wurde: das Guthaben beim Kauf
+
+Dritte Meldung: der Planer meldet Käufe als erfolgreich, für die das Guthaben
+längst nicht reichte. Zutreffend. `buyVehicles` schickt
+`/buildings/<id>/vehicle/<id>/<typ>/credits`, wirft die Antwort weg und ruft
+`fahrzeugDazu` bedingungslos. Zwei Gründe, warum daraus keine Prüfung wurde:
+
+- Der Planer kennt **keine Fahrzeugpreise** — in `PB` steht Personal, nicht Geld.
+- Ein abgelehnter Kauf antwortet mit demselben `HTTP 200` wie ein
+  erfolgreicher. Woran sich das Scheitern erkennen läßt, ist **nicht
+  nachgemessen**, und geraten wird hier nicht (CLAUDE.md).
+
+Der angemeldete Browser war abgelaufen, als der Befund entstand, deshalb ließ
+sich weder `/api/credits` noch die Preisauszeichnung der Kaufseite lesen.
+Verworfen wurde, die Fehlermeldung des Spiels zu **erraten** — eine Prüfung, die
+auf einer vermuteten CSS-Klasse steht, meldet irgendwann Erfolg für jeden
+Fehlschlag oder Fehlschlag für jeden Erfolg, und beides ist schlechter als offen
+zu sagen, daß nicht geprüft wird.
+
+Geändert wurde nur die Aussage: gezählt wird jetzt ausdrücklich der **Versuch**,
+und der Lauf sagt am Ende, daß er den Erfolg nicht kennt. Sonst liest man „+12"
+und hat sechs.
+
+Offen, sobald zwei Zahlen nachgemessen sind: Guthaben aus `/api/credits`, Preis
+je Typ von `/buildings/<id>/vehicles/new`. Dann rechnet der Lauf mit und hält
+an, bevor das Geld ausgeht.
+
+## D-89 — `{number}` und `{numberRoman}` gelten auch für Wachennamen (v0.61.0)
+
+Sasha, 10.09.: Zähler und römische Zahlen auch in den Wachennamen. Die Marken
+gab es seit v0.59.0 schon — sie standen nur nicht in `MARKEN_WACHE`. Genau der
+Fall, für den die Tabelle gebaut wurde: eine Zeile in der Liste, ein Feld im
+Kontext, sonst nichts.
+
+Gezählt wird bei einer Wache die **Gebäudeart über den ganzen Bestand**, nicht
+je Leitstelle. Zwei Gründe: Sashas Namen sind kontoweit durchgezählt („Feuer 01",
+„THW 2"), und je Leitstelle neu beginnend gäbe es „Feuerwache I" mehrfach. Wer
+es anders will, sagt es — die Formel steckt an einer Stelle.
+
+Gezählt wird über **alle** eigenen Gebäude, nicht über die Auswahl des Laufs.
+Sonst hieße dieselbe Wache je nach Häkchen anders, und jeder Lauf mit anderer
+Auswahl benannte alles um. Aus demselben Grund aufsteigend nach Gebäudenummer
+und nicht nach Namen — dieselbe Überlegung wie bei `typZaehler`.
+
+Weil damit dieselbe Formel zum zweiten Mal gebraucht wurde, ist sie in
+`zaehlerIn(liste, ding, feld, …)` herausgezogen; `typZaehler` und
+`wachenZaehler` sind zwei Zeilen darüber. Eine zweite Abschrift der Formel wäre
+genau die Sorte Doppelung, die in D-70 auseinandergelaufen ist.
+
+Probe 29 deckt beides ab: den Zähler mit allen vier Schalterstellungen und die
+Marken in einer echten Wachenvorlage — samt der Gegenprobe, daß
+`{vehicleType}` dort weiterhin wörtlich stehen bleibt.
