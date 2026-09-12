@@ -16,3 +16,6 @@ package-lock.json
 *.log
 *.tmp
 *.bak
+
+# Fremde Skripte, nur zum Nachlesen abgelegt — nicht unser Code, nicht unsere Lizenz
+fremd/

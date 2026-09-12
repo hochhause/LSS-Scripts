@@ -2093,3 +2093,112 @@ Wache gerechnet, sondern erst in dem Zweig, der es meldet.
 Offen, falls es einmal wirklich eilt: ein Schalter „Punkte nicht neu
 beurteilen". Dann fiele der Abruf je Wache weg und der Lauf benennte nur um,
 mit den Punkten, die schon in den Namen stehen.
+
+## D-93 Feuerwache: TLF 3000 raus, SLF und GW-Öl rein (v0.63.0)
+
+**Entschieden.** Sasha, 12.09.: das TLF 3000 verläßt den Plan, dafür kommen ein
+**SLF** (Typ 167) und ein **GW-Öl** (Typ 10) hinzu. In **beiden**
+Feuerwachenprofilen, `standard` wie `standard-groß` — ausdrücklich gefragt und
+ausdrücklich so gewollt.
+
+**Zurückgenommen, noch bevor es ausgeliefert war:** der erste Anlauf strich
+dafür das sechste HLF 20. „Fünf HLF sind sehr wenig" — richtig, das HLF ist das
+Arbeitspferd der Wache, und der Platz sollte nicht dort geholt werden. Statt
+dessen geht das **GTLF**, und zwar nur aus `standard`; die Schwerpunktwache
+behält es, weil sie ohnehin für die großen Lagen ausgelegt ist (FLF,
+Turbolöscher, ULF). Das HLF 20 steht in beiden Profilen wieder auf sechs.
+
+Damit bleibt `standard` bei 45 Fahrzeugen — zwei raus (TLF 3000, GTLF), zwei
+rein (SLF, GW-Öl) —, und `standard-groß` wächst um eines auf 58. Die Rechnung
+geht auf dem normalen Stellplatztopf glatt auf; `pruefer.js` bestätigt es
+(„18 Profile passen zu ihren Stellplatztöpfen"). Der Topf `normal` hängt
+ohnehin an der Wachenstufe und nicht an einem Ausbau.
+
+**Keine neue Fassungsnummer dafür.** v0.63.0 war noch nicht committet, also
+nirgends installiert. Eine 0.63.1 hätte einen Stand benannt, den niemand je
+gesehen hat.
+
+**Nachgefragt statt geraten.** „SLW" ist im Katalog nicht eindeutig: es gibt
+SW 1000, SW 2000, SW 2000-Tr (steht bereits ×1 im Plan) und SW Kats. Auf die
+Rückfrage hin war **SLF** gemeint — ein anderes Fahrzeug als jeder
+Schlauchwagen. Hätte ich den wahrscheinlichsten Schlauchwagen eingesetzt,
+stünde jetzt in 23 Feuerwachen ein Fahrzeug, das niemand bestellt hat.
+Dieselbe Sorte Zweideutigkeit wie bei den Lehrgangsnamen (CLAUDE.md).
+
+**Die allgemeine Regel trägt jetzt eine Ausnahme.** In
+`lss-fahrzeugprofile.md` steht seit jeher „Löschfahrzeuge ausschließlich
+HLF 20". Das SLF widerspricht dem, also ist die Ausnahme dort vermerkt statt
+die Regel stillschweigend zu brechen. Das GTLF stand ohnehin schon daneben.
+
+**Auszug nachgezogen.** `daten/lss-modell-standard.json` war für die
+Feuerwache **veraltet** — es führte noch den Stand vor D-87 (GW-L2 statt
+GW-L2-Wasser, MTW, AB-Rüst, AB-Tank, AB-Lösch, AB-Wasser/Schaum,
+AB-Einsatzleitung; kein GW-Höhenrettung). Aufgefallen ist das nur, weil für
+diese Änderung beide Quellen nebeneinander lagen. Der Auszug ist jetzt
+maschinell aus `MODELL_STANDARD` gezogen; die übrigen vierzehn Gebäudearten
+stimmten bereits überein. Wer den Plan anfaßt, zieht ihn wieder nach — das ist
+die Regel aus CLAUDE.md, und sie war hier ein Jahr lang gerissen.
+
+## D-94 Fachkräfte dürfen von grünen Fahrzeugen umgesetzt werden (v0.64.0)
+
+**Lage.** Sasha, 12.09.: „ein ELW2 Drohne hat keine Besatzung, weil alle
+Doppelqualifizierten auf einem normalen ELW 2 sitzen — obwohl genug Leute mit
+nur `elw2` da sind, ihn zu füllen." Und derselbe Fall beim HLF Schiene, dessen
+Bahnretter alle auf gewöhnlichen HLF 20 saßen.
+
+Der Rechenkern war nicht schuld: Probe 31 hält seit v0.59.0 fest, daß der
+ELW2 Drohne **zuerst** besetzt wird (`hart` sortiert nach der Zahl der
+„alle"-Auflagen), und das Auffüllen läßt Fachkräfte ausdrücklich frei. Ein
+Nachbau beider Fälle zeigte den Unterschied zur Probe sofort: sie läuft **ohne
+grüne Fahrzeuge**. Mit einem grünen ELW 2 bekam die Drohne `[]`, ohne ihn alle
+vier.
+
+**Die Ursache ist der Schutz selbst.** `planeWache` friert die Besatzung jedes
+🟢-Fahrzeugs ein und nimmt sie aus dem Topf (D-85: „geschützt heißt: nichts
+wegnehmen"). Sitzt die einzige Fachkraft dort, ist sie für immer verloren — und
+zwar genau dann, wenn ein „kleineres" Fahrzeug derselben Familie sie gar nicht
+braucht: ELW 2 (nur `elw2`) hält den Doppelqualifizierten, den der ELW2 Drohne
+(`elw2` **und** `fire_drone`) zwingend braucht; das HLF 20 (gar kein Lehrgang)
+hält den Bahnretter, ohne den das HLF Schiene nicht ausrückt. Einmal grün, für
+immer lahm — Lauf für Lauf, ohne daß der Grund irgendwo stand.
+
+**Entschieden.** Bleibt ein Fahrzeug lahm, weil ihm ein Lehrgang fehlt, darf
+eine Fachkraft von einem grünen Fahrzeug geholt werden — aber nur unter zwei
+Bedingungen, und die zweite ist die wichtigere:
+
+1. **Ohne sie bleibt das grüne Fahrzeug vollständig.** Geprüft wird mit
+   derselben Funktion, die auch über den Punkt entscheidet: `fehltAn(gv, ohne)`
+   muß leer bleiben. Mindestbesetzung und eigene Lehrgänge sind damit weiterhin
+   gedeckt.
+2. **Oder ein Übriggebliebener nimmt den Sitz.** Diese Regel gilt nur beim
+   Auffüllen, denn erst der zweite Durchgang setzt ihn wirklich hinein. Sie
+   löst den schwereren Fall: auf dem grünen ELW 2 sitzen *nur*
+   Doppelqualifizierte, keiner ist für sich entbehrlich — aber vier freie
+   Nur-ELW2-Leute stehen daneben. Das Fahrzeug tauscht durch und behält seinen
+   Punkt.
+
+Geliehen wird nie jemand, dessen Lehrgang anderswo gerade fehlt, und die
+versprochenen Ersatzleute werden mitgezählt — sonst deckt derselbe Kopf vier
+Sitze auf dem Papier. Danach wird die Wache **einmal** neu geplant; der zweite
+Aufruf trägt `geliehen` und hält die Schleife an.
+
+**Warum das den Schutz nicht bricht.** Er verbietet, Fertiges kaputtzumachen.
+Hier verliert kein grünes Fahrzeug seinen Punkt — es tauscht eine Fachkraft,
+die es nicht braucht, gegen jemanden, der sie nicht hat. Was es gewinnt, ist
+ein zweites einsatzbereites Fahrzeug. Hinzufügen war ohnehin erlaubt (D-85),
+und genau das passiert auf der anderen Seite des Tauschs.
+
+**Verworfen: den Schutz in diesem Fall ganz aufheben.** Dann hätte der Lauf die
+Besatzung grüner Fahrzeuge frei umgeschichtet, und aus einem lahmen Fahrzeug
+wären zwei geworden. Ebenso verworfen, es nur zu **melden** statt zu beheben:
+die Meldung hätte bei 23 Feuerwachen jedem Lauf angehangen, und von Hand
+umzusetzen ist genau die Arbeit, die dieses Skript abnehmen soll.
+
+**Abschaltbar** im Personal-Reiter („Fachkräfte von grünen Fahrzeugen
+umsetzen"), Vorgabe **an**. Der Lauf sagt, wie viele er umgesetzt hat —
+ungenannt wäre es die Sorte Änderung, die man später nicht mehr erklären kann.
+
+Probe 32 hält alles fest: beide Fälle aus Sashas Bericht, den Punkt des grünen
+Fahrzeugs in jedem Zweig, das Verhalten ohne Auffüllen (nur die Entbehrlichen),
+den abgeschalteten Schalter und die Notbremse — ist niemand da, der den Sitz
+übernimmt, wird nicht geliehen.

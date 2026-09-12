@@ -1,6 +1,6 @@
 # Leitstellenspiel-Werkzeuge — Projektstand
 
-Stand: 12.09.2026, Skript v0.62.0. Diese Datei und `CLAUDE.md` genügen, um an
+Stand: 12.09.2026, Skript v0.64.0. Diese Datei und `CLAUDE.md` genügen, um an
 einem beliebigen Punkt weiterzuarbeiten. Uploads von Stammdaten, Spielbestand
 oder Seitenabzügen braucht es nicht mehr — alles Nötige steckt in den Dateien
 unten oder wird aus dem Spiel gelesen.
@@ -9,13 +9,13 @@ unten oder wird aus dem Spiel gelesen.
 
 | Datei | Zweck |
 |---|---|
-| `lss-planer.user.js` | Userscript v0.62.0: setzt das Wunschbild im Spiel um |
+| `lss-planer.user.js` | Userscript v0.64.0: setzt das Wunschbild im Spiel um |
 | `lss-farben.user.js` | v0.1.0: reine Anzeige — blendet den 🟢 aus und färbt den Namen grün, Status 6 rot |
 | `lss-einruecken.user.js` | v0.3.0: Fahrzeuge zurück zur Wache rufen — **über den Einsatz**, mit dem Verweis „Alle eigenen Fahrzeuge rückalarmieren" (D-90) |
 | `lss-einsatz-flott.user.js` | v0.3.0: nächsten Einsatz vorwärmen — *nicht in dieser Ablage* |
 | `CLAUDE.md` | Arbeitsanweisung: Sprache, Prüfungen, Gefahren |
 | `NAECHSTER_SCHRITT.md` | was offen ist |
-| `DECISIONS.md` | 92 Entscheidungen mit Begründung, auch die verworfenen |
+| `DECISIONS.md` | 94 Entscheidungen mit Begründung, auch die verworfenen |
 | `personal-soll.js` | einmaliges Konsolenskript: Personal-Sollwert aller Wachen |
 | `lss-personalbedarf.json` | Personalanforderungen je Fahrzeugtyp — **Pflegequelle** für `PB` |
 | `lss-fahrzeugprofile.md` | Soll-Papier: Profile, Stellplatz-Formeln, Ausbauten je Gebäudeart — **Pflegequelle** für `MODELL_STANDARD` und `LAYOUTS_STANDARD` |
@@ -57,6 +57,15 @@ Sitze mit den Übriggebliebenen auf. Wer einen Lehrgang hat, den diese Wache
 irgendwo verlangt, bleibt beim Auffüllen frei; sonst besetzt der einzige Notarzt
 das LF und das NEF steht. Abschaltbar im Personal-Reiter
 (`S.opts.vollBesetzen`).
+
+**Nachschlag seit v0.64.0 (D-94):** bleibt ein Fahrzeug lahm, weil seine
+Fachkraft auf einem **grünen** Fahrzeug sitzt, das sie nicht braucht, wird sie
+umgesetzt und die Wache einmal neu geplant. Geliehen wird nur, wer dort
+entbehrlich ist — `fehltAn()` muß für das grüne Fahrzeug ohne ihn leer bleiben —
+oder wessen Sitz ein Übriggebliebener übernimmt (dann nur beim Auffüllen, denn
+erst der zweite Durchgang setzt ihn wirklich hinein). Das grüne Fahrzeug behält
+in jedem Fall seine Mindestbesetzung und damit seinen Punkt. Abschaltbar
+(`S.opts.gruenLeihen`), Vorgabe an.
 
 ## Lehrgänge sind Schlüssel (seit v0.22)
 

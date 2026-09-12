@@ -1269,5 +1269,72 @@ console.log('\n31. ELW2 Drohne wird zuerst besetzt');
   pruefe('kein Fahrzeug bleibt lahm', plan.lahm.length, 0);
 }
 
+console.log('\n32. Fachkraft vom gruenen Fahrzeug holen');
+{
+  /* Der grüne Punkt fror die Besatzung ein — und damit die einzige Fachkraft,
+     die ein anderes Fahrzeug zum Ausrücken braucht. Sasha, 12.09.: ein HLF
+     Schiene ohne Bahnretter und ein ELW2 Drohne ohne Doppelqualifizierte, beide
+     dauerhaft, weil die Leute auf einem grünen HLF 20 bzw. ELW 2 saßen, die sie
+     gar nicht brauchen (D-94). Geliehen wird nur, wer dort entbehrlich ist. */
+  S.opts.gruenLeihen = true;
+
+  const hlf  = fz(30,  { caption: HAKEN + ' HLF 20' });
+  const schi = fz(163, { caption: 'HLF Schiene' });
+  const b = wache([hlf, schi]);
+  const plan = planeWache(b, { people: [
+    sitzt(1, hlf.id, 'railway_fire'), sitzt(2, hlf.id), sitzt(3, hlf.id),
+    person(4), person(5), person(6)
+  ] }, true);
+  pruefe('der Bahnretter kommt auf die HLF Schiene', auf(plan, schi), ['1']);
+  pruefe('nichts bleibt lahm', plan.lahm.length, 0);
+  pruefe('das gruene HLF 20 behaelt seinen Punkt',
+    fehltAn(hlf, (plan.zuweisung.get(hlf.id) || []).map(p => p.kann)), '');
+}
+{
+  /* Der schwerere Fall: auf dem grünen ELW 2 sitzen NUR Doppelqualifizierte.
+     Ohne Ersatz wäre keiner entbehrlich — mit vier freien Nur-ELW2-Leuten
+     tauscht das Fahrzeug durch und behält seine Mindestbesetzung. */
+  const elw2  = fz(34,  { caption: HAKEN + ' ELW 2' });
+  const elw2d = fz(129, { caption: 'ELW2 Drohne' });
+  const b = wache([elw2, elw2d]);
+  const roster = { people: [
+    sitzt(1, elw2.id, 'fire_drone', 'elw2'), sitzt(2, elw2.id, 'fire_drone', 'elw2'),
+    sitzt(3, elw2.id, 'fire_drone', 'elw2'), sitzt(4, elw2.id, 'fire_drone', 'elw2'),
+    person(5, 'elw2'), person(6, 'elw2'), person(7, 'elw2'), person(8, 'elw2')
+  ] };
+  const plan = planeWache(b, roster, true);
+  pruefe('die vier Doppelten kommen auf den ELW2 Drohne', auf(plan, elw2d), ['1', '2', '3', '4']);
+  pruefe('vier wurden geliehen', plan.geliehen, 4);
+  pruefe('der gruene ELW 2 behaelt seinen Punkt',
+    fehltAn(elw2, (plan.zuweisung.get(elw2.id) || []).map(p => p.kann)), '');
+
+  /* Ohne Auffuellen gibt es keinen zweiten Durchgang, der den frei werdenden
+     Sitz nachbesetzt. Die erste Regel gilt trotzdem: drei der vier sind auf
+     dem ELW 2 auch ohne Ersatz entbehrlich, weil er nur einen Mann braucht.
+     Der vierte bleibt, sonst fiele das gruene Fahrzeug unter seine
+     Mindestbesetzung — und der Drohne fehlt dann eben einer. */
+  const ohneVoll = planeWache(b, roster, false);
+  pruefe('ohne Auffuellen nur die Entbehrlichen', ohneVoll.geliehen, 3);
+  pruefe('der gruene ELW 2 behaelt auch dann seinen Punkt',
+    fehltAn(elw2, (ohneVoll.zuweisung.get(elw2.id) || []).map(p => p.kann)), '');
+  pruefe('die Drohne bleibt dann lahm', ohneVoll.lahm.length, 1);
+
+  S.opts.gruenLeihen = false;
+  const aus = planeWache(b, roster, true);
+  pruefe('abgeschaltet bleibt es beim alten Verhalten', aus.lahm.length, 1);
+  S.opts.gruenLeihen = true;
+}
+{
+  /* Die Notbremse: ist niemand da, der den Sitz uebernimmt, wird nicht
+     geliehen. Lieber ein lahmes Fahrzeug als zwei. */
+  const elw2  = fz(34,  { caption: HAKEN + ' ELW 2' });
+  const elw2d = fz(129, { caption: 'ELW2 Drohne' });
+  const b = wache([elw2, elw2d]);
+  const plan = planeWache(b, { people: [ sitzt(1, elw2.id, 'fire_drone', 'elw2') ] }, true);
+  pruefe('ohne Ersatz wird nicht geliehen', plan.geliehen, 0);
+  pruefe('der gruene ELW 2 behaelt seinen Mann',
+    (plan.zuweisung.get(elw2.id) || []).map(p => p.id), ['1']);
+}
+
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');
 process.exit(fehler ? 1 : 0);

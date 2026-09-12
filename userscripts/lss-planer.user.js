@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.62.0
+// @version      0.64.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.62.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.64.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -245,7 +245,7 @@ const LAYOUTS_STANDARD = {
 };
 
 const MODELL_STANDARD = {
-  "0": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"2":2,"5":1,"11":2,"12":1,"15":1,"18":1,"27":1,"30":6,"33":1,"34":1,"46":2,"48":2,"49":2,"53":1,"57":1,"77":1,"108":2,"111":1,"114":1,"115":1,"116":2,"121":1,"129":1,"138":1,"139":1,"141":1,"142":1,"143":1,"163":1,"164":2,"185":1,"186":1},"pools":{"2":"normal","5":"normal","11":"normal","12":"normal","15":"normal","18":"normal","27":"normal","30":"normal","33":"normal","34":"normal","46":"normal","48":"ab","49":"ab","53":"normal","57":"normal","77":"ab","108":"ab","111":"anh","114":"normal","115":"anh","116":"ab","121":"normal","129":"drohne","138":"vpfl","139":"vpfl","141":"anh","142":"ab","143":"anh","163":"bahn","164":"ab","185":"tier","186":"anh"},"extensions":{"Abrollbehälter-Stellplatz":14,"Anhänger-Stellplatz":5,"Netzersatzanlage 50":1,"Großlüfter":1,"Drohneneinheit":1,"Verpflegungsdienst":1,"Bahnrettung":1,"Tierrettung":1}},"standard-groß":{"vehicles":{"2":2,"5":1,"11":4,"12":1,"15":1,"18":1,"27":1,"30":6,"33":1,"34":1,"46":3,"48":2,"49":2,"53":1,"57":1,"75":2,"76":1,"77":1,"83":1,"84":1,"85":1,"86":1,"108":2,"111":1,"113":1,"114":1,"115":1,"116":2,"121":1,"129":1,"138":1,"139":1,"141":1,"142":1,"143":1,"163":1,"164":2,"180":1,"185":1,"186":1},"pools":{"2":"normal","5":"normal","11":"normal","12":"normal","15":"normal","18":"normal","27":"normal","30":"normal","33":"normal","34":"normal","46":"normal","48":"ab","49":"ab","53":"normal","57":"normal","75":"normal","76":"normal","77":"ab","83":"normal","84":"normal","85":"normal","86":"normal","108":"ab","111":"anh","113":"nea200","114":"normal","115":"anh","116":"ab","121":"normal","129":"drohne","138":"vpfl","139":"vpfl","141":"anh","142":"ab","143":"anh","163":"bahn","164":"ab","180":"nea200","185":"tier","186":"anh"},"extensions":{"Abrollbehälter-Stellplatz":14,"Anhänger-Stellplatz":5,"Netzersatzanlage 50":1,"Großlüfter":1,"Drohneneinheit":1,"Verpflegungsdienst":1,"Bahnrettung":1,"Tierrettung":1,"Großwache":1,"Flughafenfeuerwehr":1,"Netzersatzanlage 200":1,"Werkfeuerwehr":1}}}},
+  "0": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"2":2,"5":1,"10":1,"11":2,"12":1,"15":1,"27":1,"30":6,"33":1,"34":1,"46":2,"48":2,"49":2,"53":1,"57":1,"77":1,"108":2,"111":1,"114":1,"115":1,"116":2,"129":1,"138":1,"139":1,"141":1,"142":1,"143":1,"163":1,"164":2,"167":1,"185":1,"186":1},"pools":{"2":"normal","5":"normal","10":"normal","11":"normal","12":"normal","15":"normal","27":"normal","30":"normal","33":"normal","34":"normal","46":"normal","48":"ab","49":"ab","53":"normal","57":"normal","77":"ab","108":"ab","111":"anh","114":"normal","115":"anh","116":"ab","129":"drohne","138":"vpfl","139":"vpfl","141":"anh","142":"ab","143":"anh","163":"bahn","164":"ab","167":"normal","185":"tier","186":"anh"},"extensions":{"Abrollbehälter-Stellplatz":14,"Anhänger-Stellplatz":5,"Netzersatzanlage 50":1,"Großlüfter":1,"Drohneneinheit":1,"Verpflegungsdienst":1,"Bahnrettung":1,"Tierrettung":1}},"standard-groß":{"vehicles":{"2":2,"5":1,"10":1,"11":4,"12":1,"15":1,"27":1,"30":6,"33":1,"34":1,"46":3,"48":2,"49":2,"53":1,"57":1,"75":2,"76":1,"77":1,"83":1,"84":1,"85":1,"86":1,"108":2,"111":1,"113":1,"114":1,"115":1,"116":2,"121":1,"129":1,"138":1,"139":1,"141":1,"142":1,"143":1,"163":1,"164":2,"167":1,"180":1,"185":1,"186":1},"pools":{"2":"normal","5":"normal","10":"normal","11":"normal","12":"normal","15":"normal","27":"normal","30":"normal","33":"normal","34":"normal","46":"normal","48":"ab","49":"ab","53":"normal","57":"normal","75":"normal","76":"normal","77":"ab","83":"normal","84":"normal","85":"normal","86":"normal","108":"ab","111":"anh","113":"nea200","114":"normal","115":"anh","116":"ab","121":"normal","129":"drohne","138":"vpfl","139":"vpfl","141":"anh","142":"ab","143":"anh","163":"bahn","164":"ab","167":"normal","180":"nea200","185":"tier","186":"anh"},"extensions":{"Abrollbehälter-Stellplatz":14,"Anhänger-Stellplatz":5,"Netzersatzanlage 50":1,"Großlüfter":1,"Drohneneinheit":1,"Verpflegungsdienst":1,"Bahnrettung":1,"Tierrettung":1,"Großwache":1,"Flughafenfeuerwehr":1,"Netzersatzanlage 200":1,"Werkfeuerwehr":1}}}},
 
   "2": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"28":7,"38":2,"29":3,"74":1,"55":1,"56":1},"pools":{"28":"normal","38":"normal","29":"normal","74":"normal","55":"normal","56":"normal"},"extensions":{}},"standard-groß":{"vehicles":{"28":10,"38":4,"29":6,"74":1,"73":1,"97":1,"55":1,"56":1},"pools":{"28":"normal","38":"normal","29":"normal","74":"normal","73":"normal","97":"normal","55":"normal","56":"normal"},"extensions":{"Großwache":1}}}},
   "5": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"31":1,"157":1},"pools":{"31":"normal","157":"normal"},"extensions":{"Windenrettung":1}}}},
@@ -1916,7 +1916,7 @@ function besetze(v, tabelle, gebraucht) {
     danach werden freie Sitze mit den Übriggebliebenen aufgefüllt. Die
     Reihenfolge ist der Punkt — wer zuerst auffüllt, nimmt einem anderen
     Fahrzeug die Leute weg, die es zum Ausrücken braucht. */
-function planeWache(b, roster, vollBesetzen = S.opts.vollBesetzen !== false) {
+function planeWache(b, roster, vollBesetzen = S.opts.vollBesetzen !== false, geliehen = null) {
   const leute = roster.people.map(p => ({
     ...p,
     kann: new Set([...p.quals, ...(p.inAusbildung || [])]),
@@ -1930,7 +1930,10 @@ function planeWache(b, roster, vollBesetzen = S.opts.vollBesetzen !== false) {
   const fest = new Map();
   for (const v of echteVon(b)) {
     if (!geschuetzt(v) || !(T.veh(v.vehicle_type)?.max > 0)) continue;
-    fest.set(v.id, leute.filter(p => p.assignedTo === String(v.id)));
+    /* Wer unten ausgeliehen wurde, gehört in den Topf und nicht unter die
+       Eisdecke — sonst steht die Drohne für immer, weil ihr einziger Bediener
+       auf einem grünen ELW 2 sitzt, der ihn gar nicht braucht (D-94). */
+    fest.set(v.id, leute.filter(p => p.assignedTo === String(v.id) && !geliehen?.has(p.id)));
   }
   const festeLeute = new Set([...fest.values()].flat());
 
@@ -2006,6 +2009,59 @@ function planeWache(b, roster, vollBesetzen = S.opts.vollBesetzen !== false) {
     zuweisung.set(v.id, r.leute);
   }
 
+  /* Nachschlag: bleibt ein Fahrzeug lahm, weil seine Fachkraft auf einem
+     grünen Fahrzeug sitzt, das sie gar nicht braucht, wird sie umgesetzt und
+     die Wache noch einmal geplant (D-94).
+
+     Der Schutz bleibt gewahrt, denn geliehen wird nur, wer dort entbehrlich
+     ist: `fehltAn` muss für das grüne Fahrzeug **ohne** diese Person weiterhin
+     leer bleiben — Mindestbesetzung und eigene Lehrgänge also weiterhin
+     gedeckt. Es verliert damit keinen Punkt, sondern tauscht eine Fachkraft
+     gegen jemanden aus dem Topf; aufgefüllt wird es im zweiten Durchgang.
+
+     Nur ein Anlauf: `geliehen` ist beim zweiten Aufruf gesetzt und hält die
+     Schleife an. */
+  if (!geliehen && lahm.length && fest.size && S.opts.gruenLeihen !== false) {
+    const fehlt = new Set(lahm.filter(x => !x.zuEng).map(x => x.grund)
+      .filter(k => k && k !== '__personal'));
+    const leihe = new Set();
+    /* Wer nach dem ersten Durchgang übrig ist, kann den frei werdenden Sitz
+       übernehmen. Mitgezählt wird, wie oft eine Spalte schon versprochen
+       wurde — sonst deckt derselbe Kopf vier Sitze auf dem Papier. */
+    const uebrigJeSpalte = new Map([...tabelle.values()].map(sp => [sp, sp.leute.length]));
+    const ersatzFuer = ag => {
+      for (const [sp, n] of uebrigJeSpalte) {
+        if (n <= 0 || !ag.alle.every(k => sp.kurse.has(k))) continue;
+        if ([...sp.kurse].some(k => fehlt.has(k))) continue;   // der fehlt gerade anderswo
+        return sp;
+      }
+      return null;
+    };
+    for (const [vid, besatzung] of fest) {
+      const gv = echteVon(b).find(x => x.id === vid);
+      if (!gv) continue;
+      const ag = anforderung(gv);
+      for (const p of besatzung) {
+        if (![...fehlt].some(k => p.kann.has(k))) continue;
+        const ohne = besatzung.filter(x => x !== p && !leihe.has(x.id)).map(x => x.kann);
+        // Erste Regel: das grüne Fahrzeug kommt auch ohne ihn aus
+        if (!fehltAn(gv, ohne)) { leihe.add(p.id); continue; }
+        /* Zweite Regel: die Lücke schließt ein Übriggebliebener. Sie gilt nur
+           beim Auffüllen, denn nur der zweite Durchgang setzt ihn wirklich
+           hinein — ohne ihn fiele das grüne Fahrzeug unter die
+           Mindestbesetzung und verlöre seinen Punkt. Genau der Fall des
+           grünen ELW 2, dessen ganze Besatzung doppelt qualifiziert ist:
+           einer von ihnen ist dort ersetzbar, auf der Drohne nicht. */
+        if (!vollBesetzen) continue;
+        const sp = ersatzFuer(ag);
+        if (!sp || fehltAn(gv, [...ohne, sp.kurse])) continue;
+        uebrigJeSpalte.set(sp, uebrigJeSpalte.get(sp) - 1);
+        leihe.add(p.id);
+      }
+    }
+    if (leihe.size) return planeWache(b, roster, vollBesetzen, leihe);
+  }
+
   /* Zweiter Durchgang: freie Sitze auffüllen. Volle Fahrzeuge sind im Einsatz
      mehr wert, und wer hier sitzt, sitzt sonst gar nirgends. Aufgefüllt wird
      nur aus Spalten, die nichts kosten — Fachkräfte bleiben frei. */
@@ -2037,7 +2093,8 @@ function planeWache(b, roster, vollBesetzen = S.opts.vollBesetzen !== false) {
     zuweisung.set(id, ps);
   }
   const uebrig = [...tabelle.values()].reduce((n, sp) => n + sp.leute.length, 0);
-  return { zuweisung, lahm, luecken, leute, uebrig, spalten: tabelle.size, fest: fest.size };
+  return { zuweisung, lahm, luecken, leute, uebrig, spalten: tabelle.size, fest: fest.size,
+           geliehen: geliehen ? geliehen.size : 0 };
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2566,6 +2623,12 @@ async function assignStaff(sel, dry) {
 
     if (plan.fest)
       log(`${b.caption}: ${plan.fest} grüne Fahrzeuge unangetastet — nur freie Sitze werden gefüllt`);
+    /* Der eine Eingriff an einem grünen Fahrzeug, der erlaubt ist — er gehört
+       genannt, sonst sucht man später vergeblich, warum dort jemand anderes sitzt. */
+    if (plan.geliehen)
+      log(`${b.caption}: ${plan.geliehen} Fachkräfte von grünen Fahrzeugen umgesetzt — `
+        + 'sonst wäre ein Fahrzeug ohne Besatzung geblieben. Die grünen behalten ihre '
+        + 'Mindestbesetzung.');
     if (S.opts.vollBesetzen === false)
       log(`${b.caption}: Auffüllen ist abgeschaltet — es bleibt bei der Mindestbesetzung`, 'warn');
     const vorgemerkt = mineOf(b).filter(istPlatzhalter).length;
@@ -4287,7 +4350,14 @@ function render() {
       <b>Fahrzeuge voll besetzen</b>
       <span style="color:var(--lp-dim2)">— sobald jedes Fahrzeug seine Mindestbesetzung hat,
       wandern die Übrigen auf freie Sitze. Wer einen Lehrgang hat, der an dieser Wache
-      gebraucht wird, bleibt frei.</span></label>`;
+      gebraucht wird, bleibt frei.</span></label>
+    <label style="display:block;margin:0 0 10px;color:var(--lp-dim)">
+      <input type="checkbox" id="lssp-leihen" ${S.opts.gruenLeihen !== false ? 'checked' : ''}>
+      <b>Fachkräfte von grünen Fahrzeugen umsetzen</b>
+      <span style="color:var(--lp-dim2)">— wenn ein Fahrzeug sonst ohne Besatzung bliebe.
+      Nur wer auf dem grünen Fahrzeug entbehrlich ist: es behält seine Mindestbesetzung
+      und damit seinen Punkt. Ohne das steht der ELW2 Drohne für immer, sobald seine
+      Doppelqualifizierten auf einem grünen ELW 2 sitzen.</span></label>`;
   const heimwarnung = tab !== 'personal' ? '' : `
     <div style="border:1px solid #6b4a1f;background:#2a1f10;border-radius:3px;padding:9px 11px;margin:0 0 10px;color:var(--lp-akzent)">
       <b>Vorher alle Fahrzeuge einrücken lassen.</b> Der Status lässt sich nur umschalten, wenn ein
@@ -4507,6 +4577,9 @@ function render() {
   });
   b.querySelector('#lssp-voll')?.addEventListener('change', e => {
     S.opts.vollBesetzen = e.target.checked; store.set(KEY_OPTS, S.opts);
+  });
+  b.querySelector('#lssp-leihen')?.addEventListener('change', e => {
+    S.opts.gruenLeihen = e.target.checked; store.set(KEY_OPTS, S.opts);
   });
   b.querySelectorAll('input[name=lsspmode]').forEach(r => r.onchange = e => {
     S.opts.strict = e.target.value === 'strict'; store.set(KEY_OPTS, S.opts);

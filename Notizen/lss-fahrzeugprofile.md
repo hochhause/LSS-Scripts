@@ -6,7 +6,10 @@ gemeinsam erarbeiteten Profile.
 **Regeln, die überall gelten**
 
 - Löschfahrzeuge ausschließlich HLF 20, Einsatzleitung ausschließlich ELW 2,
-  Schlauchwagen ausschließlich SW 2000-Tr
+  Schlauchwagen ausschließlich SW 2000-Tr — **Ausnahme seit 12.09.2026**: die
+  Feuerwache führt zusätzlich ein SLF (Sasha, D-93). TLF 3000 ist dafür
+  entfallen, das GTLF ebenfalls — aber nur im Profil `standard`; die
+  Schwerpunktwache behält es.
 - Lehrgangsfahrzeuge werden voll besetzt
 - Anhänger sind fest einem Zugfahrzeug zugeordnet
 - Rettungsdienst und Wasserrettung stehen nur in eigenen Gebäuden, nie in Feuerwachen
@@ -52,14 +55,14 @@ Abrollbehälter-Stellplatz ×14 · Anhänger-Stellplatz ×5 · Netzersatzanlage 
 | Dekon-P | 1 | normal | 1 / 6 | dekon_p: an der EST | 6 |
 | ELW 2 | 1 | normal | 1 / 6 | elw2: alle | — |
 | FwK | 1 | normal | 1 / 2 | fwk: alle | — |
-| GTLF | 1 | normal | 1 / 3 | — | — |
 | GW-A | 1 | normal | 1 / 3 | — | — |
 | GW-Gefahrgut | 1 | normal | 1 / 3 | gw_gefahrgut: alle | — |
 | GW-Höhenrettung | 1 | normal | 1 / 9 | gw_hoehenrettung: alle | — |
 | GW-Lüfter | 1 | normal | 1 / 2 | — | — |
 | GW-Messtechnik | 1 | normal | 1 / 3 | gw_messtechnik: alle | — |
+| GW-Öl | 1 | normal | 1 / 3 | — | — |
+| SLF | 1 | normal | 1 / 2 | — | — |
 | SW 2000-Tr | 1 | normal | 1 / 3 | — | — |
-| TLF 3000 | 1 | normal | 1 / 3 | — | — |
 | AB-Atemschutz | 2 | ab | 0 / 0 | — | — |
 | AB-L | 2 | ab | 0 / 0 | — | — |
 | AB-Lüfter | 2 | ab | 0 / 0 | — | — |
@@ -106,10 +109,11 @@ Abrollbehälter-Stellplatz ×14 · Anhänger-Stellplatz ×5 · Netzersatzanlage 
 | GW-Höhenrettung | 1 | normal | 1 / 9 | gw_hoehenrettung: alle | — |
 | GW-Lüfter | 1 | normal | 1 / 2 | — | — |
 | GW-Messtechnik | 1 | normal | 1 / 3 | gw_messtechnik: alle | — |
+| GW-Öl | 1 | normal | 1 / 3 | — | — |
 | GW-Werkfeuerwehr | 1 | normal | 1 / 9 | werkfeuerwehr: alle | — |
 | Rettungstreppe | 1 | normal | 2 / 2 | rettungstreppe: alle | — |
+| SLF | 1 | normal | 1 / 2 | — | — |
 | SW 2000-Tr | 1 | normal | 1 / 3 | — | — |
-| TLF 3000 | 1 | normal | 1 / 3 | — | — |
 | TM 50 | 1 | normal | 1 / 3 | werkfeuerwehr: alle | — |
 | Turbolöscher | 1 | normal | 1 / 3 | werkfeuerwehr: alle | — |
 | ULF mit Löscharm | 1 | normal | 1 / 3 | werkfeuerwehr: alle | — |
