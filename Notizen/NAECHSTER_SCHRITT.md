@@ -26,7 +26,10 @@ Dinge sind gebaut, aber noch nie im Spiel gesehen worden:
 
 - **Namensvorlagen** (Reiter „Namen", seit v0.59.0, D-86). Anzusehen: die zwei
   Vorlagenfelder, die anklickbaren Marken (fügen sie an der Schreibmarke ein?),
-  die Vorschau samt Warnungen, und die zwei aufklappbaren Alias-Listen. Der
+  die Vorschau samt Warnungen, und die **drei** aufklappbaren Alias-Listen —
+  Fahrzeugtypen, Gebäudearten (neu, für `{stationAlias}`, D-91) und
+  Leitstellen. Dabei gleich prüfen, ob `{stationAlias} {number}` in der
+  Wachenvorlage wirklich „Feuer 1", „Feuer 2" ergibt. Der
   Rechenkern ist mit 73 Proben abgedeckt, die Oberfläche nicht.
   **Mit „Nur Vorschau" an anfangen** — der Lauf benennt Fahrzeuge und Wachen um.
 - **Einrücken über den Einsatz** (`lss-einruecken.user.js` v0.3.0, D-90). Der

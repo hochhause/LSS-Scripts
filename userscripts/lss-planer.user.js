@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.61.0
+// @version      0.62.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.61.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.62.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -1130,7 +1130,7 @@ const MARKEN = {
   tagging:       { hilfe: 'eigene Typbezeichnung (sonst wie {vehicleType})',
                    wert: k => k.typKurz || k.typName },
   stationName:   { hilfe: 'Name der Wache, ohne Punkt',  wert: k => k.wache },
-  stationAlias:  { hilfe: 'eigener Wachenname (sonst wie {stationName})',
+  stationAlias:  { hilfe: 'eigener Name der Gebäudeart (sonst wie {stationName})',
                    wert: k => k.wacheKurz || k.wache },
   number:        { hilfe: 'Zähler — bei Fahrzeugen je Typ auf der Wache, '
                         + 'bei Wachen je Gebäudeart im ganzen Bestand',
@@ -1371,12 +1371,22 @@ const VORLAGE_STANDARD = '{punkt} {old}';   // = Verhalten bis v0.58.0
 const NAME_MAX_STANDARD = 150;
 
 const KEY_ALIAS_TYP   = 'lssplaner.aliasTyp';
+const KEY_ALIAS_ART   = 'lssplaner.aliasGebArt';
 const KEY_ALIAS_WACHE = 'lssplaner.aliasWache';
 /* Gespeichert werden nur Abweichungen. 186 Katalognamen als „Alias" in den
-   Speicher zu schreiben hätte keinen Leser und keinen Nutzen. */
+   Speicher zu schreiben hätte keinen Leser und keinen Nutzen.
+
+   `{stationAlias}` hängt seit v0.62.0 an der **Gebäudeart**, nicht mehr am
+   einzelnen Gebäude (Sasha, 12.09. — D-91). Ein Alias je Wache war für sich
+   schon der fertige Name; daneben blieb `{number}` ohne Aufgabe. Erst „Feuer"
+   für alle Feuerwachen macht `{stationAlias} {number}` zu „Feuer 1", „Feuer 2".
+   Je Gebäude bleibt der Alias nur dort, wo er wirklich ein einzelnes Haus
+   meint: die Leitstelle hinter `{dispatchAlias}`. */
 const aliasTypAlle   = store.get(KEY_ALIAS_TYP, {});
+const aliasArtAlle   = store.get(KEY_ALIAS_ART, {});
 const aliasWacheAlle = store.get(KEY_ALIAS_WACHE, {});
 const aliasTyp   = id => aliasTypAlle[String(id)] || '';
+const aliasArt   = id => (id == null ? '' : aliasArtAlle[String(id)] || '');
 const aliasWache = id => (id == null ? '' : aliasWacheAlle[String(id)] || '');
 const leitstelleName = b => S.buildings
   .find(x => String(x.id) === String(b.leitstelle_building_id))?.caption || '';
@@ -1391,7 +1401,7 @@ function kontextFahrzeug(b, v, punkt) {
     typName:        T.vehName(v.vehicle_type),
     typKurz:        aliasTyp(v.vehicle_type),
     wache:          ohneHaken(b.caption),
-    wacheKurz:      aliasWache(b.id),
+    wacheKurz:      aliasArt(b.building_type),
     nummer:         typZaehler(echteVon(b), v, Number(S.opts.zaehlerStart ?? 1),
                                !!S.opts.zaehlerAbEins),
     leitstelle:     ohneHaken(leitstelleName(b)),
@@ -1407,7 +1417,7 @@ function kontextWache(b, punkt) {
     id:             b.id,
     alt:            ohneHaken(b.caption),
     wache:          ohneHaken(b.caption),
-    wacheKurz:      aliasWache(b.id),
+    wacheKurz:      aliasArt(b.building_type),
     nummer:         wachenZaehler(b, Number(S.opts.zaehlerStart ?? 1),
                                   !!S.opts.zaehlerAbEins),
     leitstelle:     ohneHaken(leitstelleName(b)),
@@ -1448,7 +1458,7 @@ function vorlagenPruefen() {
 
 /** Setzt oder entfernt das Häkchen je nach Fortschritt. */
 async function hakenAbgleichen(sel, dry) {
-  let n = 0, i = 0, zuLang = 0;
+  let n = 0, i = 0, zuLang = 0, gleichFz = 0, gleichWa = 0;
   const grenze = Number(S.opts.nameMax ?? NAME_MAX_STANDARD);
   const pruefung = vorlagenPruefen();
   pruefung.hinweise.forEach(t => log(t, 'warn'));
@@ -1457,6 +1467,15 @@ async function hakenAbgleichen(sel, dry) {
     log('Nichts umbenannt — erst die Vorlage richtigstellen.', 'err');
     return 0;
   }
+  /* Bis v0.61.0 hing `{stationAlias}` am einzelnen Gebäude. Wer von damals noch
+     Aliase stehen hat, soll nicht rätseln, warum sie nichts mehr bewirken —
+     gemeldet wird nur, wenn die Vorlage die Marke überhaupt benutzt. */
+  const altAliase = Object.keys(aliasWacheAlle).filter(id =>
+    !S.buildings.some(x => String(x.leitstelle_building_id) === String(id)));
+  if (altAliase.length && /\{stationAlias\}/.test(pruefung.vorlageFz + pruefung.vorlageWache))
+    log(`${altAliase.length} eigene Wachennamen aus früheren Fassungen wirken nicht mehr — `
+      + '{stationAlias} hängt jetzt an der Gebäudeart. Die Felder dafür stehen im Reiter „Namen".', 'warn');
+
   const markenFz = markenFuer(MARKEN_FZ), markenWa = markenFuer(MARKEN_WACHE);
   for (const b of sel) {
     schritt(i++, sel.length, b.caption);
@@ -1517,7 +1536,11 @@ async function hakenAbgleichen(sel, dry) {
         }
 
         const soll = nameAus(pruefung.vorlageFz, markenFz, kontextFahrzeug(b, v, voll));
-        if (soll === v.caption) continue;
+        /* Steht der Name schon so im Spiel, geht dafür keine Anfrage hinaus —
+           weder Formular noch Schreibvorgang. Gezählt wird es trotzdem: sonst
+           sieht ein Lauf, der nichts zu tun hatte, genauso aus wie einer, der
+           die Wache übersehen hat. */
+        if (soll === v.caption) { gleichFz++; continue; }
         /* Der Schutz zuerst: ein grünes Fahrzeug wird ohnehin nicht angefaßt,
            und es soll nicht als „zu lang" in einer Zählung auftauchen, die
            nach einem Namensproblem klingt. */
@@ -1545,7 +1568,6 @@ async function hakenAbgleichen(sel, dry) {
       }
     }
 
-    const f = fortschritt(b);
     /* Das Urteil über die Wache braucht seit v0.51.0 keine Personal- oder
        Lehrgangszahlen mehr — es hängt allein an den Punkten der Fahrzeuge, und
        die stehen entweder im Namen oder sind gerade eben ermittelt worden.
@@ -1561,6 +1583,7 @@ async function hakenAbgleichen(sel, dry) {
       /* Der Grund ist jetzt ein anderer: nicht mehr „was ist offen", sondern
          „welche Fahrzeuge tragen keinen Punkt". Was sonst noch aussteht, steht
          weiterhin daneben — es entscheidet nur nicht mehr über den Punkt. */
+      const f = fortschritt(b);        // nur für diese Meldung, sonst gespart
       const fz = mineOf(b);
       const ohne = fz.filter(v => !((punktSoll.has(v.id)) ? punktSoll.get(v.id) : hatHaken(v.caption)));
       const rest = [];
@@ -1572,7 +1595,13 @@ async function hakenAbgleichen(sel, dry) {
         : `${ohne.length} von ${fz.length} Fahrzeugen ohne Punkt`}`
         + (rest.length ? ` (außerdem offen: ${rest.join(', ')})` : ''));
     }
-    if (soll === b.caption) continue;
+    if (soll === b.caption) {
+      /* Auch hier: kein Abruf. Der Mensch sieht sonst eine Wache im Fortschritt
+         vorbeiziehen und weiß hinterher nicht, ob sie stimmte oder ausfiel. */
+      gleichWa++;
+      log(`${b.caption}: Name bleibt — kein Abruf nötig`);
+      continue;
+    }
     if (geschuetzt(b)) { schutzZaehlen(); continue; }
     if (soll.length > grenze) {
       log(`${b.caption}: neuer Name wäre ${soll.length} Zeichen lang (Grenze ${grenze}) `
@@ -1584,6 +1613,8 @@ async function hakenAbgleichen(sel, dry) {
     try { await umbenennen(b, soll, dry); n++; }
     catch (e) { log(`   fehlgeschlagen: ${e.message}`, 'err'); break; }
   }
+  if (gleichFz || gleichWa)
+    log(`Unverändert: ${gleichWa} Wachen, ${gleichFz} Fahrzeuge — dafür ging keine Anfrage hinaus.`);
   if (zuLang) log(`${zuLang} Namen übersprungen, weil sie länger als ${grenze} Zeichen wären. `
     + 'Die echte Grenze des Spiels ist unbekannt — sie steht in den Einstellungen und '
     + 'lässt sich heraufsetzen.', 'warn');
@@ -4289,6 +4320,18 @@ function render() {
       .map(v => String(v.vehicle_type)))]
     .sort((x, y) => String(T.vehName(x)).localeCompare(String(T.vehName(y)), 'de'));
 
+  /* Was der Spieler wirklich hat — je Gebäudeart eine Zeile statt je Wache.
+     `b` ist hier schon der Panel-Rumpf, deshalb `b2` in den Schleifen. */
+  const eigeneArten = [...new Set(planWachen().map(b2 => String(b2.building_type)))]
+    .sort((x, y) => T.btName(x).localeCompare(T.btName(y), 'de'));
+  /* Leitstellen aus den Verweisen des Bestands, nicht am Gebäudetyp geraten:
+     `{dispatchAlias}` löst genau über `leitstelle_building_id` auf, also steht
+     hier auch genau das zur Auswahl. */
+  const leitstellen = [...new Set(S.buildings.map(b2 => b2.leitstelle_building_id).filter(Boolean))]
+    .map(id => S.buildings.find(x => String(x.id) === String(id)))
+    .filter(Boolean)
+    .sort((x, y) => ohneHaken(x.caption).localeCompare(ohneHaken(y.caption), 'de'));
+
   const aliasBlock = () => `
     <details style="margin:0 0 8px">
       <summary style="cursor:pointer;color:var(--lp-dim)">Eigene Typbezeichnungen
@@ -4302,14 +4345,27 @@ function render() {
       </div>
     </details>
     <details style="margin:0 0 8px">
-      <summary style="cursor:pointer;color:var(--lp-dim)">Eigene Wachennamen
-        <span style="color:var(--lp-dim2)">— für {stationAlias} und {dispatchAlias}</span></summary>
+      <summary style="cursor:pointer;color:var(--lp-dim)">Eigene Namen je Gebäudeart
+        <span style="color:var(--lp-dim2)">— für {stationAlias}, ${eigeneArten.length} Arten im
+        Bestand. Zusammen mit {number} wird daraus „Feuer 1", „Feuer 2".</span></summary>
       <div style="max-height:190px;overflow:auto;margin-top:5px">
-        ${planWachen().map(w => `<label class="row" style="gap:6px;margin:2px 0">
+        ${eigeneArten.map(t => `<label class="row" style="gap:6px;margin:2px 0">
+            <span style="flex:1;color:var(--lp-dim)">${esc(T.btName(t))}</span>
+            <input type="text" class="lssp-alias" data-art="art" data-id="${escA(t)}"
+                   value="${escA(aliasArt(t))}" placeholder="${escA(T.btName(t))}"
+                   style="width:150px"></label>`).join('')}
+      </div>
+    </details>
+    <details style="margin:0 0 8px">
+      <summary style="cursor:pointer;color:var(--lp-dim)">Eigene Leitstellennamen
+        <span style="color:var(--lp-dim2)">— für {dispatchAlias}</span></summary>
+      <div style="max-height:190px;overflow:auto;margin-top:5px">
+        ${leitstellen.length ? leitstellen.map(w => `<label class="row" style="gap:6px;margin:2px 0">
             <span style="flex:1;color:var(--lp-dim)">${esc(ohneHaken(w.caption))}</span>
             <input type="text" class="lssp-alias" data-art="wache" data-id="${escA(w.id)}"
                    value="${escA(aliasWache(w.id))}" placeholder="${escA(ohneHaken(w.caption))}"
-                   style="width:150px"></label>`).join('')}
+                   style="width:150px"></label>`).join('')
+          : '<span style="color:var(--lp-dim2)">Keine Leitstelle im Bestand — nichts zu benennen.</span>'}
       </div>
     </details>`;
 
@@ -4423,11 +4479,17 @@ function render() {
      Alias — sonst sammelte sich dort mit der Zeit jeder Katalogname. */
   b.querySelectorAll('.lssp-alias').forEach(feld => {
     feld.addEventListener('change', () => {
-      const wo = feld.dataset.art === 'typ' ? aliasTypAlle : aliasWacheAlle;
+      /* Drei Töpfe: Fahrzeugtyp, Gebäudeart, einzelnes Gebäude (die Leitstelle).
+         Als Tabelle, damit ein vierter Topf eine Zeile kostet und nicht zwei
+         ineinandergeschachtelte Fragen. */
+      const topf = { typ:   [aliasTypAlle,   KEY_ALIAS_TYP],
+                     art:   [aliasArtAlle,   KEY_ALIAS_ART],
+                     wache: [aliasWacheAlle, KEY_ALIAS_WACHE] }[feld.dataset.art];
+      if (!topf) return;
       const wert = feld.value.trim();
-      if (wert) wo[String(feld.dataset.id)] = wert;
-      else delete wo[String(feld.dataset.id)];
-      store.set(feld.dataset.art === 'typ' ? KEY_ALIAS_TYP : KEY_ALIAS_WACHE, wo);
+      if (wert) topf[0][String(feld.dataset.id)] = wert;
+      else delete topf[0][String(feld.dataset.id)];
+      store.set(topf[1], topf[0]);
       ['fz', 'wache'].forEach(vorschauZeichnen);
     });
   });

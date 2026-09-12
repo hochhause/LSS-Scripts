@@ -2037,3 +2037,59 @@ Installation als Aktualisierung an.
 auf `/missions/<id>` noch die Antwort des Verweises sind nachgemessen; die
 Vorlage kam aus einer Seite, die Sasha gelesen hat. Mit „Nur Vorschau"
 anfangen — sie liest nur.
+
+## D-91 `{stationAlias}` hängt an der Gebäudeart, nicht am Gebäude (v0.62.0)
+
+**Lage.** Der Alias für Wachen war je Gebäude gepflegt — 103 Felder, eines je
+Wache. Damit war er für sich schon der fertige Name: wer „Feuer 03" eintrug,
+brauchte keine Vorlage mehr, und `{number}` stand daneben ohne Aufgabe.
+`{number}` gilt seit v0.61.0 auch für Wachen (D-89), lief aber ins Leere.
+
+**Entschieden.** Sasha, 12.09.: der Alias gehört an die **Gebäudeart**. Ein
+Eintrag „Feuer" für den Gebäudetyp 0, und `{stationAlias} {number}` macht
+daraus „Feuer 1", „Feuer 2", „Feuer 3" — über den ganzen Bestand durchgezählt,
+wie `wachenZaehler` es ohnehin rechnet. Aus 103 Feldern werden so viele, wie
+der Bestand Gebäudearten hat.
+
+**Nicht verschoben: der Leitstellen-Alias.** `{dispatchAlias}` meint ein
+einzelnes Haus, nicht eine Art — „alle Leitstellen heißen gleich" wäre
+sinnlos. Er bleibt deshalb je Gebäude (`lssplaner.aliasWache`), und die
+Oberfläche zeigt dafür nur noch die Häuser, die im Bestand wirklich als
+Leitstelle geführt werden. Abgelesen wird das an `leitstelle_building_id`,
+nicht am Gebäudetyp — dieselbe Quelle, aus der `{dispatchAlias}` auflöst.
+
+**Preis, und er ist sichtbar gemacht.** Wer vorher je Wache einen Alias
+gepflegt hatte, verliert dessen Wirkung auf `{stationAlias}` — auch in der
+**Fahrzeugvorlage**, wo die Marke bis dahin die einzelne Wache benannte. Die
+alten Einträge bleiben im Speicher stehen (sie tragen die Leitstellen), also
+wird beim Namenslauf gemeldet, wie viele davon nicht mehr wirken, sobald die
+Vorlage `{stationAlias}` benutzt. Verworfen wurde, sie **umzurechnen**: aus
+zehn verschiedenen Aliasen derselben Gebäudeart ließe sich keiner wählen, ohne
+zu raten, und ein geratener Alias benennt stillschweigend hundert Gebäude um.
+
+## D-92 Unveränderte Namen werden gezählt und gemeldet (v0.62.0)
+
+**Lage.** `hakenAbgleichen` übersprang gleiche Namen schon immer — `soll ===
+caption` und weiter, ohne Abruf. Nur sagte es das niemandem: im Protokoll stand
+dann gar nichts, und ein Lauf über hundert Wachen sah aus, als hätte er
+geschlafen.
+
+**Entschieden.** Jede Wache, deren Name bleibt, bekommt eine Zeile („Name
+bleibt — kein Abruf nötig"); Fahrzeuge werden gezählt und am Ende als Summe
+genannt. Das ist dieselbe Regel wie überall in diesem Skript: „nichts passiert"
+und „nichts zu tun" müssen unterscheidbar sein.
+
+**Was es nicht schneller macht, und warum das hier steht.** Sashas Annahme war,
+für gleiche Namen ginge eine Anfrage hinaus. Das stimmte nicht — die Zeit des
+Namenslaufs steckt woanders: `readRoster(b)` liest je Wache
+`/vehicles/<id>/zuweisung`, damit überhaupt feststeht, welches Fahrzeug den
+grünen Punkt trägt. Ein Abruf je Wache, unabhängig davon, ob sich am Ende ein
+Name ändert. Ohne diesen Abruf gäbe es keine Punktbeurteilung, und der Punkt
+ist der Zweck des Laufs.
+
+Gespart wurde nur, was ohne Abruf ging: `fortschritt(b)` wird nicht mehr je
+Wache gerechnet, sondern erst in dem Zweig, der es meldet.
+
+Offen, falls es einmal wirklich eilt: ein Schalter „Punkte nicht neu
+beurteilen". Dann fiele der Abruf je Wache weg und der Lauf benennte nur um,
+mit den Punkten, die schon in den Namen stehen.
