@@ -48,11 +48,11 @@ Abrollbehälter-Stellplatz ×14 · Anhänger-Stellplatz ×5 · Netzersatzanlage 
 
 | Fahrzeug | Anzahl | Topf | Besatzung | Ausbildung | EST |
 |---|---|---|---|---|---|
-| HLF 20 | 6 | normal | 1 / 9 | — | — |
-| DLK 23 | 2 | normal | 1 / 3 | — | — |
+| HLF 20 | 5 | normal | 1 / 9 | — | — |
 | GW-L2-Wasser | 2 | normal | 1 / 3 | — | — |
 | WLF | 2 | normal | 1 / 3 | wechsellader: alle | — |
 | Dekon-P | 1 | normal | 1 / 6 | dekon_p: an der EST | 6 |
+| DLK 23 | 1 | normal | 1 / 3 | — | — |
 | ELW 2 | 1 | normal | 1 / 6 | elw2: alle | — |
 | FwK | 1 | normal | 1 / 2 | fwk: alle | — |
 | GW-A | 1 | normal | 1 / 3 | — | — |
@@ -62,7 +62,6 @@ Abrollbehälter-Stellplatz ×14 · Anhänger-Stellplatz ×5 · Netzersatzanlage 
 | GW-Messtechnik | 1 | normal | 1 / 3 | gw_messtechnik: alle | — |
 | GW-Öl | 1 | normal | 1 / 3 | — | — |
 | SLF | 1 | normal | 1 / 2 | — | — |
-| SW 2000-Tr | 1 | normal | 1 / 3 | — | — |
 | AB-Atemschutz | 2 | ab | 0 / 0 | — | — |
 | AB-L | 2 | ab | 0 / 0 | — | — |
 | AB-Lüfter | 2 | ab | 0 / 0 | — | — |
@@ -81,9 +80,9 @@ Abrollbehälter-Stellplatz ×14 · Anhänger-Stellplatz ×5 · Netzersatzanlage 
 | HLF Schiene | 1 | bahn | 1 / 9 | railway_fire: alle | — |
 | GW-Tierrettung | 1 | tier | 2 / 6 | — | — |
 
-Fahrzeuge gesamt **45**, Vollbesetzung **145** Personen
+Fahrzeuge gesamt **42**, Vollbesetzung **129** Personen
 
-Töpfe: Normal 23 · Abrollbehälter 12 · Anhänger 5 · Drohne 1 · Verpflegung 2 · Bahnrettung 1 · Tierrettung 1
+Töpfe: Normal 20 · Abrollbehälter 12 · Anhänger 5 · Drohne 1 · Verpflegung 2 · Bahnrettung 1 · Tierrettung 1
 
 ### Profil `standard-groß`
 
@@ -95,12 +94,12 @@ Abrollbehälter-Stellplatz ×14 · Anhänger-Stellplatz ×5 · Netzersatzanlage 
 
 | Fahrzeug | Anzahl | Topf | Besatzung | Ausbildung | EST |
 |---|---|---|---|---|---|
-| HLF 20 | 6 | normal | 1 / 9 | — | — |
 | GW-L2-Wasser | 4 | normal | 1 / 3 | — | — |
+| HLF 20 | 4 | normal | 1 / 9 | — | — |
 | WLF | 3 | normal | 1 / 3 | wechsellader: alle | — |
-| DLK 23 | 2 | normal | 1 / 3 | — | — |
 | FLF | 2 | normal | 2 / 3 | arff: alle | — |
 | Dekon-P | 1 | normal | 1 / 6 | dekon_p: an der EST | 6 |
+| DLK 23 | 1 | normal | 1 / 3 | — | — |
 | ELW 2 | 1 | normal | 1 / 6 | elw2: alle | — |
 | FwK | 1 | normal | 1 / 2 | fwk: alle | — |
 | GTLF | 1 | normal | 1 / 3 | — | — |
@@ -113,7 +112,6 @@ Abrollbehälter-Stellplatz ×14 · Anhänger-Stellplatz ×5 · Netzersatzanlage 
 | GW-Werkfeuerwehr | 1 | normal | 1 / 9 | werkfeuerwehr: alle | — |
 | Rettungstreppe | 1 | normal | 2 / 2 | rettungstreppe: alle | — |
 | SLF | 1 | normal | 1 / 2 | — | — |
-| SW 2000-Tr | 1 | normal | 1 / 3 | — | — |
 | TM 50 | 1 | normal | 1 / 3 | werkfeuerwehr: alle | — |
 | Turbolöscher | 1 | normal | 1 / 3 | werkfeuerwehr: alle | — |
 | ULF mit Löscharm | 1 | normal | 1 / 3 | werkfeuerwehr: alle | — |
@@ -137,9 +135,9 @@ Abrollbehälter-Stellplatz ×14 · Anhänger-Stellplatz ×5 · Netzersatzanlage 
 | HLF Schiene | 1 | bahn | 1 / 9 | railway_fire: alle | — |
 | GW-Tierrettung | 1 | tier | 2 / 6 | — | — |
 
-Fahrzeuge gesamt **57**, Vollbesetzung **180** Personen
+Fahrzeuge gesamt **54**, Vollbesetzung **158** Personen
 
-Töpfe: Normal 33 · Abrollbehälter 12 · Anhänger 5 · NEA200 2 · Drohne 1 · Verpflegung 2 · Bahnrettung 1 · Tierrettung 1
+Töpfe: Normal 30 · Abrollbehälter 12 · Anhänger 5 · NEA200 2 · Drohne 1 · Verpflegung 2 · Bahnrettung 1 · Tierrettung 1
 
 ## Rettungswache  `Typ 2`
 

@@ -1,5 +1,6 @@
 {
  "0": {
+  "maxLevel": 19,
   "pools": [
    {
     "key": "normal",

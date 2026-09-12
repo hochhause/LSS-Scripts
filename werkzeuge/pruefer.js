@@ -159,6 +159,7 @@ try {
   const LAY = new Function(stueck('const LAYOUTS_STANDARD = {', '\nconst ') + 'return LAYOUTS_STANDARD;')();
   const MOD = new Function(stueck('const MODELL_STANDARD = {', '\nconst ') + 'return MODELL_STANDARD;')();
   let schief = 0, geprueft = 0;
+  const ohneEndstufe = new Set();   // Gebäudearten ohne `maxLevel` im Layout
   for (const [typ, eintrag] of Object.entries(MOD)) {
     const lay = LAY[typ];
     const bekannt = lay?.pools?.map(p => p.key) || ['normal'];
@@ -175,18 +176,43 @@ try {
           + `(bekannt: ${bekannt.join(', ')}) — die Fahrzeuge fallen in „${bekannt[0]}"`);
       }
       for (const topf of (lay?.pools || [])) {
-        if (topf.from === 'level' || topf.from === 'fixed') continue;   // wächst mit der Stufe
+        let kapazitaet, woher;
+        if (topf.from === 'level') {
+          /* Der Stufen-Topf wuchs bisher als unpruefbar durch — „waechst mit der
+             Stufe". Auf der Endstufe waechst er nicht mehr, und genau dort sass
+             die Ueberbuchung der Feuerwache drei Fassungen lang unbemerkt
+             (D-95). Prueffbar wird er, sobald `maxLevel` im Layout steht. */
+          if (lay.maxLevel == null) { ohneEndstufe.add(String(typ)); continue; }
+          kapazitaet = lay.maxLevel + 1;
+          const zusatz = [];
+          for (const [c, add] of Object.entries(topf.bonus || {})) {
+            const n = (prof.extensions || {})[c] || 0;
+            kapazitaet += n * add;
+            if (n) zusatz.push(`${c} +${n * add}`);
+          }
+          woher = `Endstufe ${lay.maxLevel} + 1${zusatz.length ? ', ' + zusatz.join(', ') : ''}`;
+        } else if (topf.from === 'fixed') {
+          /* `base` ist bei THW, BePol und SEG keine Platzzahl, sondern ein
+             Platzhalter — dort bringt jeder Ausbau seine eigenen Stellplätze
+             mit, und das Layout führt sie in einem einzigen Topf. Rechnen
+             ließe sich das nur mit einer Tabelle, die es nicht gibt. */
+          continue;
+        } else {
+          kapazitaet = ((prof.extensions || {})[topf.from] || 0) * (topf.per || 1);
+          woher = `${topf.from} ×${(prof.extensions || {})[topf.from] || 0}`;
+        }
         const geplant = proTopf[topf.key] || 0;
-        const kapazitaet = ((prof.extensions || {})[topf.from] || 0) * (topf.per || 1);
         if (geplant > kapazitaet) {
           schief++;
           melde('!', 1, `Typ ${typ} „${pname}": ${geplant}× ${topf.label} geplant, `
-            + `aber nur ${kapazitaet} Plätze (${topf.from} ×${(prof.extensions || {})[topf.from] || 0})`);
+            + `aber nur ${kapazitaet} Plätze (${woher})`);
         }
       }
     }
   }
   if (!schief) console.log(`  ok  ${geprueft} Profile passen zu ihren Stellplatztöpfen`);
+  if (ohneEndstufe.size) console.log(`  --  Stufen-Topf nicht geprüft bei Typ `
+    + `${[...ohneEndstufe].join(', ')} — im Layout fehlt \`maxLevel\``);
 } catch (e) { console.log('  nicht prüfbar: ' + e.message); }
 
 /* ── 6. Fassung ───────────────────────────────────────────────────────── */

@@ -2202,3 +2202,61 @@ Probe 32 hält alles fest: beide Fälle aus Sashas Bericht, den Punkt des grüne
 Fahrzeugs in jedem Zweig, das Verhalten ohne Auffüllen (nur die Entbehrlichen),
 den abgeschalteten Schalter und die Notbremse — ist niemand da, der den Sitz
 übernimmt, wird nicht geliehen.
+
+## D-95 Der Stufen-Topf der Feuerwache war überbucht (v0.65.0)
+
+**Lage.** Sasha, 12.09., beim Nachrechnen der Stellplätze: „Ergibt das 45 für
+standard? Gehen alle Fahrzeuge des Planers in diese Stellplätze?" Die Antwort
+war zweimal nein.
+
+Gerechnet für die Endstufe 19 (ein Platz von Anfang an, je Ausbaustufe einer
+dazu, mit Großwache zehn weitere):
+
+| Topf | `standard` | `standard-groß` |
+|---|---|---|
+| Normal | **23 auf 20** | **34 auf 30** |
+| alle übrigen | passen | passen |
+
+Nur der Stufen-Topf war zu klein, und zwar **seit Langem** — meine Änderung aus
+D-93 hat daran nichts geändert (TLF 3000 und GTLF raus, SLF und GW-Öl rein
+ergab bei `standard` dieselben 23) und `standard-groß` um genau eines
+verschlimmert. In der Praxis heißt überbucht: der Kauflauf meldet ewig „nur N
+von M — Stellplätze belegt", und welche Fahrzeuge nie gekauft werden,
+entscheidet die Reihenfolge statt des Menschen.
+
+**Warum es niemand sah.** `pruefer.js` prüft Wunschbild gegen Stellplätze —
+aber er übersprang den Stufen-Topf ausdrücklich, mit dem Kommentar „wächst mit
+der Stufe". Das stimmt, bis die Wache oben ist. Dann wächst nichts mehr, und
+genau dort lag der einzige ungeprüfte Topf.
+
+**Entschieden (Sasha).** Aus beiden Feuerwachenprofilen fliegen: **1 DLK 23**
+(von 2 auf 1), **der SW 2000-Tr** ganz, und beim `standard` **1 HLF 20** (6→5),
+beim `standard-groß` **2 HLF 20** (6→4). Damit stehen beide Profile exakt auf
+ihren Plätzen: 20 von 20 und 30 von 30.
+
+Ausdrücklich **nicht** angetastet: das GW-L2-Wasser. Sashas Begründung war die
+Anhängerkopplung — die trifft laut `PB` zwar nicht zu (Typ 11 zieht dort gar
+nichts), wohl aber auf den SW 2000-Tr, der sechs Anhänger ziehen darf. Vor dem
+Streichen wurde deshalb nachgerechnet, ob ein Anhänger des Plans dadurch ohne
+Zugfahrzeug dasteht: **keiner** — NEA50, NEA200, Anh Lüfter, Anh Schlauch und
+Anh Tierrettung werden auch von GW-Gefahrgut, Dekon-P, GW-A oder WLF gezogen.
+(`PB`-Zuglisten sind unvollständig, D-87 — geprüft ist damit nur, daß es
+mindestens einen Zieher gibt, nicht daß es der beste ist.)
+
+**Die Lücke ist geschlossen.** `LAYOUTS_STANDARD` trägt für die Feuerwache
+jetzt `maxLevel: 19` — das Feld wurde von `blockers()` längst gelesen, stand
+aber in keinem einzigen Layout. `pruefer.js` rechnet den Stufen-Topf damit mit
+(`maxLevel + 1`, plus Bonus je Ausbau) und sagt für die übrigen Gebäudearten
+ausdrücklich, daß er sie **nicht** prüfen konnte, weil die Endstufe fehlt.
+Gegenprobe: derselbe Prüfer meldet am alten Stand „23× Normal geplant, aber nur
+20 Plätze (Endstufe 19 + 1)".
+
+**Verworfen: auch die `fixed`-Töpfe zu prüfen.** Bei THW, BePol, SEG und den
+Polizei-Sondereinheiten ist `base` keine Platzzahl, sondern ein Platzhalter —
+dort bringt jeder Ausbau seine eigenen Plätze mit. Der erste Anlauf meldete
+prompt „42× Stellplätze geplant, aber nur 1 Platz" und wäre als Dauerfehlalarm
+geendet. Sie bleiben übersprungen, jetzt mit Begründung im Code.
+
+**Offen:** die Endstufen der übrigen Gebäudearten. Solange sie fehlen, bleibt
+deren Stufen-Topf ungeprüft — der Prüfer nennt sie beim Namen, damit die Lücke
+sichtbar bleibt statt wieder still zu sein.
