@@ -29,6 +29,14 @@ Dinge sind gebaut, aber noch nie im Spiel gesehen worden:
   die Vorschau samt Warnungen, und die zwei aufklappbaren Alias-Listen. Der
   Rechenkern ist mit 73 Proben abgedeckt, die Oberfläche nicht.
   **Mit „Nur Vorschau" an anfangen** — der Lauf benennt Fahrzeuge und Wachen um.
+- **Einrücken über den Einsatz** (`lss-einruecken.user.js` v0.3.0, D-90). Der
+  Verweis „Alle eigenen Fahrzeuge rückalarmieren" wird von `/missions/<id>`
+  gelesen, nicht gebaut — ob er beim Abruf ohne Browser überhaupt dasteht, ist
+  **nicht nachgemessen**. Erster Gang mit „Nur Vorschau": sie öffnet die
+  Einsatzseiten und schreibt je Einsatz, ob sie den Verweis gefunden hat. Steht
+  dort „kein Rückalarm-Verweis auf der Einsatzseite", genügt ein Stück der
+  Seite, um den Selektor zu richten. Danach an **einem** Einsatz scharf
+  ausprobieren, nicht an allen.
 - **Eigenes Fenster** (⇱ im Kopf). Popup-Blocker beim ersten Mal, und ob die
   Themenfarben drüben stimmen.
 - **Hinweis auf der Wachenseite** (versuchsweise, im Übersichtsreiter

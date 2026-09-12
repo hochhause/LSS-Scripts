@@ -116,7 +116,7 @@ gelesen. Ein neuer Fahrzeugtyp gehört nach `PB`, nicht in einen Plan.
 
 ## Nicht in dieser Ablage
 
-`lss-soll-ist.html` (das Artefakt), `lss-einruecken.user.js`,
-`lss-einsatz-flott.user.js`, `lss-katalog.json`, `domtest.js`. Sie gehören zum
+`lss-soll-ist.html` (das Artefakt), `lss-einsatz-flott.user.js`,
+`lss-katalog.json`, `domtest.js`. Sie gehören zum
 Projekt, sind hier aber nie angekommen. Wer sie hat, legt sie an die passende
 Stelle oben und schreibt README und `Notizen/PROJECT_CONTEXT.md` fort.

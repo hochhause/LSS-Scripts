@@ -1987,3 +1987,53 @@ genau die Sorte Doppelung, die in D-70 auseinandergelaufen ist.
 Probe 29 deckt beides ab: den Zähler mit allen vier Schalterstellungen und die
 Marken in einer echten Wachenvorlage — samt der Gegenprobe, daß
 `{vehicleType}` dort weiterhin wörtlich stehen bleibt.
+
+## D-90 Einrücken über den Einsatz, nicht über das Fahrzeug (lss-einruecken v0.3.0)
+
+**Lage.** Die erste Fassung rief je Fahrzeug `/vehicles/<id>/backalarm`. Für
+vierzig Fahrzeuge an acht Einsätzen sind das vierzig schreibende Anfragen —
+für eine Sache, die das Spiel in acht erledigt: auf jeder Einsatzseite steht
+der Verweis „Alle eigenen Fahrzeuge rückalarmieren".
+
+**Entschieden.** Gezählt, angezeigt und gerufen wird in **Einsätzen**. Der
+Bestand aus `/api/v2/vehicles` wird über `target_type === 'mission'` und
+`target_id` gruppiert; je Einsatz geht ein Aufruf hinaus.
+
+**Die Adresse wird nicht gebaut.** Der gemeldete Verweis trug Parameter
+(`?ifp=ne&ift=kt_al&sd=a&sk=cr`), deren Bedeutung niemand nachgemessen hat.
+Ob sie die Auswahl beeinflussen oder nur die Liste sortieren, aus der man kam,
+ist offen — und ein Probeaufruf wäre in diesem Spiel bereits die Tat gewesen
+(dieselbe Lehre wie beim Kauf, D-84). Also liest das Skript
+`/missions/<id>` und nimmt den `href`, wie er dasteht. Der eine Lesevorgang je
+Einsatz zahlt sich doppelt aus: fehlt der Verweis, wird der Einsatz **gemeldet
+und übersprungen** statt blind angestoßen, und „Nur Vorschau" kann deshalb
+mehr als raten — sie öffnet die Einsatzseiten und sagt, ob der Verweis dort
+steht.
+
+**Verworfen: ein Einsatz gilt erst als festhängend, wenn *alle* seine
+Fahrzeuge die Schwelle reißen.** Sasha, 11.09.: alarmiert wird schubweise,
+steht eines lange, stehen alle lange. Die strengere Regel hätte also nichts
+geschützt, aber ein einzelnes nachalarmiertes Fahrzeug hätte den ganzen
+Einsatz für immer unter der Schwelle gehalten. Aus demselben Grund steht in
+der Liste **nicht** mehr, wie viele Fahrzeuge unter der Schwelle mitkommen:
+daß der ganze Einsatz zurückkommt, ist der Zweck des Verweises, keine
+Nebenwirkung, vor der zu warnen wäre. Die Zahl der Fahrzeuge je Einsatz steht
+da, damit vorher zu sehen ist, was zurückkommt.
+
+**Preis.** Fahrzeuge, die unterwegs sind, aber an keinem Einsatz hängen —
+Rückfahrt, Krankenhaus, Sprechwunsch —, sind auf diesem Weg nicht erreichbar.
+Sie werden gezählt und mit ihrem Status genannt, nicht stillschweigend
+übergangen („N Fahrzeuge sind unterwegs, hängen aber an keinem Einsatz
+(frei Funk, Patient an Bord) — über den Einsatz sind sie nicht zu erreichen").
+Der frühere Weg je Fahrzeug ist **ersatzlos entfallen**: zwei Wege für
+dieselbe Sache laufen auseinander (D-70), und der teurere hätte nur die
+Randfälle bedient.
+
+**Fassung 0.3.0, nicht 0.1.0.** Draußen läuft eine nie hier abgelegte 0.2.0.
+`@updateURL` zeigt auf `main` — eine kleinere Nummer böte Tampermonkey keiner
+Installation als Aktualisierung an.
+
+**Noch nie im Spiel gesehen.** Weder der Selektor `a[href*="backalarmAll"]`
+auf `/missions/<id>` noch die Antwort des Verweises sind nachgemessen; die
+Vorlage kam aus einer Seite, die Sasha gelesen hat. Mit „Nur Vorschau"
+anfangen — sie liest nur.

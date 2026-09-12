@@ -5,7 +5,8 @@ Alles auf Deutsch, weil das Spiel es ist.
 
 > **Achtung:** Der Planer verändert ein echtes Spielkonto. Er kauft Fahrzeuge,
 > koppelt Anhänger, löst Personal ab und benennt Wachen um. Erst mit
-> **„Nur Vorschau"** laufen lassen, die Liste lesen, dann handeln.
+> **„Nur Vorschau"** laufen lassen, die Liste lesen, dann handeln. Dasselbe
+> gilt für „Einrücken": es holt Fahrzeuge aus laufenden Einsätzen zurück.
 
 ## Installieren
 
@@ -16,8 +17,9 @@ Firefox). Auf den Namen klicken, Tampermonkey fragt nach der Installation.
 |---|---|---|
 | [**LSS Planer**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-planer.user.js) | 0.49.1 | Vergleicht das hinterlegte Wunschbild mit dem Spielstand und setzt die Unterschiede um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge, Wachennamen. |
 | [**LSS Farben**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-farben.user.js) | 0.1.1 | Färbt fertige Wachen und Fahrzeuge grün, Status 6 rot, und nimmt den Markierungspunkt aus der Anzeige. |
+| [**LSS Einrücken**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-einruecken.user.js) | 0.3.0 | Ruft Fahrzeuge zurück — über den Verweis „Alle eigenen Fahrzeuge rückalarmieren" der Einsatzseite. Alle Einsätze auf einmal oder nur die, an denen zu lange etwas steht. |
 
-Beide Skripte tragen `@updateURL`. Tampermonkey fragt den Rohtext von `main`
+Alle drei Skripte tragen `@updateURL`. Tampermonkey fragt den Rohtext von `main`
 regelmäßig ab und bietet eine Korrektur von selbst an; von Hand geht es über
 *Dashboard → Hilfsprogramme → Alle Skripte aktualisieren*.
 

@@ -299,3 +299,38 @@ geplanten Typen des Profils `standard` und alle 40 von `standard-groß` sind
 kaufbar** — keine Lücke. 68 beziehungsweise 59 kaufbare Typen stehen nicht im
 Plan, darunter `RW (4)`, `GW-Öl (10)`, `Tankwagen (120)`, `Kleintankwagen (118)`
 und `RW-Schiene (162)`.
+
+## Einsatzseite und Rückalarm — gemeldet, nicht selbst nachgemessen
+
+Diese Seite steht hier mit einem Vorbehalt: sie wurde **nicht** wie die
+übrigen mit einem angemeldeten Browser aufgenommen. Was wir haben, ist ein
+Stück Papier, das Sasha am 11.09.2026 aus einer Einsatzseite gelesen hat:
+
+```html
+<a class="btn btn-default btn-xs" data-confirm="null"
+   href="/missions/<id>/backalarmAll?ifp=ne&ift=kt_al&sd=a&sk=cr">
+  Alle eigenen Fahrzeuge rückalarmieren</a>
+```
+
+Ablesbar daran, und mehr nicht:
+
+- Der Rückalarm ist ein **reiner GET-Verweis**. Kein `data-method`, also baut
+  Rails-UJS daraus kein POST — ein Abruf genügt, wie beim Kauf.
+- `data-confirm="null"` ist die Zeichenkette „null", nicht der Wert. Das Spiel
+  fragt hier also **nicht** nach. Die Rückfrage muß das Skript selbst stellen.
+- Der Verweis hängt am **Einsatz**, nicht am Fahrzeug, und nimmt „alle eigenen"
+  ohne weitere Auswahl.
+
+**Offen, und nur im Spiel zu klären:**
+
+- Was die vier Parameter `ifp=ne`, `ift=kt_al`, `sd=a`, `sk=cr` bedeuten. Sie
+  sehen nach Filter und Sortierung der Liste aus, aus der man kam — beweisen
+  läßt sich das nicht, und ob sie die Auswahl beschneiden, erst recht nicht.
+  Deshalb baut `lss-einruecken.user.js` die Adresse nicht, sondern liest den
+  `href` von `/missions/<id>` und ruft ihn unverändert auf (D-90).
+- Ob `a[href*="backalarmAll"]` auf der Einsatzseite steht, wenn man sie ohne
+  Browser abruft — also ob der Verweis serverseitig gerendert wird oder erst
+  durch ein Skript entsteht. Findet das Skript ihn nicht, meldet es das je
+  Einsatz und rührt den Einsatz nicht an.
+- Was der Aufruf antwortet, und ob ein Rückalarm ohne eigene Fahrzeuge am
+  Einsatz denselben `HTTP 200` liefert wie ein erfolgreicher.

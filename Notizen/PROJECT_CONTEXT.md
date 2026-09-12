@@ -11,7 +11,7 @@ unten oder wird aus dem Spiel gelesen.
 |---|---|
 | `lss-planer.user.js` | Userscript v0.49.0: setzt das Wunschbild im Spiel um |
 | `lss-farben.user.js` | v0.1.0: reine Anzeige — blendet den 🟢 aus und färbt den Namen grün, Status 6 rot |
-| `lss-einruecken.user.js` | v0.2.0: Fahrzeuge zurück zur Wache rufen — *nicht in dieser Ablage* |
+| `lss-einruecken.user.js` | v0.3.0: Fahrzeuge zurück zur Wache rufen — **über den Einsatz**, mit dem Verweis „Alle eigenen Fahrzeuge rückalarmieren" (D-90) |
 | `lss-einsatz-flott.user.js` | v0.3.0: nächsten Einsatz vorwärmen — *nicht in dieser Ablage* |
 | `CLAUDE.md` | Arbeitsanweisung: Sprache, Prüfungen, Gefahren |
 | `NAECHSTER_SCHRITT.md` | was offen ist |
@@ -187,6 +187,9 @@ GET  /vehicles/<id>/edit                            Zugfahrzeug-Auswahl des Anh�
 PATCH/vehicles/<id>                                 umbenennen, Anhänger koppeln
 POST /vehicles/<id>  _method=delete                 Fahrzeug ZERSTÖREN (nicht verkaufen —
                                                     das kennt das Spiel nicht), gemessen D-84
+GET  /missions/<id>                                 Einsatzseite; darin der Verweis
+                                                    /missions/<id>/backalarmAll — Rückalarm ALLER
+                                                    eigenen Fahrzeuge dieses Einsatzes (D-90)
 GET  /buildings/<id>/edit                           Wache umbenennen: Feld `building[name]`
 POST /schoolings/<id>/education                     personal_ids[] + commit
 GET  /schoolings                                    Übersicht, data-education-key je Zeile
