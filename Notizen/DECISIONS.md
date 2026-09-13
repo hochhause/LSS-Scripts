@@ -2260,3 +2260,53 @@ geendet. Sie bleiben übersprungen, jetzt mit Begründung im Code.
 **Offen:** die Endstufen der übrigen Gebäudearten. Solange sie fehlen, bleibt
 deren Stufen-Topf ungeprüft — der Prüfer nennt sie beim Namen, damit die Lücke
 sichtbar bleibt statt wieder still zu sein.
+
+## D-96 Feuerwache „standard-klein" — Grundschutz statt Sonderdienst (v0.65.1)
+
+**Entschieden.** Sasha, 12.09.: ein drittes Feuerwachenprofil für rund ein
+Fünftel der Wachen. Es wirft den Sonderdienst hinaus — GW-A, GW-Gefahrgut,
+GW-Höhenrettung, GW-Lüfter, GW-Messtechnik, GW-Öl, GW-L2-Wasser, Dekon-P und
+FwK — und setzt dafür auf Löschfahrzeuge und WLF. **Alle Nicht-normal-Töpfe
+bleiben unverändert** wie im `standard`; angefaßt wird allein der Stufen-Topf.
+
+| | `standard` | `standard-klein` |
+|---|---|---|
+| Löschfahrzeuge | 6 | **14** |
+| WLF | 2 | **4** |
+| Sonderdienst | 9 Fahrzeuge | — |
+| Fahrzeuge gesamt | 42 | 42 |
+| Vollbesetzung | 129 | **170** Personen |
+
+Der normale Topf ist mit 20 von 20 wieder exakt gefüllt: **7× HLF 20, 6× HLF 10**,
+4× WLF, 1× DLK 23, 1× ELW 2, 1× SLF.
+
+**Das Verhältnis 7:6 ist Sashas Entscheidung**, und der Weg dorthin gehört
+festgehalten: gewünscht war **1:1** zwischen HLF 20 und HLF 10. Auf dreizehn
+Löschplätzen geht das nicht auf, also mußte sich ein Platz bewegen. Mein
+Vorschlag war, den SLF zu streichen und 7:7 zu fahren — abgelehnt. Der SLF
+bleibt, das Verhältnis wird 7:6. Die Lehre: was ausdrücklich bestellt wurde,
+wird nicht stillschweigend gegen eine glattere Zahl eingetauscht.
+
+**Das HLF 10 ist kein Schmuck, sondern die Kopplung.** Ohne die GWs verlieren
+**Anh Lüfter und Anh Schlauch jedes Zugfahrzeug** — sie hängen laut `PB` an
+GW-Gefahrgut, Dekon-P, GW-A oder den SW/TLF-Reihen, und das WLF steht in keiner
+der beiden Listen. Von allen Typen, die beide ziehen dürfen und **keinen
+Lehrgang** fordern, ist das HLF 10 das einzige Löschfahrzeug — es kostet einen
+Platz und hält den Anhängertopf unverändert, so wie verlangt. Die Alternative
+wäre gewesen, die beiden Anhänger aus dem Profil zu streichen; das hätte
+Sashas Vorgabe „alle übrigen Töpfe bleiben" gebrochen.
+
+**Die DLK bleibt**, ebenso der ELW 2: eine Wache ohne Drehleiter ist keine
+Feuerwache, und `elw2` wird für den ELW2 Drohne im Drohnentopf ohnehin
+gebraucht. Der SLF bleibt als Löschfahrzeug (D-93).
+
+**`standard` bleibt der erste Schlüssel** im Profilobjekt. Das ist kein
+Schönheitsfehler, sondern Absicht: `T.profileOf()` nimmt für jede Wache ohne
+eigene Zuordnung `Object.keys(ps)[0]`. Ein neues Profil an erster Stelle hätte
+mit dem nächsten Lauf **alle** Feuerwachen umgestellt, die keine ausdrückliche
+Zuordnung tragen.
+
+**Preis, und er ist die eigentliche Überraschung:** die schlanke Wache braucht
+**mehr** Personal, nicht weniger — 170 statt 129 bei Vollbesetzung, weil ein
+HLF 20 neun Sitze hat und ein GW drei. Wer das Profil auf fünf Wachen legt,
+holt sich rund 200 zusätzliche Sitze ins Werben.

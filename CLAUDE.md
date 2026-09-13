@@ -65,6 +65,11 @@ wer dort etwas ändert, zieht den Auszug nach oder streicht ihn.
 
 - **Version hochziehen**, in `@version` **und** `const VERSION`. Sie steht im
   Fensterkopf, daran erkennt man draußen den Stand.
+  - **0.0.X für Kleinigkeiten** — Plananpassungen, Zahlen, Texte, behobene
+    Fehler, nachgezogene Auszüge. Das ist der Normalfall.
+  - **0.X.0 nur für neue Fähigkeiten** — ein Reiter, ein Lauf, eine Regel, die
+    das Skript vorher nicht kannte. Sasha, 12.09.: es wurden zu viele
+    Nebenversionen für Kleinkram verbraucht.
 - **`main` ist ausgeliefert.** `@updateURL` zeigt auf den Rohtext von `main`;
   jeder Push dorthin wird jeder Installation als Aktualisierung angeboten.
   Ungeprüftes gehört auf einen Zweig, nicht nach `main`.

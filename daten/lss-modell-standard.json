@@ -80,6 +80,68 @@
      "Tierrettung": 1
     }
    },
+   "standard-klein": {
+    "vehicles": {
+     "2": 1,
+     "30": 7,
+     "34": 1,
+     "46": 4,
+     "48": 2,
+     "49": 2,
+     "77": 1,
+     "90": 6,
+     "108": 2,
+     "111": 1,
+     "115": 1,
+     "116": 2,
+     "129": 1,
+     "138": 1,
+     "139": 1,
+     "141": 1,
+     "142": 1,
+     "143": 1,
+     "163": 1,
+     "164": 2,
+     "167": 1,
+     "185": 1,
+     "186": 1
+    },
+    "pools": {
+     "2": "normal",
+     "30": "normal",
+     "34": "normal",
+     "46": "normal",
+     "48": "ab",
+     "49": "ab",
+     "77": "ab",
+     "90": "normal",
+     "108": "ab",
+     "111": "anh",
+     "115": "anh",
+     "116": "ab",
+     "129": "drohne",
+     "138": "vpfl",
+     "139": "vpfl",
+     "141": "anh",
+     "142": "ab",
+     "143": "anh",
+     "163": "bahn",
+     "164": "ab",
+     "167": "normal",
+     "185": "tier",
+     "186": "anh"
+    },
+    "extensions": {
+     "Abrollbehälter-Stellplatz": 14,
+     "Anhänger-Stellplatz": 5,
+     "Netzersatzanlage 50": 1,
+     "Großlüfter": 1,
+     "Drohneneinheit": 1,
+     "Verpflegungsdienst": 1,
+     "Bahnrettung": 1,
+     "Tierrettung": 1
+    }
+   },
    "standard-groß": {
     "vehicles": {
      "2": 1,

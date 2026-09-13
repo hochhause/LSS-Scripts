@@ -15,7 +15,7 @@ Firefox). Auf den Namen klicken, Tampermonkey fragt nach der Installation.
 
 | Skript | Fassung | Was es tut |
 |---|---|---|
-| [**LSS Planer**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-planer.user.js) | 0.65.0 | Vergleicht das hinterlegte Wunschbild mit dem Spielstand und setzt die Unterschiede um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge, Wachennamen. |
+| [**LSS Planer**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-planer.user.js) | 0.65.1 | Vergleicht das hinterlegte Wunschbild mit dem Spielstand und setzt die Unterschiede um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge, Wachennamen. |
 | [**LSS Farben**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-farben.user.js) | 0.1.1 | Färbt fertige Wachen und Fahrzeuge grün, Status 6 rot, und nimmt den Markierungspunkt aus der Anzeige. |
 | [**LSS Einrücken**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-einruecken.user.js) | 0.3.0 | Ruft Fahrzeuge zurück — über den Verweis „Alle eigenen Fahrzeuge rückalarmieren" der Einsatzseite. Alle Einsätze auf einmal oder nur die, an denen zu lange etwas steht. |
 

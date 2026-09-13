@@ -84,6 +84,51 @@ Fahrzeuge gesamt **42**, Vollbesetzung **129** Personen
 
 Töpfe: Normal 20 · Abrollbehälter 12 · Anhänger 5 · Drohne 1 · Verpflegung 2 · Bahnrettung 1 · Tierrettung 1
 
+### Profil `standard-klein`
+
+Für Wachen, die reinen Grundschutz fahren sollen: der Sonderdienst entfällt
+(GW-A, GW-Gefahrgut, GW-Höhenrettung, GW-Lüfter, GW-Messtechnik, GW-Öl,
+GW-L2-Wasser, Dekon-P, FwK), dafür stehen vierzehn Löschfahrzeuge statt sechs
+und vier WLF statt zwei. Alle übrigen Töpfe sind unverändert wie im
+`standard` — Abrollbehälter, Anhänger, Drohne, Verpflegung, Bahnrettung,
+Tierrettung (D-96).
+
+**Ausbauten**
+
+Abrollbehälter-Stellplatz ×14 · Anhänger-Stellplatz ×5 · Netzersatzanlage 50 · Großlüfter · Drohneneinheit · Verpflegungsdienst · Bahnrettung · Tierrettung
+
+**Fahrzeuge**
+
+| Fahrzeug | Anzahl | Topf | Besatzung | Ausbildung | EST |
+|---|---|---|---|---|---|
+| HLF 20 | 7 | normal | 1 / 9 | — | — |
+| HLF 10 | 6 | normal | 1 / 9 | — | — |
+| WLF | 4 | normal | 1 / 3 | wechsellader: alle | — |
+| DLK 23 | 1 | normal | 1 / 3 | — | — |
+| ELW 2 | 1 | normal | 1 / 6 | elw2: alle | — |
+| SLF | 1 | normal | 1 / 2 | — | — |
+| AB-Atemschutz | 2 | ab | 0 / 0 | — | — |
+| AB-L | 2 | ab | 0 / 0 | — | — |
+| AB-Lüfter | 2 | ab | 0 / 0 | — | — |
+| AB-Öl | 2 | ab | 0 / 0 | — | — |
+| AB-Schiene | 2 | ab | 0 / 0 | — | — |
+| AB-Gefahrgut | 1 | ab | 0 / 0 | gw_gefahrgut: alle | 1 |
+| AB-Küche | 1 | ab | 0 / 0 | — | — |
+| Anh Lüfter | 1 | anh | 0 / 0 | — | — |
+| Anh Schlauch | 1 | anh | 0 / 0 | — | — |
+| Anh Tierrettung | 1 | anh | 0 / 0 | — | — |
+| FKH | 1 | anh | 0 / 0 | — | — |
+| NEA50 | 1 | anh | 0 / 0 | — | — |
+| ELW2 Drohne | 1 | drohne | 4 / 6 | fire_drone: alle<br>elw2: alle | — |
+| GW-Küche | 1 | vpfl | 3 / 3 | fire_care_service: min 1<br>care_service_equipment: min 2 | — |
+| GW-Verpflegung | 1 | vpfl | 3 / 6 | fire_care_service: min 1<br>care_service_equipment: min 2 | — |
+| HLF Schiene | 1 | bahn | 1 / 9 | railway_fire: alle | — |
+| GW-Tierrettung | 1 | tier | 2 / 6 | — | — |
+
+Fahrzeuge gesamt **42**, Vollbesetzung **170** Personen
+
+Töpfe: Normal 20 · Abrollbehälter 12 · Anhänger 5 · Drohne 1 · Verpflegung 2 · Bahnrettung 1 · Tierrettung 1
+
 ### Profil `standard-groß`
 
 **Ausbauten**
