@@ -2310,3 +2310,113 @@ Zuordnung tragen.
 **mehr** Personal, nicht weniger — 170 statt 129 bei Vollbesetzung, weil ein
 HLF 20 neun Sitze hat und ein GW drei. Wer das Profil auf fünf Wachen legt,
 holt sich rund 200 zusätzliche Sitze ins Werben.
+
+## D-97 Drei Punkte statt grün-oder-nichts (v0.66.0)
+
+**Lage.** Bis v0.65.1 kannte ein Fahrzeugname genau zwei Zustände: 🟢 oder gar
+nichts. Damit sah „noch nie jemand draufgesetzt" genauso aus wie „es fehlt
+einer am Lehrgang" — beides kein Punkt. In einer Liste von 1.395 Fahrzeugen ist
+das die unbrauchbarste aller Auskünfte: man muß jedes einzeln aufmachen.
+
+**Entschieden** (Sasha, 01.10.). Drei Punkte, Bedeutung am Fahrzeug:
+
+| Punkt | heißt |
+|---|---|
+| 🟢 | jeder Sitz belegt **und** jede Lehrgangsauflage erfüllt |
+| 🟡 | Mindestbesetzung samt Lehrgängen steht, aber es sind Sitze frei |
+| 🔴 | darunter — das Fahrzeug rückt nicht oder nicht vollwertig aus |
+
+Gerechnet wird an **einer** Stelle, `fahrzeugStand(v, besatzung)`
+(`lss-planer.user.js:2232`). Namenslauf und Personallauf fragen beide dort an.
+Eine zweite Rechnung hätte genau den Fehler wiederholt, den `fehltAn` schon
+einmal hatte: der Haken urteilte anders als die Personalplanung, und der Punkt
+fror den falschen Zustand über `geschuetzt()` fest.
+
+**Anhänger erben.** Ein Anhänger hat keine Sitze und kann nie aus eigener Kraft
+besetzt sein. `fahrzeugStand` gibt für ihn ausdrücklich `null` zurück — eine
+Scheinantwort („immer voll", denn null von null Sitzen sind belegt) wäre
+schlimmer als keine. Den Stand setzt `punkteFuerWache` (`:1541`): der des
+Zugfahrzeugs, und ohne Zugfahrzeug rot mit dem Grund „kein Zugfahrzeug".
+
+**Preis.** Der erste Lauf nach dieser Fassung benennt praktisch den ganzen
+Fuhrpark um, weil bisher nur das fertige Fahrzeug einen Punkt trug. Das sind
+~1.300 Schreibanfragen à 350 ms, also gut zehn Minuten. Steht als Warnung im
+Reiter „Namen"; stillschweigend sollte das niemandem passieren.
+
+**Verworfen:** die Wache ebenfalls dreifarbig zu führen. Sie hat keine
+Besatzung, nur Fahrzeuge; „gelbe Wache" müßte erst erfunden werden, und
+erfundene Bedeutungen sind der Anfang jeder Fehlanzeige. Sie trägt weiter 🟢,
+sobald jedes ihrer Fahrzeuge grün ist, und sonst nichts.
+
+## D-98 Der Ausschluß wandert vom roten auf den schwarzen Punkt (v0.66.0)
+
+**Lage.** 🔴 im Wachennamen hieß bis v0.65.1 „diese Wache geht den Planer nichts
+an". Mit D-97 schreibt der Planer denselben roten Punkt selbst in
+Fahrzeugnamen. Zwei Bedeutungen für ein Zeichen sind eine Falle mit Ansage.
+
+**Entschieden.** Der Ausschluß ist ⚫. Neu gesetzt wird nur noch dieser.
+
+**Der alte rote Punkt gilt an Wachen weiter**, und das ist der eigentliche
+Beschluß. Hätte `ausgeschlossen()` nur noch ⚫ gelesen, wären mit dem ersten
+Lauf nach dem Update alle bewußt herausgehaltenen Wachen zurück in Listen,
+Zählungen **und Läufen** gewesen — der Planer hätte begonnen, sie nach Plan
+umzubauen. Credits und Arbeit, still verloren. Also liest `ausgeschlossen()`
+beide Zeichen, und die Übersicht zählt die betroffenen Wachen namentlich auf
+mit der Bitte, sie auf ⚫ umzustellen.
+
+Daß 🔴 an einer Wache etwas anderes bedeutet als an einem Fahrzeug, ist
+tragbar, weil `ausgeschlossen()` **ausschließlich** mit Wachen aufgerufen wird
+(`planWachen`, `wachenSeite`). Steht im Kommentar an der Funktion; wer das
+ändert, muß es dort lesen.
+
+**Verworfen:** die Namen selbst umzuschreiben, 🔴 → ⚫. Das Skript schreibt
+niemandem eine Markierung in einen Namen, die er nicht bestellt hat — und ein
+Lauf über 102 Wachen, um ein Zeichen zu tauschen, ist genau die Art von
+Eigenmächtigkeit, vor der die ganze Vorschau-Mechanik schützen soll.
+
+## D-99 Der grüne Punkt schützt nur noch Fahrzeuge (v0.66.0)
+
+**Lage.** `geschuetzt(o)` las den grünen Punkt aus jedem Namen — auch aus dem
+der Wache. Eine einmal grün gewordene Wache war damit vollständig verriegelt:
+`pflegeAusbauten` ließ ihre Ausbauten nie wieder den Fahrzeugen folgen,
+`zuweisungenLoeschen` verweigerte den Dienst, `verkaufsKandidaten` verschonte
+jedes Fahrzeug darauf, und `hakenAbgleichen` konnte ihren eigenen Namen nicht
+mehr nachziehen — auch dann nicht, wenn ihre Fahrzeuge längst gelb waren und
+der grüne Punkt im Wachennamen schlicht falsch stand.
+
+**Entschieden** (Sasha, 01.10.). Der grüne Punkt an der **Wache** ist Auskunft:
+„hier trägt jedes Fahrzeug sein Grün". Er schützt nichts. Geschützt wird je
+Fahrzeug, dort hat der Punkt seinen handfesten Grund — ein grünes Fahrzeug wird
+von `planeWache` eingefroren statt neu besetzt, und was eingefroren ist, darf
+nicht nebenbei leergeräumt werden.
+
+Wer eine Wache wirklich in Ruhe lassen will, nimmt ⚫ (D-98). Das ist der
+schärfere Schalter und war immer schon der richtige dafür.
+
+Entfernt an vier Stellen: `zuweisungenLoeschen:1356`, `hakenAbgleichen:1668`,
+`verkaufsKandidaten:1778`, `pflegeAusbauten:2318`. Die Probe „gruene Wache
+schuetzt ihre Fahrzeuge" in `test-planung.js` wurde umgedreht statt gestrichen
+— die Regel hat sich geändert, nicht ihre Prüfwürdigkeit.
+
+## D-100 Ausbildungsbedarf wahlweise gegen min oder max (v0.66.0)
+
+**Lage.** „Fehlt" im Reiter Ausbildung rechnete immer gegen **alle Sitze** jedes
+geplanten Fahrzeugs. Für eine Wache, die längst jedes Fahrzeug ausrücken lassen
+kann, standen dort trotzdem dreistellige Lücken — richtig gerechnet, aber als
+Arbeitsliste unbrauchbar.
+
+**Entschieden** (Sasha, 01.10.). Ein Umschalter im Reiter: alle Sitze (Fernziel,
+Vorgabe wie bisher) oder Mindestbesetzung (Nahziel). Er sitzt in
+`S.opts.kursMin`, und `courseNeed(b, feld = kursZiel())` holt sich daraus seine
+Vorgabe. Die Rechnung selbst stand längst da — `sitzeFuerKurs(meta, 'min')` gibt
+es seit der Fassung, die den Personalbedarf eingeführt hat.
+
+**Nur die Anzeige.** Was der Planer *tut* — wen er in einen Kurs schickt
+(`waehlePersonen`), wen er auf ein Fahrzeug setzt (`bedarfKeys`) —, nennt sein
+Feld weiterhin ausdrücklich `'max'`. Eine Handlung an einem Anzeigeschalter
+aufzuhängen ist die Art Kopplung, die man ein halbes Jahr später nicht mehr
+findet.
+
+Mitgezogen hat es `fortschritt(b).lehrgang` und damit den Filter „nur offene" —
+beabsichtigt: wer nur auf das Nahziel sieht, will auch die Wachenliste danach
+sortiert haben.

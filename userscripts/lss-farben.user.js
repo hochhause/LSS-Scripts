@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         LSS Farben — fertig grün, Status 6 rot
+// @name         LSS Farben — Punkte als Farbe, Status 6 rot
 // @namespace    https://leitstellenspiel.de/
-// @version      0.1.1
-// @description  Färbt fertige Wachen und Fahrzeuge grün und blendet den Markierungspunkt aus, Status 6 wird rot
+// @version      0.2.0
+// @description  Färbt Fahrzeuge und Wachen nach ihrem Punkt — grün, gelb, rot — und blendet den Punkt aus; Status 6 wird rot
 // @match        https://www.leitstellenspiel.de/*
 // @grant        none
 // @run-at       document-idle
@@ -17,15 +17,19 @@
 
 /* Dieses Skript ändert nichts am Spiel — es färbt nur, was ohnehin dasteht.
    Zwei Quellen:
-     1. Der Markierungspunkt 🟢, den der Planer fertigen Wachen und Fahrzeugen
-        voranstellt. Er steht im Namen auf dem Server, damit er auch ohne
-        Skript sichtbar bleibt; hier wird er aus der Anzeige genommen und
-        stattdessen der Name selbst grün.
+     1. Der Markierungspunkt, den der Planer Wachen und Fahrzeugen voranstellt.
+        Er steht im Namen auf dem Server, damit er auch ohne Skript sichtbar
+        bleibt; hier wird er aus der Anzeige genommen und stattdessen der Name
+        selbst eingefärbt — grün, gelb oder rot, je nach Punkt.
      2. Der Fahrzeugbestand, den der Planer unter `lssplaner.data` ablegt.
         Daraus kommt der Status. Ohne den Planer bleibt das Rot aus — dieses
         Skript ruft absichtlich nichts ab, es soll leicht bleiben. */
 
-const PUNKT   = '\u{1F7E2}';
+/* Seit Planer v0.66.0 gibt es drei Punkte statt eines. Ausgeblendet und
+   gefärbt werden alle drei; der Ausschlußpunkt ⚫ bleibt stehen — er ist von
+   Hand gesetzt und soll gerade auffallen. */
+const PUNKTE  = { '\u{1F7E2}': 'fertig', '\u{1F7E1}': 'teil', '\u{1F534}': 'leer' };
+const PUNKT_RE = new RegExp(`[${Object.keys(PUNKTE).join('')}]\\s*`, 'gu');
 const KEY     = 'lssplaner.data';
 const ALTER   = 6 * 60 * 60 * 1000;      // Bestand älter als 6 h: Status ignorieren
 
@@ -33,8 +37,8 @@ const ALTER   = 6 * 60 * 60 * 1000;      // Bestand älter als 6 h: Status ignor
    die Gebäudeseiten sind hell. Dieselbe Farbe wäre in einem der beiden
    schlecht lesbar, deshalb wird die Helligkeit des Untergrunds gemessen. */
 const FARBEN = {
-  hell:   { fertig: '#137333', sechs: '#b3261e' },
-  dunkel: { fertig: '#5ddb87', sechs: '#ff8080' }
+  hell:   { fertig: '#137333', teil: '#8a6100', leer: '#b3261e', sechs: '#b3261e' },
+  dunkel: { fertig: '#5ddb87', teil: '#e8c046', leer: '#ff8080', sechs: '#ff8080' }
 };
 
 function untergrundIstDunkel() {
@@ -52,6 +56,8 @@ const farbe = FARBEN[untergrundIstDunkel() ? 'dunkel' : 'hell'];
 const stil = document.createElement('style');
 stil.textContent = `
   .lssf-fertig { color: ${farbe.fertig} !important; font-weight: 600; }
+  .lssf-teil   { color: ${farbe.teil}   !important; font-weight: 600; }
+  .lssf-leer   { color: ${farbe.leer}   !important; font-weight: 600; }
   .lssf-sechs  { color: ${farbe.sechs}  !important; font-weight: 600; }
 `;
 document.head.appendChild(stil);
@@ -77,7 +83,7 @@ const UEBERGANGEN = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT']);
 function punkteFaerben(wurzel) {
   const lauf = document.createTreeWalker(wurzel, NodeFilter.SHOW_TEXT, {
     acceptNode(n) {
-      if (!n.nodeValue.includes(PUNKT)) return NodeFilter.FILTER_REJECT;
+      if (!Object.keys(PUNKTE).some(p => n.nodeValue.includes(p))) return NodeFilter.FILTER_REJECT;
       const el = n.parentElement;
       if (!el || UEBERGANGEN.has(el.tagName) || el.isContentEditable) return NodeFilter.FILTER_REJECT;
       // Das Planer-Fenster zeigt die Namen absichtlich mit Punkt
@@ -88,11 +94,15 @@ function punkteFaerben(wurzel) {
   const treffer = [];
   for (let n = lauf.nextNode(); n; n = lauf.nextNode()) treffer.push(n);
   for (const n of treffer) {
+    /* Der erste Punkt im Text bestimmt die Farbe. Ein Fahrzeugname trägt den
+       Wachennamen in sich und damit manchmal zwei — vorne steht der eigene,
+       und um den geht es. */
+    const erster = [...n.nodeValue].find(z => PUNKTE[z]);
     /* Nur die Anzeige wird angefasst, nie ein Eingabefeld: der Name auf dem
        Server behält seinen Punkt. Wer die Wache umbenennt, sieht im Formular
        weiterhin, was wirklich gespeichert ist. */
-    n.nodeValue = n.nodeValue.replace(new RegExp(PUNKT + '\\s*', 'gu'), '');
-    n.parentElement?.classList.add('lssf-fertig');
+    n.nodeValue = n.nodeValue.replace(PUNKT_RE, '');
+    n.parentElement?.classList.add('lssf-' + PUNKTE[erster]);
   }
 }
 
