@@ -1,6 +1,6 @@
 # Leitstellenspiel-Werkzeuge — Projektstand
 
-Stand: 12.09.2026, Skript v0.65.1. Diese Datei und `CLAUDE.md` genügen, um an
+Stand: 01.10.2026, Skript v0.65.2. Diese Datei und `CLAUDE.md` genügen, um an
 einem beliebigen Punkt weiterzuarbeiten. Uploads von Stammdaten, Spielbestand
 oder Seitenabzügen braucht es nicht mehr — alles Nötige steckt in den Dateien
 unten oder wird aus dem Spiel gelesen.
@@ -9,13 +9,13 @@ unten oder wird aus dem Spiel gelesen.
 
 | Datei | Zweck |
 |---|---|
-| `lss-planer.user.js` | Userscript v0.65.1: setzt das Wunschbild im Spiel um |
-| `lss-farben.user.js` | v0.1.0: reine Anzeige — blendet den 🟢 aus und färbt den Namen grün, Status 6 rot |
+| `lss-planer.user.js` | Userscript v0.65.2: setzt das Wunschbild im Spiel um |
+| `lss-farben.user.js` | v0.2.0: reine Anzeige — blendet 🟢🟡🔴 aus und färbt den Namen entsprechend, Status 6 rot. ⚫ bleibt stehen |
 | `lss-einruecken.user.js` | v0.3.0: Fahrzeuge zurück zur Wache rufen — **über den Einsatz**, mit dem Verweis „Alle eigenen Fahrzeuge rückalarmieren" (D-90) |
 | `lss-einsatz-flott.user.js` | v0.3.0: nächsten Einsatz vorwärmen — *nicht in dieser Ablage* |
 | `CLAUDE.md` | Arbeitsanweisung: Sprache, Prüfungen, Gefahren |
 | `NAECHSTER_SCHRITT.md` | was offen ist |
-| `DECISIONS.md` | 96 Entscheidungen mit Begründung, auch die verworfenen |
+| `DECISIONS.md` | 100 Entscheidungen mit Begründung, auch die verworfenen |
 | `personal-soll.js` | einmaliges Konsolenskript: Personal-Sollwert aller Wachen |
 | `lss-personalbedarf.json` | Personalanforderungen je Fahrzeugtyp — **Pflegequelle** für `PB` |
 | `lss-fahrzeugprofile.md` | Soll-Papier: Profile, Stellplatz-Formeln, Ausbauten je Gebäudeart — **Pflegequelle** für `MODELL_STANDARD` und `LAYOUTS_STANDARD` |
@@ -31,9 +31,24 @@ unten oder wird aus dem Spiel gelesen.
 24 Polizeiwachen (14), 10 Wasserrettung (5), dazu THW, BePol, SEG, Bergrettung,
 Seenotrettung, Autobahnpolizei. Drei eigene Schulen: Feuerwehr, Polizei,
 Rettungsdienst — **keine** THW-Bundesschule, die kommt aus dem Verband.
-Wachennamen tragen teils eine Fertig-Markierung (47 von 102). Zwei Zeichen:
-🟢 setzt der Planer selbst (fertig), 🔴 schreibt der Mensch (Wache komplett
-ausgeschlossen, `ausgeschlossen()` / `planWachen()`). Seit v0.26 ist das ein 🟢 **vor** dem Namen; alte `✔️` am Ende werden weiter erkannt und beim nächsten Lauf ersetzt.
+Wachennamen tragen teils eine Fertig-Markierung (47 von 102). Seit v0.26 steht
+sie **vor** dem Namen; alte `✔️` am Ende werden weiter erkannt und beim
+nächsten Lauf ersetzt.
+
+**Die Punkte im Namen** (seit v0.65.2, D-97 bis D-99):
+
+| Zeichen | wo | gesetzt von | heißt |
+|---|---|---|---|
+| 🟢 | Fahrzeug | Planer | jeder Sitz belegt, jeder Lehrgang da — **und geschützt**, `geschuetzt()` |
+| 🟡 | Fahrzeug | Planer | Mindestbesetzung steht, Sitze frei |
+| 🔴 | Fahrzeug | Planer | unter der Mindestbesetzung |
+| 🟢 | Wache | Planer | jedes Fahrzeug hier ist grün — **reine Auskunft**, schützt nichts |
+| ⚫ | Wache | Mensch | Wache komplett ausgeschlossen, `ausgeschlossen()` / `planWachen()` |
+| 🔴 | Wache | Mensch | **Altlast**: bis v0.65.1 der Ausschluß, gilt dort weiter (D-98) |
+
+Gerechnet wird der Punkt in `fahrzeugStand()` (`lss-planer.user.js:2232`),
+Anhänger erben ihn in `punkteFuerWache()` (`:1541`). Eine Quelle für
+Namenslauf **und** Personallauf — zwei wären zwei Urteile über dieselbe Sache.
 
 Offen laut Plan: rund 1.133 Fahrzeuge und 58,7 Mio. Credits an Ausbauten.
 Zwei Drittel der Käufe hängen an fehlenden Stellplatz-Ausbauten.
@@ -67,6 +82,15 @@ erst der zweite Durchgang setzt ihn wirklich hinein). Das grüne Fahrzeug behäl
 in jedem Fall seine Mindestbesetzung und damit seinen Punkt. Abschaltbar
 (`S.opts.gruenLeihen`), Vorgabe an.
 
+**Umbenennen im selben Durchgang, seit v0.65.2 (D-97):** steht der Haken
+„Fahrzeuge anschließend umbenennen" (`S.opts.fzUmbenennen`, Vorgabe **aus**),
+trägt `assignStaff` jedem Fahrzeug gleich seinen Punkt ein — aus dem frischen
+Sitzplan `plan.zuweisung`, nicht aus einem zweiten Abruf. Genau das ist der
+Gewinn: `hakenAbgleichen` bräuchte dafür wieder ein `readRoster()` je Wache.
+Vorlage, Längengrenze und Schutz kommen aus derselben Stelle wie im Reiter
+„Namen" — `fahrzeugNameSetzen()` (`lss-planer.user.js:1506`). Taugt die Vorlage
+nichts, wird nur nicht umbenannt; das Personal wird trotzdem zugewiesen.
+
 ## Lehrgänge sind Schlüssel (seit v0.22)
 
 Die ganze Bedarfsrechnung läuft auf internen Schlüsseln: `courseNeed()`,
@@ -78,6 +102,15 @@ Oberfläche der Schlüssel und gerechnet wird trotzdem richtig.
 Mehrdeutigkeit „ein Schlüssel, mehrere Namen". Von den 60 Kursen im Katalog haben
 nur 21 einen fest hinterlegten Namen; die übrigen kamen früher erst aus den
 Schulen, und bis dahin fiel ihr Bedarf auf null.
+
+**Nah- oder Fernziel, seit v0.65.2 (D-100):** der Reiter Ausbildung schaltet
+um, wogegen „fehlt" rechnet — alle Sitze (Vorgabe) oder nur die
+Mindestbesetzung. Der Schalter sitzt in `S.opts.kursMin`, `courseNeed(b, feld =
+kursZiel())` holt sich daraus seine Vorgabe, und `sitzeFuerKurs(meta, 'min')`
+rechnet es. Es betrifft **nur die Anzeige** — `bedarfKeys()` und
+`waehlePersonen()` nennen ihr Feld weiterhin ausdrücklich `'max'`, sonst hinge
+eine Handlung an einem Anzeigeschalter. Mitgezogen hat es `fortschritt()` und
+damit den Filter „nur offene"; das ist beabsichtigt.
 
 Preis: Fahrzeugtypen, die `PB` nicht kennt (`geraten: true`), fordern **keine**
 Ausbildung. Der Plan führt Lehrgänge nur als Klartext, und genau dessen

@@ -24,14 +24,19 @@ const teile = [
   schnitt('/** Soll je Kursschlüssel für eine Wache.', '/** Liest die Personalauswahl einer Wache'),
   schnitt('function sitzeFuerKurs(meta, feld', '/* Das Spiel nennt „N in Ausbildung“'),
   schnitt('/** Leitet den Ausbildungsstand aus einer gelesenen Personalliste ab.', '/* Wer in diesem Lauf schon eingeteilt wurde.'),
-  schnitt('function doppelKandidaten(b, key, liste) {', '/** Wählt Personen aus.')
+  schnitt('function doppelKandidaten(b, key, liste) {', '/** Wählt Personen aus.'),
+  schnitt('/** Trägt jedem Fahrzeug einer Wache seinen Punkt ein', '/** Setzt oder entfernt das Häkchen')
 ].join('\n');
 
 const stub = `
 const S = { plan: null, byBuilding: new Map(), byId: new Map(), opts: {} };
 const HAKEN = '\u{1F7E2}';
 const hatHaken = t => /\u{1F7E2}/u.test(String(t || ''));
-const ohneHaken = t => String(t).replace(/\u{1F7E2}/gu, '').replace(/\s{2,}/g, ' ').trim();
+/* Der Backslash muss hier doppelt stehen: der Stub ist ein Template-Literal,
+   und darin wird aus einem einfachen Escape ein blosses s. Die Ersetzung traf
+   dann „ss" statt zweier Leerzeichen und machte aus der GW-Wasserrettung eine
+   „GW-Wa errettung". */
+const ohneHaken = t => String(t).replace(/\u{1F7E2}/gu, '').replace(/\\s{2,}/g, ' ').trim();
 const geschuetzt = o => !S.opts.gruenFrei && hatHaken(o?.caption || '');
 let uebergangen = 0;
 const quals = { by: {}, ts: null };
@@ -62,14 +67,14 @@ const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, bes
            bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
            courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
            verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
-           anhaengerAn, PB_TYPEN: PB,
+           anhaengerAn, fahrzeugStand, punkteFuerWache, PB_TYPEN: PB,
            MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
            nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
         verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
-        anhaengerAn, PB_TYPEN,
+        anhaengerAn, fahrzeugStand, punkteFuerWache, PB_TYPEN,
         MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
         nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken } = kern;
 
@@ -827,13 +832,15 @@ const RTW = 28, WLF = 46, AB = 49;      // AB-Oel hat keine Sitze, ist also Anha
   S.opts = {};
 }
 {
-  // Die ganze Wache gruen: nichts faellt, und der Grund nennt die Wache.
+  /* Seit v0.65.2 schuetzt der gruene Punkt NUR noch das Fahrzeug. Am
+     Wachennamen ist er Auskunft, kein Schloss: das ungruene RTW darauf faellt.
+     Vorher sperrte eine einmal gruen gewordene Wache jeden Eingriff. */
   S.opts = {};
   const a = fz(RTW, { caption: 'RTW A' });
   const b = { ...wache([a]), caption: '🟢 Testwache' };
   const r = verkaufsKandidaten(b, RTW, 1);
-  pruefe('gruene Wache schuetzt ihre Fahrzeuge', r.fallen, []);
-  pruefe('und sagt das auch so', gruende(r), ['RTW A: Wache ist grün markiert']);
+  pruefe('gruene Wache schuetzt ihre Fahrzeuge nicht mehr', namen(r.fallen), ['RTW A']);
+  pruefe('und nennt dafuer keinen Grund', gruende(r), []);
 }
 {
   // F2: ein Zugfahrzeug mit Anhaenger bleibt stehen — sonst haengt der
@@ -1334,6 +1341,94 @@ console.log('\n32. Fachkraft vom gruenen Fahrzeug holen');
   pruefe('ohne Ersatz wird nicht geliehen', plan.geliehen, 0);
   pruefe('der gruene ELW 2 behaelt seinen Mann',
     (plan.zuweisung.get(elw2.id) || []).map(p => p.id), ['1']);
+}
+
+/* ── 33. Drei Punkte: voll, teilweise, darunter ───────────────────────
+   Seit v0.65.2 sagt die Farbe im Namen, wie weit ein Fahrzeug besetzt ist.
+   Gerechnet wird an genau einer Stelle, damit Namenslauf und Personallauf
+   nicht auseinanderlaufen. */
+console.log('\n33. Punkt je Fahrzeug');
+{
+  const kann = (...k) => new Set(k);
+  const v = fz(28);                        // RTW, min 1, max 2
+  wache([v]);
+  pruefe('RTW leer', fahrzeugStand(v, []).art, 'leer');
+  pruefe('RTW leer nennt den Grund', fahrzeugStand(v, []).grund, '0 von 1 Personen');
+  pruefe('RTW mit einem: gelb', fahrzeugStand(v, [kann()]).art, 'teil');
+  pruefe('und sagt wie viele Sitze frei sind',
+         fahrzeugStand(v, [kann()]).grund, '1 von 2 Sitzen besetzt');
+  pruefe('RTW voll besetzt: gruen', fahrzeugStand(v, [kann(), kann()]).art, 'voll');
+  pruefe('gruen braucht keinen Grund', fahrzeugStand(v, [kann(), kann()]).grund, '');
+}
+{
+  /* Der Lehrgang entscheidet mit: ein volles NEF ohne Notarzt ist rot, nicht
+     gruen. Genau diese Verwechslung hat der Haken frueher gemacht. */
+  const kann = (...k) => new Set(k);
+  const v = fz(29);                        // NEF, max 2, alle brauchen notarzt
+  wache([v]);
+  pruefe('volles NEF ohne Notarzt: rot', fahrzeugStand(v, [kann(), kann()]).art, 'leer');
+  pruefe('ein Notarzt allein: gelb', fahrzeugStand(v, [kann('notarzt')]).art, 'teil');
+  pruefe('zwei Notaerzte: gruen',
+         fahrzeugStand(v, [kann('notarzt'), kann('notarzt')]).art, 'voll');
+}
+{
+  /* Ein Anhaenger hat keine eigenen Sitze. `fahrzeugStand` sagt dazu
+     ausdruecklich nichts — eine Scheinantwort waere hier schlimmer als keine. */
+  const zug = fz(64);                      // GW-Wasserrettung, min 1, max 6
+  const mzb = fz(70, { zugfahrzeug: null });
+  wache([zug, mzb]);
+  pruefe('Anhaenger hat keinen eigenen Stand', fahrzeugStand(mzb, []), null);
+}
+
+/* ── 34. Anhaenger erben den Stand ihres Zugfahrzeugs ─────────────────── */
+console.log('\n34. Anhaenger erben den Punkt');
+{
+  const wasser = () => new Set(['gw_wasserrettung']);
+  const zug = fz(64);                      // GW-Wasserrettung, max 6
+  const mzb = fz(70, { zugfahrzeug: null });
+  mzb.zugfahrzeug = zug.id;                // MZB fordert 4 an der Einsatzstelle
+  const b = wache([zug, mzb]);
+
+  const voll = punkteFuerWache(b, new Map([[zug.id, [wasser(), wasser(), wasser(),
+                                                     wasser(), wasser(), wasser()]]]));
+  pruefe('volles Zugfahrzeug ist gruen', voll.get(zug.id).art, 'voll');
+  pruefe('sein Anhaenger auch', voll.get(mzb.id).art, 'voll');
+
+  const vier = punkteFuerWache(b, new Map([[zug.id, [wasser(), wasser(), wasser(), wasser()]]]));
+  pruefe('vier reichen zum Ausruecken, aber nicht fuer alle Sitze',
+         vier.get(zug.id).art, 'teil');
+  pruefe('der Anhaenger erbt das Gelb', vier.get(mzb.id).art, 'teil');
+  pruefe('und erbt auch die Begruendung', vier.get(mzb.id).grund,
+         'GW-Wasserrettung: 4 von 6 Sitzen besetzt');
+
+  const drei = punkteFuerWache(b, new Map([[zug.id, [wasser(), wasser(), wasser()]]]));
+  pruefe('drei reichen nicht: rot', drei.get(zug.id).art, 'leer');
+  pruefe('der Anhaenger wird mit rot', drei.get(mzb.id).art, 'leer');
+}
+{
+  // Ohne Zugfahrzeug rueckt der Anhaenger gar nicht aus — rot, mit Grund.
+  const mzb = fz(70, { zugfahrzeug: null });
+  const b = wache([mzb]);
+  const stand = punkteFuerWache(b, new Map());
+  pruefe('Anhaenger ohne Zugfahrzeug ist rot', stand.get(mzb.id).art, 'leer');
+  pruefe('und sagt warum', stand.get(mzb.id).grund, 'kein Zugfahrzeug');
+}
+
+/* ── 35. Soll je Lehrgang gegen min statt max ─────────────────────────
+   Der Umschalter im Reiter „Ausbildung" rechnet gegen die Mindestbesetzung
+   statt gegen alle Sitze. Gerechnet wird in `sitzeFuerKurs`, nicht in der
+   Oberflaeche — darum ist es hier pruefbar. */
+console.log('\n35. Ausbildungsbedarf: Mindestbesetzung statt alle Sitze');
+{
+  const b = wache([]);
+  S.plan = { model: { types: { 1: { profiles: { standard: {
+    vehicles: { 64: 2 },          // 2x GW-Wasserrettung: min 1, max 6
+    pools: {}, extensions: {} } } } }, assignment: {} } };
+  b.building_type = 1;
+  memoK.clear();
+  pruefe('alle Sitze: 12 Wasserretter', courseNeed(b, 'max').gw_wasserrettung, 12);
+  pruefe('nur Mindestbesetzung: 2', courseNeed(b, 'min').gw_wasserrettung, 2);
+  S.plan = null; memoK.clear();
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');

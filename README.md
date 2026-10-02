@@ -53,7 +53,7 @@ Vor jeder Auslieferung müssen alle drei sauber durchlaufen:
 ```sh
 node --check userscripts/lss-planer.user.js   # Syntax
 node werkzeuge/pruefer.js                     # fehlende Argumente, Reste, stille Fallen
-node werkzeuge/test-planung.js                # Rechenkern, 281 Proben
+node werkzeuge/test-planung.js                # Rechenkern, 302 Proben
 ```
 
 `werkzeuge/pruefer.js` sucht die Fehler, die beim Lesen durchrutschen, weil sie

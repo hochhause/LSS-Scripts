@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.65.1
+// @version      0.65.2
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.65.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.65.2';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -1059,15 +1059,37 @@ function fortschritt(b) {
    des Spiels an einem Block. Einfärben ginge nicht — der Name liegt als Text
    auf dem Server und wird maskiert ausgegeben. Was ohne Userscript sichtbar
    bleiben soll, muß im Namen selbst stehen. */
-const HAKEN = '🟢';          // setzt der Planer selbst: hier ist alles erledigt
-/* Der rote Punkt ist das Gegenstück und wird **nie** vom Skript gesetzt. Wer
-   ihn von Hand in einen Wachennamen schreibt, nimmt diese Wache vollständig
-   aus dem Planer heraus: sie erscheint in keiner Liste, keiner Zählung, keinem
-   Lauf. Gedacht für Wachen, die man bewußt anders führt als den Plan.
-   Er wird auch nicht aus Namen entfernt — sonst wäre er nach dem ersten
-   Umbenennen weg. */
-const AUSSCHLUSS = '🔴';
-const ausgeschlossen = b => String(b?.caption || '').includes(AUSSCHLUSS);
+/* Drei Punkte statt eines, seit v0.65.2 (Sasha, 01.10.). Vorher gab es grün
+   oder nichts, und „noch nie besetzt" sah aus wie „reicht knapp nicht" —
+   beides kein Punkt. Jetzt sagt die Farbe, wie weit ein Fahrzeug ist. */
+const HAKEN      = '🟢';   // jeder Sitz belegt, Lehrgänge stimmen
+const PUNKT_TEIL = '🟡';   // Mindestbesetzung samt Lehrgängen steht, aber nicht voll
+const PUNKT_LEER = '🔴';   // darunter
+const PUNKT_VON  = { voll: HAKEN, teil: PUNKT_TEIL, leer: PUNKT_LEER };
+
+/* Der Ausschlußpunkt wird **nie** vom Skript gesetzt. Wer ihn von Hand in
+   einen Wachennamen schreibt, nimmt diese Wache vollständig aus dem Planer
+   heraus: sie erscheint in keiner Liste, keiner Zählung, keinem Lauf. Gedacht
+   für Wachen, die man bewußt anders führt als den Plan. Er wird auch nicht aus
+   Namen entfernt — sonst wäre er nach dem ersten Umbenennen weg.
+
+   Bis v0.65.1 war das der rote Punkt. Der sagt jetzt „unter Mindestbesetzung"
+   und wird vom Planer selbst in Fahrzeugnamen geschrieben, also brauchte der
+   Ausschluß ein eigenes Zeichen. An **Wachen** gilt der alte rote Punkt
+   weiter: wer ihn dort stehen hat, verlöre sonst stillschweigend seinen
+   Ausschluß, und der Planer begänne eine bewußt anders geführte Wache
+   umzubauen. In Fahrzeugnamen bedeutet er nichts dergleichen — `ausgeschlossen`
+   wird ausschließlich mit Wachen aufgerufen, und nur dort darf das so bleiben.
+   `altAusgeschlossen` sammelt die Fälle für den Hinweis in der Übersicht. */
+const AUSSCHLUSS     = '⚫';
+const AUSSCHLUSS_ALT = '🔴';
+const ausgeschlossen = b => {
+  const t = String(b?.caption || '');
+  return t.includes(AUSSCHLUSS) || t.includes(AUSSCHLUSS_ALT);
+};
+const altAusgeschlossen = () => (S.buildings || []).filter(b =>
+  !String(b.caption || '').includes(AUSSCHLUSS)
+  && String(b.caption || '').includes(AUSSCHLUSS_ALT));
 /** Wachen, mit denen der Planer überhaupt arbeiten darf. */
 const planWachen = () => S.buildings.filter(b => !ausgeschlossen(b));
 /* Erkannt wird auch das alte Häkchen, damit es beim nächsten Lauf verschwindet —
@@ -1079,7 +1101,14 @@ const HAKEN_ZEICHEN = '\\u2705\\u2714\\u2713\\uFE0F\\u{1F7E2}';
    Wachennamen in sich — „MZB #I - WasRet 3 ✔️ - Sasha“ —, und dieses ✔️ in der
    Mitte ist die alte Markierung derselben Wache. Bliebe sie stehen, hinge sie
    für immer im Fahrzeugnamen, während die Wache längst umbenannt ist. */
-const HAKEN_ALLE = new RegExp(`[${HAKEN_ZEICHEN}]+\\s*`, 'gu');
+/* Gelb, rot und der Ausschlußpunkt stehen mit in der Liste, obwohl letzterer
+   nie verschwinden soll: was ihn trägt, wird gar nicht erst umbenannt. Hier
+   geht es um Namen, die auf so etwas VERWEISEN — {stationName}, {dispatch} —,
+   und dort gehört die Markierung der anderen Sache nicht hinein. */
+const HAKEN_ALLE = new RegExp(`[${HAKEN_ZEICHEN}\\u{1F7E1}\\u{1F534}\\u{26AB}]+\\s*`, 'gu');
+/* Nur das Grün. Daran hängt, was als fertig gilt und was geschützt ist — ein
+   gelber Punkt ist weder das eine noch das andere. */
+const GRUEN_ALLE = new RegExp(`[${HAKEN_ZEICHEN}]+`, 'gu');
 /* ── Schutz für Fertiges ──────────────────────────────────────────────
    Was den Punkt trägt, ist erklärtermaßen fertig — daran soll das Skript
    nicht mehr rühren, bis es ausdrücklich freigegeben wird. Der Schalter
@@ -1092,6 +1121,12 @@ const HAKEN_ALLE = new RegExp(`[${HAKEN_ZEICHEN}]+\\s*`, 'gu');
    Erweiterung abschalten. Hinzufügen bleibt erlaubt — werben, ausbilden,
    freie Sitze auffüllen —, denn davon verliert niemand etwas.
    ─────────────────────────────────────────────────────────────────── */
+/* Nur **Fahrzeuge**. Der grüne Punkt im Wachennamen ist seit v0.65.2 reine
+   Auskunft (Sasha, 01.10.): er sagt „hier trägt jedes Fahrzeug sein Grün" und
+   schützt nichts mehr. Vorher sperrte er die ganze Wache — Ausbauten,
+   Zuweisungen, Umbenennen —, und eine Wache, die einmal grün geworden war,
+   ließ sich ohne Freigabe nicht mehr nachführen. Wer eine Wache wirklich in
+   Ruhe lassen will, nimmt den Ausschlußpunkt ⚫. */
 const geschuetzt = o => !S.opts.gruenFrei && hatHaken(o?.caption || '');
 let uebergangen = 0;                          // je Lauf gezählt, am Ende gemeldet
 const schutzZaehlen = () => { uebergangen++; };
@@ -1106,7 +1141,7 @@ const ohneHaken = t => String(t)
   .replace(HAKEN_ALLE, '')
   .replace(/\s{2,}/g, ' ')          // wo die Markierung stand, bleibt sonst eine Lücke
   .trim();
-const hatHaken  = t => { HAKEN_ALLE.lastIndex = 0; return HAKEN_ALLE.test(String(t)); };
+const hatHaken  = t => { GRUEN_ALLE.lastIndex = 0; return GRUEN_ALLE.test(String(t)); };
 
 /** Namensvorlagen
     ═══════════════════════════════════════════════════════════════════
@@ -1316,12 +1351,13 @@ async function zuweisungenLoeschen(sel, dry) {
      Steht nach dem Leeren niemand mehr darauf, friert der Planer die leere
      Besatzung ein und füllt nur noch aus kostenlosen Spalten auf. Ein
      grünes Fahrzeug mit Fachkraftbedarf käme also leer zurück — genau das
-     Gegenteil von „Neuanfang vor einer sauberen Zuweisung“. */
-  if (geschuetzt(b)) {
-    log(`${b.caption} ist grün markiert — nichts gelöst.`, 'warn');
-    schutzZaehlen(); schutzMelden();
-    return 0;
-  }
+     Gegenteil von „Neuanfang vor einer sauberen Zuweisung“.
+
+     Das gilt je **Fahrzeug** (gleich unten) und seit v0.65.2 nicht mehr für
+     die ganze Wache: ein grüner Wachenname ist Auskunft, kein Schloß. Vorher
+     blockierte er den Lauf vollständig, und das Argument oben trägt ihn
+     nicht — es handelt von Fahrzeugen. Wer eine Wache ganz heraushalten
+     will, nimmt ⚫. */
   const eigene = new Set(echteVon(b)
     .filter(v => { if (geschuetzt(v)) { schutzZaehlen(); return false; } return true; })
     .map(v => String(v.id)));
@@ -1393,9 +1429,13 @@ const leitstelleName = b => S.buildings
 
 /** Kontext eines Fahrzeugs. Wer eine neue Marke einbaut, ergänzt `MARKEN`
     um eine Zeile und hier um ein Feld — die Tabelle liest nur von hier. */
-function kontextFahrzeug(b, v, punkt) {
+/** `zeichen` ist seit v0.65.2 der Punkt selbst (`PUNKT_VON[...]`), nicht mehr
+    ein Wahrheitswert: ein Fahrzeug kennt drei Zustände, und welcher davon
+    gemeint ist, weiß der Aufrufer. Leertext heißt ausdrücklich „kein Punkt“ —
+    so bleibt die alte Vorschau ohne Urteil möglich. */
+function kontextFahrzeug(b, v, zeichen) {
   return {
-    punkt:          punkt ? HAKEN : '',
+    punkt:          zeichen || '',
     id:             v.id,
     alt:            ohneHaken(v.caption),
     typName:        T.vehName(v.vehicle_type),
@@ -1456,6 +1496,69 @@ function vorlagenPruefen() {
            vorlageFz: eintraege[0].vorlage, vorlageWache: eintraege[1].vorlage };
 }
 
+/** Ein Fahrzeug auf seinen Sollnamen bringen — die gemeinsame Fassung für
+    Namenslauf und Personallauf. Zwei Abschriften derselben fünf Schranken
+    (gleich, geschützt, zu lang, leer, Fehler) wären zwei Gelegenheiten, eine
+    davon zu vergessen; die wichtigste ist der Schutz.
+
+    Zurück kommt der Grund, nicht nur „ja/nein" — der Aufrufer zählt damit und
+    kann melden, warum nichts geschah. */
+async function fahrzeugNameSetzen(b, v, zeichen, vorlage, marken, dry) {
+  const soll = nameAus(vorlage, marken, kontextFahrzeug(b, v, zeichen));
+  /* Steht der Name schon so im Spiel, geht dafür keine Anfrage hinaus —
+     weder Formular noch Schreibvorgang. Gezählt wird es trotzdem: sonst
+     sieht ein Lauf, der nichts zu tun hatte, genauso aus wie einer, der
+     die Wache übersehen hat. */
+  if (soll === v.caption) return 'gleich';
+  /* Der Schutz zuerst: ein grünes Fahrzeug wird ohnehin nicht angefaßt,
+     und es soll nicht als „zu lang" in einer Zählung auftauchen, die
+     nach einem Namensproblem klingt.
+     Den Punkt wegzunehmen ist auch ein Eingriff — gerade der, der zählt. */
+  if (geschuetzt(v)) { schutzZaehlen(); return 'geschuetzt'; }
+  /* Nie stillschweigend kürzen: ein halber Name ist schlimmer als ein alter. */
+  const grenze = Number(S.opts.nameMax ?? NAME_MAX_STANDARD);
+  if (soll.length > grenze) {
+    log(`   ${v.caption}: neuer Name wäre ${soll.length} Zeichen lang (Grenze ${grenze}) `
+      + '— übersprungen', 'warn');
+    return 'lang';
+  }
+  if (!soll) {
+    log(`   ${v.caption}: die Vorlage ergibt einen leeren Namen — übersprungen`, 'warn');
+    return 'leer';
+  }
+  log(`   ${v.caption} → ${soll}`, zeichen === HAKEN ? 'good' : '');
+  try { await umbenennenFahrzeug(v, soll, dry); return 'getan'; }
+  catch (e) { log(`      fehlgeschlagen: ${e.message}`, 'err'); return 'fehler'; }
+}
+
+/** Trägt jedem Fahrzeug einer Wache seinen Punkt ein: 🟢 voll, 🟡 ab
+    Mindestbesetzung, 🔴 darunter. Anhänger erben den Stand ihres
+    Zugfahrzeugs — sie haben keine eigenen Sitze.
+
+    `besatzung` ist je Fahrzeug-Id die Liste der Lehrgangsmengen seiner Leute.
+    Zurück kommt je Fahrzeug-Id `{art, grund}`; gerechnet wird ausschließlich
+    in `fahrzeugStand`. */
+function punkteFuerWache(b, besatzung) {
+  const stand = new Map();
+  for (const v of echteVon(b)) {
+    const s = fahrzeugStand(v, besatzung.get(v.id) || []);
+    if (s) stand.set(v.id, s);
+  }
+  for (const v of echteVon(b)) {
+    if (stand.has(v.id) || !T.veh(v.vehicle_type)) continue;   // nur Anhänger bleiben übrig
+    if (!v.zugfahrzeug) { stand.set(v.id, { art: 'leer', grund: 'kein Zugfahrzeug' }); continue; }
+    const zug = stand.get(v.zugfahrzeug);
+    /* Ein vorgemerktes Zugfahrzeug steht nicht in `echteVon` und hat deshalb
+       keinen Stand. Dann ist der Anhänger nicht beurteilbar — und das gehört
+       so gesagt, nicht als „kein Zugfahrzeug" ausgegeben: er hat ja eines. */
+    if (!zug) { stand.set(v.id, { art: 'leer', grund: 'Zugfahrzeug nicht beurteilbar' }); continue; }
+    const zugFz = mineOf(b).find(x => x.id === v.zugfahrzeug);
+    stand.set(v.id, { art: zug.art, grund: zug.art === 'voll' ? ''
+      : `${zugFz ? ohneHaken(zugFz.caption) : 'Zugfahrzeug'}: ${zug.grund}` });
+  }
+  return stand;
+}
+
 /** Setzt oder entfernt das Häkchen je nach Fortschritt. */
 async function hakenAbgleichen(sel, dry) {
   let n = 0, i = 0, zuLang = 0, gleichFz = 0, gleichWa = 0;
@@ -1501,70 +1604,33 @@ async function hakenAbgleichen(sel, dry) {
         if (!besatzung.has(v.id)) besatzung.set(v.id, []);
         besatzung.get(v.id).push(kann);
       }
-      /* Der Haken gilt ab Mindestbesetzung, nicht ab vollem Fahrzeug. */
-      const fertig = new Map(), mangel = new Map();
+      const stand = punkteFuerWache(b, besatzung);
+      const ohneGruen = [];
       for (const v of echteVon(b)) {
-        const meta = T.veh(v.vehicle_type);
-        if (!meta || !meta.max) continue;
-        const fehlt = fehltAn(v, besatzung.get(v.id) || []);
-        mangel.set(v.id, fehlt);
-        fertig.set(v.id, !fehlt);
-      }
-      const ohnePunkt = [];
-      for (const v of echteVon(b)) {
-        const meta = T.veh(v.vehicle_type);
-        if (!meta) continue;
-        /* Ein Anhänger hat keine Sitze und kann deshalb nie „besetzt“ sein.
-           Fertig ist er, wenn er an einem Zugfahrzeug hängt, das seine
-           Mindestbesetzung hat — dort sitzen ja auch seine Leute. */
-        const voll = meta.max
-          ? fertig.get(v.id)
-          : !!v.zugfahrzeug && fertig.get(v.zugfahrzeug) === true;
+        const s = stand.get(v.id);
+        if (!s) continue;                      // Typ steht nicht in den Stammdaten
         // Für das Urteil über die Wache: in der Vorschau steht der Punkt noch
         // nicht im Namen, hier ist er aber schon bekannt.
-        punktSoll.set(v.id, !!voll);
+        punktSoll.set(v.id, s.art === 'voll');
 
-        if (!voll) {
-          /* Ohne Begründung ist eine fehlende Markierung nicht von einem
-             übersehenen Fahrzeug zu unterscheiden. Beides sieht gleich aus:
-             nichts passiert. */
-          const zug = v.zugfahrzeug && mineOf(b).find(x => x.id === v.zugfahrzeug);
-          ohnePunkt.push(`${ohneHaken(v.caption)}: ` + (!meta.max
-            ? (!v.zugfahrzeug ? 'kein Zugfahrzeug'
-               : `${zug ? ohneHaken(zug.caption) : 'Zugfahrzeug'} hat keine Mindestbesetzung`)
-            : (mangel.get(v.id) || 'nicht besetzbar')));
+        if (s.art !== 'voll') {
+          /* Ohne Begründung ist ein gelber oder fehlender Punkt nicht von
+             einem übersehenen Fahrzeug zu unterscheiden. Beides sieht gleich
+             aus: nichts passiert. */
+          ohneGruen.push(`${PUNKT_VON[s.art]} ${ohneHaken(v.caption)}: `
+            + (s.grund || 'nicht besetzbar'));
         }
 
-        const soll = nameAus(pruefung.vorlageFz, markenFz, kontextFahrzeug(b, v, voll));
-        /* Steht der Name schon so im Spiel, geht dafür keine Anfrage hinaus —
-           weder Formular noch Schreibvorgang. Gezählt wird es trotzdem: sonst
-           sieht ein Lauf, der nichts zu tun hatte, genauso aus wie einer, der
-           die Wache übersehen hat. */
-        if (soll === v.caption) { gleichFz++; continue; }
-        /* Der Schutz zuerst: ein grünes Fahrzeug wird ohnehin nicht angefaßt,
-           und es soll nicht als „zu lang" in einer Zählung auftauchen, die
-           nach einem Namensproblem klingt. */
-        // Den Punkt wegzunehmen ist auch ein Eingriff — gerade der, der zählt
-        if (geschuetzt(v)) { schutzZaehlen(); continue; }
-        /* Nie stillschweigend kürzen: ein halber Name ist schlimmer als ein
-           alter. Übersprungen und am Ende gezählt. */
-        if (soll.length > grenze) {
-          log(`   ${v.caption}: neuer Name wäre ${soll.length} Zeichen lang (Grenze ${grenze}) `
-            + '— übersprungen', 'warn');
-          zuLang++; continue;
-        }
-        if (!soll) {
-          log(`   ${v.caption}: die Vorlage ergibt einen leeren Namen — übersprungen`, 'warn');
-          continue;
-        }
-        log(`   ${v.caption} → ${soll}`, voll ? 'good' : '');
-        try { await umbenennenFahrzeug(v, soll, dry); n++; }
-        catch (e) { log(`      fehlgeschlagen: ${e.message}`, 'err'); }
+        const was = await fahrzeugNameSetzen(b, v, PUNKT_VON[s.art],
+                                             pruefung.vorlageFz, markenFz, dry);
+        if (was === 'getan') n++;
+        else if (was === 'gleich') gleichFz++;
+        else if (was === 'lang') zuLang++;
       }
-      if (ohnePunkt.length) {
+      if (ohneGruen.length) {
         // Lang genug zum Nachsehen, kurz genug zum Lesen
-        ohnePunkt.slice(0, 6).forEach(t => log(`   ohne Punkt — ${t}`));
-        if (ohnePunkt.length > 6) log(`   … und ${ohnePunkt.length - 6} weitere`);
+        ohneGruen.slice(0, 6).forEach(t => log(`   ohne Grün — ${t}`));
+        if (ohneGruen.length > 6) log(`   … und ${ohneGruen.length - 6} weitere`);
       }
     }
 
@@ -1592,7 +1658,7 @@ async function hakenAbgleichen(sel, dry) {
       if (f.weg)       rest.push(`${f.weg} überzählig`);
       if (f.lehrgang)  rest.push(`${f.lehrgang} Ausbildungen`);
       log(`${b.caption}: kein Punkt — ${!fz.length ? 'keine Fahrzeuge auf der Wache'
-        : `${ohne.length} von ${fz.length} Fahrzeugen ohne Punkt`}`
+        : `${ohne.length} von ${fz.length} Fahrzeugen nicht grün`}`
         + (rest.length ? ` (außerdem offen: ${rest.join(', ')})` : ''));
     }
     if (soll === b.caption) {
@@ -1602,7 +1668,10 @@ async function hakenAbgleichen(sel, dry) {
       log(`${b.caption}: Name bleibt — kein Abruf nötig`);
       continue;
     }
-    if (geschuetzt(b)) { schutzZaehlen(); continue; }
+    /* Kein Schutz über den grünen Punkt der Wache: er ist seit v0.65.2 reine
+       Auskunft. Sonst hätte eine einmal grün gewordene Wache ihren Namen nie
+       wieder losgelassen — auch dann nicht, wenn ihre Fahrzeuge längst gelb
+       sind und der Punkt im Wachennamen schlicht falsch steht. */
     if (soll.length > grenze) {
       log(`${b.caption}: neuer Name wäre ${soll.length} Zeichen lang (Grenze ${grenze}) `
         + '— übersprungen', 'warn');
@@ -1709,10 +1778,12 @@ function verkaufsKandidaten(b, typId, anzahl) {
   for (const v of mineOf(b).filter(x => String(x.vehicle_type) === String(typId))) {
     /* Platzhalter zuerst prüfen, damit `gruen` nur wahr ist, wenn der Schutz
        auch wirklich der Grund ist — daran hängt die Schutzmeldung. */
-    const gruen = !istPlatzhalter(v) && (geschuetzt(b) || geschuetzt(v));
+    /* Nur das Fahrzeug zählt. Bis v0.65.1 schützte auch ein grüner
+       Wachenname jedes Fahrzeug darauf — jetzt ist er Auskunft. */
+    const gruen = !istPlatzhalter(v) && geschuetzt(v);
     const grund =
         istPlatzhalter(v)                      ? 'gerade gekauft, dem Server noch unbekannt'
-      : gruen                                  ? (geschuetzt(b) ? 'Wache ist grün markiert' : 'grün markiert')
+      : gruen                                  ? 'grün markiert'
       : anhaengerAn(v).length                  ? 'Anhänger hängt dran'
       : (v.fms_real !== 2 && v.fms_real !== 6) ? `unterwegs (Status ${v.fms_real})`
       : null;
@@ -2146,6 +2217,31 @@ function fehltAn(v, besatzung) {
   return '';
 }
 
+/** Wie weit ist dieses Fahrzeug besetzt? Die **eine** Quelle für den Punkt im
+    Namen — Namenslauf und Personallauf fragen beide hier, sonst liefen zwei
+    Rechnungen über dieselbe Sache auseinander (das hat schon einmal den Haken
+    gegen die Personalplanung gestellt, siehe `fehltAn`).
+
+      voll  jeder Sitz belegt und jede Lehrgangsauflage erfüllt
+      teil  Mindestbesetzung samt Lehrgängen steht, aber es sind Sitze frei
+      leer  darunter — mit Begründung, denn „kein Punkt“ und „nicht angesehen“
+            sehen sonst gleich aus
+
+    `besatzung` ist je Person die Menge ihrer Lehrgänge (fertige und laufende).
+    Ein Anhänger bekommt `null`: er hat keine Sitze und kann nie aus eigener
+    Kraft besetzt sein. Sein Stand ist der seines Zugfahrzeugs, und welches das
+    ist, weiß nur der Aufrufer — eine Scheinantwort wäre hier schlimmer als
+    keine. */
+function fahrzeugStand(v, besatzung) {
+  const meta = T.veh(v.vehicle_type);
+  if (!meta || !meta.max) return null;
+  const fehlt = fehltAn(v, besatzung);
+  if (fehlt) return { art: 'leer', grund: fehlt };
+  if (besatzung.length < meta.max)
+    return { art: 'teil', grund: `${besatzung.length} von ${meta.max} Sitzen besetzt` };
+  return { art: 'voll', grund: '' };
+}
+
 /** Welche Anfragen bringen eine Wache vom Ist- in den Sollzustand?
     Rein rechnend und ohne Server — genau hier saß der Fehler aus D-81.
 
@@ -2222,8 +2318,11 @@ async function setzeFms(v, ziel, dry) {
 /** Ausbauten und Wache nachziehen: Ist alles zugehörige einsatzbereit,
     darf auch der Ausbau an — sonst aus. Leere Stellplätze zählen nicht. */
 async function pflegeAusbauten(b, dry) {
-  // Eine grüne Wache abzuschalten wäre ein Eingriff in genau das, was fertig ist
-  if (geschuetzt(b)) { schutzZaehlen(); return 0; }
+  /* Bis v0.65.1 ließ ein grüner Wachenname diesen Lauf ganz aus — „eine grüne
+     Wache abzuschalten wäre ein Eingriff in genau das, was fertig ist". Seit
+     v0.65.2 ist der grüne Punkt an der Wache Auskunft und kein Schloß: sonst
+     folgten die Ausbauten einer einmal grün gewordenen Wache ihren Fahrzeugen
+     nie wieder. Geschützt sind weiterhin die Fahrzeuge selbst. */
   const mine = S.byBuilding.get(b.id) || [];
   const tgt = T.target(b);
   const pmap = tgt?.pools || {};
@@ -2585,6 +2684,24 @@ async function assignStaff(sel, dry) {
   let n = 0, unterwegs = 0;
   const ueberzaehlig = [];
 
+  /* Umbenennen gleich mit, wenn der Haken im Reiter steht: dieselbe Vorlage
+     wie im Reiter „Namen", derselbe Punkt, derselbe Schutz. Der Sinn ist der
+     eine Durchgang — wer gerade zugewiesen hat, weiß als einziger ohne
+     zweiten Abruf, wie voll jedes Fahrzeug jetzt ist.
+
+     Die Vorlage wird einmal vorweg geprüft, nicht je Fahrzeug. Taugt sie
+     nichts, bleibt es bei der Zuweisung: ein Formfehler in den Namen darf
+     den Personallauf nicht aufhalten. */
+  const vorlagen = S.opts.fzUmbenennen ? vorlagenPruefen() : null;
+  const markenFzLauf = markenFuer(MARKEN_FZ);
+  if (vorlagen?.fehler) {
+    vorlagen.fehler.forEach(t => log(t, 'err'));
+    log('Es wird nichts umbenannt — erst die Vorlage im Reiter „Namen" richtigstellen. '
+      + 'Personal wird trotzdem zugewiesen.', 'err');
+  }
+  const taufen = !!vorlagen && !vorlagen.fehler;
+  if (taufen) vorlagen.hinweise.forEach(t => log(t, 'warn'));
+
   /* Vorgemerkte Umschaltungen nachholen, sofern das Fahrzeug daheim ist —
      aber nur an den Wachen, die für diesen Lauf gewählt sind. Ohne diese
      Schranke arbeitete ein Lauf über Wache B die Vormerkungen von Wache A
@@ -2686,6 +2803,28 @@ async function assignStaff(sel, dry) {
       if (v.fms_real === ziel) continue;
       if (v.fms_real !== 2 && v.fms_real !== 6) { unterwegs++; merkeWarte(v.id, ziel); continue; }
       if (await setzeFms(v, ziel, dry)) n++;
+    }
+
+    /* Jetzt erst der Name: davor stand die Besatzung noch nicht fest.
+       Gerechnet wird aus dem frischen Sitzplan, nicht aus einem zweiten
+       Abruf — `plan.zuweisung` hält je Fahrzeug genau die Leute, die dieser
+       Lauf eben daraufgesetzt hat. Ein lahmes Fahrzeug steht nicht darin und
+       bekommt damit seinen roten Punkt. */
+    if (taufen) {
+      const besatzung = new Map();
+      for (const v of echteVon(b)) {
+        const leute = lahmIds.has(String(v.id)) ? [] : (plan.zuweisung.get(v.id) || []);
+        besatzung.set(v.id, leute.map(p => p.kann));
+      }
+      const stand = punkteFuerWache(b, besatzung);
+      for (const v of echteVon(b)) {
+        if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
+        const s = stand.get(v.id);
+        if (!s) continue;                    // Typ steht nicht in den Stammdaten
+        const was = await fahrzeugNameSetzen(b, v, PUNKT_VON[s.art],
+                                             vorlagen.vorlageFz, markenFzLauf, dry);
+        if (was === 'getan') n++;
+      }
     }
 
     n += await pflegeAusbauten(b, dry);
@@ -3118,7 +3257,18 @@ function anhaengerZaehlt(meta, key, tgt) {
     (Number(tgt?.vehicles?.[z]) || 0) > 0 && T.veh(z)?.kurse?.some(k => k.k === key));
 }
 
-function courseNeed(b, feld = 'max') {
+/** Worauf sich „fehlt" bezieht, wenn niemand es ausdrücklich sagt: auf die
+    vollen Sitze oder auf die Mindestbesetzung. Umschaltbar im Reiter
+    „Ausbildung" (Sasha, 01.10.) — bis dahin war immer `max` gemeint, und eine
+    Wache, die längst jedes Fahrzeug ausrücken lassen konnte, stand mit
+    dreistelligen Lücken da.
+
+    Umgeschaltet wird nur die **Anzeige**. Was der Planer tut — wen er einem
+    Kurs zuteilt, wen er einem Fahrzeug zuweist —, nennt sein Feld weiterhin
+    ausdrücklich; sonst hinge eine Handlung an einem Anzeigeschalter. */
+const kursZiel = () => (S.opts.kursMin ? 'min' : 'max');
+
+function courseNeed(b, feld = kursZiel()) {
   const mk = b.id + '|' + feld;
   const hit = memoK.get(mk);
   if (hit && hit.g === stand0) return hit.v;
@@ -3862,15 +4012,19 @@ function render() {
       + 'leer zurück. Aus Sicherheitsgründen immer nur eine einzige Wache je Lauf, '
       + 'und vor der Ausführung wird nochmals nachgefragt.'],
     haken:    ['Namen abgleichen',     hakenAbgleichen,
-      'Benennt Fahrzeuge und Wachen nach den Vorlagen unten um. '
-      + `${HAKEN} trägt, wer fertig ist: ein Fahrzeug, sobald es voll und passend besetzt ist, `
-      + 'eine Wache, sobald jedes ihrer Fahrzeuge den Punkt trägt. Wo der Punkt im Namen steht, '
-      + 'sagt {punkt}; alles andere daneben ist frei. Wachen ohne erfassten Ausbildungsstand '
-      + 'bleiben unangetastet.'],
+      'Benennt Fahrzeuge und Wachen nach den Vorlagen unten um. Der Punkt am Fahrzeug sagt, '
+      + `wie weit es besetzt ist: ${HAKEN} jeder Sitz belegt und jeder Lehrgang da, `
+      + `${PUNKT_TEIL} ab Mindestbesetzung, ${PUNKT_LEER} darunter. Eine Wache trägt ${HAKEN}, `
+      + 'sobald jedes ihrer Fahrzeuge grün ist. Wo der Punkt im Namen steht, sagt {punkt}; '
+      + 'alles andere daneben ist frei. Wachen ohne erfassten Ausbildungsstand bleiben '
+      + 'unangetastet. Beim ersten Lauf nach v0.65.2 bekommt fast jedes Fahrzeug einen neuen '
+      + 'Namen — bisher trug nur das fertige einen Punkt. Erst mit „Nur Vorschau" ansehen und '
+      + 'Zeit einplanen: jedes Umbenennen ist eine eigene Anfrage.'],
     personal: ['Personal zuweisen',    assignStaff,
       'Verteilt vorhandenes Personal auf die Fahrzeuge: erst Ausgebildete auf ihre Fachfahrzeuge, dann der Rest. '
       + 'Anschließend wird die Einsatzbereitschaft nachgezogen: Fahrzeuge ohne ausreichende Besatzung gehen auf '
-      + 'Status 6, ausreichend besetzte kommen zurück auf 2, und Ausbauten samt Wache folgen ihren Fahrzeugen.']
+      + 'Status 6, ausreichend besetzte kommen zurück auf 2, und Ausbauten samt Wache folgen ihren Fahrzeugen. '
+      + 'Auf Wunsch bekommt jedes Fahrzeug im selben Durchgang gleich seinen Punkt in den Namen.']
   };
 
   if (tab === 'ueber') {
@@ -3884,6 +4038,7 @@ function render() {
       const f = fortschritt(bb);
       if (f.fertig) fertig++; else if (f.unklar) unklar++;
     }
+    const altRot = altAusgeschlossen();
     b.innerHTML = `<div class="row">
         <label style="color:var(--lp-dim)">Personal-Puffer
           <input type="number" id="lssp-buf" min="0" max="100" value="${S.opts.buffer}" style="width:64px"> %</label>
@@ -3893,10 +4048,20 @@ function render() {
         <button class="act" id="lssp-reload">Bestand neu laden</button>
       </div>
       <p class="hint" style="margin-bottom:8px">
-        <b>${HAKEN} im Namen</b> setzt der Planer selbst, sobald eine Wache nach Plan fertig ist;
-        was ihn trägt, rührt er ohne Freigabe nicht mehr an.
+        <b>Die Punkte im Namen</b> setzt der Planer selbst — an <b>Fahrzeugen</b>:
+        ${HAKEN} jeder Sitz belegt, ${PUNKT_TEIL} ab Mindestbesetzung, ${PUNKT_LEER} darunter.
+        Was ${HAKEN} trägt, rührt er ohne Freigabe nicht mehr an.
+        An einer <b>Wache</b> steht ${HAKEN}, sobald jedes ihrer Fahrzeuge grün ist — dort ist er
+        reine Auskunft und schützt nichts.<br>
         <b>${AUSSCHLUSS} im Namen</b> schreibst du selbst — diese Wache verschwindet vollständig
-        aus Listen, Zählungen und Läufen. Entfernt wird der rote Punkt nie.</p>
+        aus Listen, Zählungen und Läufen. Entfernt wird er nie.</p>
+      ${altRot.length ? `<p class="hint" style="margin-bottom:8px">
+        <span class="warn">${altRot.length} Wachen tragen noch den alten roten Punkt als
+        Ausschluß.</span> Er gilt dort weiter — niemandem soll sein Ausschluß stillschweigend
+        abhandenkommen —, aber ${PUNKT_LEER} heißt jetzt „unter Mindestbesetzung" und steht an
+        Fahrzeugen. Ersetz ihn in diesen Wachennamen durch ${AUSSCHLUSS}:
+        ${altRot.slice(0, 8).map(x => esc(x.caption)).join(', ')}${
+          altRot.length > 8 ? ` … und ${altRot.length - 8} weitere` : ''}</p>` : ''}
       <label class="row" style="margin-bottom:8px;color:var(--lp-dim);font-size:12px">
         <input type="checkbox" id="lssp-inline" ${ui.inline ? 'checked' : ''}>
         <span><b>Auf Wachenseiten einblenden</b> — versuchsweise: beim Öffnen einer Wache im Spiel
@@ -4201,7 +4366,19 @@ function render() {
       ${learned ? `<span class="good">${learned} Lehrgangsnamen bekannt.</span>`
                 : `<span class="warn">Noch keine Lehrgangsnamen bekannt.</span> Drück auf
                    <b>Lehrgangsnamen lesen</b> — der Planer holt sie sich selbst aus deinen Schulen.`}
-      </p>${buildingList()}
+      </p>
+      <div style="border:1px solid var(--lp-rand);border-radius:3px;padding:9px 11px;margin:0 0 10px">
+        <div style="color:var(--lp-dim);font-size:12px;margin-bottom:6px">Wogegen gerechnet wird:</div>
+        <label style="display:block;margin-bottom:4px">
+          <input type="radio" name="lsspkursziel" value="max" ${S.opts.kursMin ? '' : 'checked'}>
+          <b>Alle Sitze</b> <span style="color:var(--lp-dim2)">— jeder Platz auf jedem geplanten
+          Fahrzeug ist ausgebildet. Das Fernziel.</span></label>
+        <label style="display:block">
+          <input type="radio" name="lsspkursziel" value="min" ${S.opts.kursMin ? 'checked' : ''}>
+          <b>Nur bis zur Mindestbesetzung</b> <span style="color:var(--lp-dim2)">— so viele, daß
+          jedes Fahrzeug ausrücken kann. Das Nahziel; die Zahlen fallen deutlich kleiner aus.</span></label>
+      </div>
+      ${buildingList()}
       <div class="row" style="margin-top:10px">
         <button class="act go" id="lssp-scan">Ausbildungsstand erfassen</button>
         <button class="act" id="lssp-learn">Lehrgangsnamen lesen</button>
@@ -4218,6 +4395,13 @@ function render() {
   b.querySelectorAll('button.ruht').forEach(x => x.onclick = ev => {
     ev.preventDefault(); ruhtUm(Number(x.dataset.id)); render();
   });
+    /* Der Umschalter ändert die Rechnung in `courseNeed` — also muß auch die
+       gemerkte Rechnung weg, sonst stünden die alten Zahlen weiter da. */
+    b.querySelectorAll('input[name=lsspkursziel]').forEach(r => r.onchange = e => {
+      S.opts.kursMin = e.target.value === 'min';
+      store.set(KEY_OPTS, S.opts);
+      standNeu(); render();
+    });
     auswahlBinden(b);
 
     const draw = () => {
@@ -4357,7 +4541,14 @@ function render() {
       <span style="color:var(--lp-dim2)">— wenn ein Fahrzeug sonst ohne Besatzung bliebe.
       Nur wer auf dem grünen Fahrzeug entbehrlich ist: es behält seine Mindestbesetzung
       und damit seinen Punkt. Ohne das steht der ELW2 Drohne für immer, sobald seine
-      Doppelqualifizierten auf einem grünen ELW 2 sitzen.</span></label>`;
+      Doppelqualifizierten auf einem grünen ELW 2 sitzen.</span></label>
+    <label style="display:block;margin:0 0 10px;color:var(--lp-dim)">
+      <input type="checkbox" id="lssp-fzname" ${S.opts.fzUmbenennen ? 'checked' : ''}>
+      <b>Fahrzeuge anschließend umbenennen</b>
+      <span style="color:var(--lp-dim2)">— jedes Fahrzeug bekommt gleich hier seinen Punkt,
+      nach der Vorlage aus dem Reiter „Namen": ${HAKEN} jeder Sitz belegt, ${PUNKT_TEIL} ab
+      Mindestbesetzung, ${PUNKT_LEER} darunter. Spart den zweiten Durchgang samt zweitem Abruf
+      je Wache. Grüne Fahrzeuge bleiben unberührt, solange sie nicht freigegeben sind.</span></label>`;
   const heimwarnung = tab !== 'personal' ? '' : `
     <div style="border:1px solid #6b4a1f;background:#2a1f10;border-radius:3px;padding:9px 11px;margin:0 0 10px;color:var(--lp-akzent)">
       <b>Vorher alle Fahrzeuge einrücken lassen.</b> Der Status lässt sich nur umschalten, wenn ein
@@ -4580,6 +4771,9 @@ function render() {
   });
   b.querySelector('#lssp-leihen')?.addEventListener('change', e => {
     S.opts.gruenLeihen = e.target.checked; store.set(KEY_OPTS, S.opts);
+  });
+  b.querySelector('#lssp-fzname')?.addEventListener('change', e => {
+    S.opts.fzUmbenennen = e.target.checked; store.set(KEY_OPTS, S.opts);
   });
   b.querySelectorAll('input[name=lsspmode]').forEach(r => r.onchange = e => {
     S.opts.strict = e.target.value === 'strict'; store.set(KEY_OPTS, S.opts);
