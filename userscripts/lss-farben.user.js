@@ -25,7 +25,7 @@
         Daraus kommt der Status. Ohne den Planer bleibt das Rot aus — dieses
         Skript ruft absichtlich nichts ab, es soll leicht bleiben. */
 
-/* Seit Planer v0.66.0 gibt es drei Punkte statt eines. Ausgeblendet und
+/* Seit Planer v0.65.2 gibt es drei Punkte statt eines. Ausgeblendet und
    gefärbt werden alle drei; der Ausschlußpunkt ⚫ bleibt stehen — er ist von
    Hand gesetzt und soll gerade auffallen. */
 const PUNKTE  = { '\u{1F7E2}': 'fertig', '\u{1F7E1}': 'teil', '\u{1F534}': 'leer' };

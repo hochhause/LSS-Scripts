@@ -1,6 +1,6 @@
 # Leitstellenspiel-Werkzeuge — Projektstand
 
-Stand: 01.10.2026, Skript v0.66.0. Diese Datei und `CLAUDE.md` genügen, um an
+Stand: 01.10.2026, Skript v0.65.2. Diese Datei und `CLAUDE.md` genügen, um an
 einem beliebigen Punkt weiterzuarbeiten. Uploads von Stammdaten, Spielbestand
 oder Seitenabzügen braucht es nicht mehr — alles Nötige steckt in den Dateien
 unten oder wird aus dem Spiel gelesen.
@@ -9,7 +9,7 @@ unten oder wird aus dem Spiel gelesen.
 
 | Datei | Zweck |
 |---|---|
-| `lss-planer.user.js` | Userscript v0.66.0: setzt das Wunschbild im Spiel um |
+| `lss-planer.user.js` | Userscript v0.65.2: setzt das Wunschbild im Spiel um |
 | `lss-farben.user.js` | v0.2.0: reine Anzeige — blendet 🟢🟡🔴 aus und färbt den Namen entsprechend, Status 6 rot. ⚫ bleibt stehen |
 | `lss-einruecken.user.js` | v0.3.0: Fahrzeuge zurück zur Wache rufen — **über den Einsatz**, mit dem Verweis „Alle eigenen Fahrzeuge rückalarmieren" (D-90) |
 | `lss-einsatz-flott.user.js` | v0.3.0: nächsten Einsatz vorwärmen — *nicht in dieser Ablage* |
@@ -35,7 +35,7 @@ Wachennamen tragen teils eine Fertig-Markierung (47 von 102). Seit v0.26 steht
 sie **vor** dem Namen; alte `✔️` am Ende werden weiter erkannt und beim
 nächsten Lauf ersetzt.
 
-**Die Punkte im Namen** (seit v0.66.0, D-97 bis D-99):
+**Die Punkte im Namen** (seit v0.65.2, D-97 bis D-99):
 
 | Zeichen | wo | gesetzt von | heißt |
 |---|---|---|---|
@@ -82,7 +82,7 @@ erst der zweite Durchgang setzt ihn wirklich hinein). Das grüne Fahrzeug behäl
 in jedem Fall seine Mindestbesetzung und damit seinen Punkt. Abschaltbar
 (`S.opts.gruenLeihen`), Vorgabe an.
 
-**Umbenennen im selben Durchgang, seit v0.66.0 (D-97):** steht der Haken
+**Umbenennen im selben Durchgang, seit v0.65.2 (D-97):** steht der Haken
 „Fahrzeuge anschließend umbenennen" (`S.opts.fzUmbenennen`, Vorgabe **aus**),
 trägt `assignStaff` jedem Fahrzeug gleich seinen Punkt ein — aus dem frischen
 Sitzplan `plan.zuweisung`, nicht aus einem zweiten Abruf. Genau das ist der
@@ -103,7 +103,7 @@ Mehrdeutigkeit „ein Schlüssel, mehrere Namen". Von den 60 Kursen im Katalog h
 nur 21 einen fest hinterlegten Namen; die übrigen kamen früher erst aus den
 Schulen, und bis dahin fiel ihr Bedarf auf null.
 
-**Nah- oder Fernziel, seit v0.66.0 (D-100):** der Reiter Ausbildung schaltet
+**Nah- oder Fernziel, seit v0.65.2 (D-100):** der Reiter Ausbildung schaltet
 um, wogegen „fehlt" rechnet — alle Sitze (Vorgabe) oder nur die
 Mindestbesetzung. Der Schalter sitzt in `S.opts.kursMin`, `courseNeed(b, feld =
 kursZiel())` holt sich daraus seine Vorgabe, und `sitzeFuerKurs(meta, 'min')`

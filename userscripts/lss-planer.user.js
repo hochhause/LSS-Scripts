@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.66.0
+// @version      0.65.2
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.66.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.65.2';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -1059,7 +1059,7 @@ function fortschritt(b) {
    des Spiels an einem Block. Einfärben ginge nicht — der Name liegt als Text
    auf dem Server und wird maskiert ausgegeben. Was ohne Userscript sichtbar
    bleiben soll, muß im Namen selbst stehen. */
-/* Drei Punkte statt eines, seit v0.66.0 (Sasha, 01.10.). Vorher gab es grün
+/* Drei Punkte statt eines, seit v0.65.2 (Sasha, 01.10.). Vorher gab es grün
    oder nichts, und „noch nie besetzt" sah aus wie „reicht knapp nicht" —
    beides kein Punkt. Jetzt sagt die Farbe, wie weit ein Fahrzeug ist. */
 const HAKEN      = '🟢';   // jeder Sitz belegt, Lehrgänge stimmen
@@ -1121,7 +1121,7 @@ const GRUEN_ALLE = new RegExp(`[${HAKEN_ZEICHEN}]+`, 'gu');
    Erweiterung abschalten. Hinzufügen bleibt erlaubt — werben, ausbilden,
    freie Sitze auffüllen —, denn davon verliert niemand etwas.
    ─────────────────────────────────────────────────────────────────── */
-/* Nur **Fahrzeuge**. Der grüne Punkt im Wachennamen ist seit v0.66.0 reine
+/* Nur **Fahrzeuge**. Der grüne Punkt im Wachennamen ist seit v0.65.2 reine
    Auskunft (Sasha, 01.10.): er sagt „hier trägt jedes Fahrzeug sein Grün" und
    schützt nichts mehr. Vorher sperrte er die ganze Wache — Ausbauten,
    Zuweisungen, Umbenennen —, und eine Wache, die einmal grün geworden war,
@@ -1353,7 +1353,7 @@ async function zuweisungenLoeschen(sel, dry) {
      grünes Fahrzeug mit Fachkraftbedarf käme also leer zurück — genau das
      Gegenteil von „Neuanfang vor einer sauberen Zuweisung“.
 
-     Das gilt je **Fahrzeug** (gleich unten) und seit v0.66.0 nicht mehr für
+     Das gilt je **Fahrzeug** (gleich unten) und seit v0.65.2 nicht mehr für
      die ganze Wache: ein grüner Wachenname ist Auskunft, kein Schloß. Vorher
      blockierte er den Lauf vollständig, und das Argument oben trägt ihn
      nicht — es handelt von Fahrzeugen. Wer eine Wache ganz heraushalten
@@ -1429,7 +1429,7 @@ const leitstelleName = b => S.buildings
 
 /** Kontext eines Fahrzeugs. Wer eine neue Marke einbaut, ergänzt `MARKEN`
     um eine Zeile und hier um ein Feld — die Tabelle liest nur von hier. */
-/** `zeichen` ist seit v0.66.0 der Punkt selbst (`PUNKT_VON[...]`), nicht mehr
+/** `zeichen` ist seit v0.65.2 der Punkt selbst (`PUNKT_VON[...]`), nicht mehr
     ein Wahrheitswert: ein Fahrzeug kennt drei Zustände, und welcher davon
     gemeint ist, weiß der Aufrufer. Leertext heißt ausdrücklich „kein Punkt“ —
     so bleibt die alte Vorschau ohne Urteil möglich. */
@@ -1668,7 +1668,7 @@ async function hakenAbgleichen(sel, dry) {
       log(`${b.caption}: Name bleibt — kein Abruf nötig`);
       continue;
     }
-    /* Kein Schutz über den grünen Punkt der Wache: er ist seit v0.66.0 reine
+    /* Kein Schutz über den grünen Punkt der Wache: er ist seit v0.65.2 reine
        Auskunft. Sonst hätte eine einmal grün gewordene Wache ihren Namen nie
        wieder losgelassen — auch dann nicht, wenn ihre Fahrzeuge längst gelb
        sind und der Punkt im Wachennamen schlicht falsch steht. */
@@ -2320,7 +2320,7 @@ async function setzeFms(v, ziel, dry) {
 async function pflegeAusbauten(b, dry) {
   /* Bis v0.65.1 ließ ein grüner Wachenname diesen Lauf ganz aus — „eine grüne
      Wache abzuschalten wäre ein Eingriff in genau das, was fertig ist". Seit
-     v0.66.0 ist der grüne Punkt an der Wache Auskunft und kein Schloß: sonst
+     v0.65.2 ist der grüne Punkt an der Wache Auskunft und kein Schloß: sonst
      folgten die Ausbauten einer einmal grün gewordenen Wache ihren Fahrzeugen
      nie wieder. Geschützt sind weiterhin die Fahrzeuge selbst. */
   const mine = S.byBuilding.get(b.id) || [];
@@ -4017,7 +4017,7 @@ function render() {
       + `${PUNKT_TEIL} ab Mindestbesetzung, ${PUNKT_LEER} darunter. Eine Wache trägt ${HAKEN}, `
       + 'sobald jedes ihrer Fahrzeuge grün ist. Wo der Punkt im Namen steht, sagt {punkt}; '
       + 'alles andere daneben ist frei. Wachen ohne erfassten Ausbildungsstand bleiben '
-      + 'unangetastet. Beim ersten Lauf nach v0.66.0 bekommt fast jedes Fahrzeug einen neuen '
+      + 'unangetastet. Beim ersten Lauf nach v0.65.2 bekommt fast jedes Fahrzeug einen neuen '
       + 'Namen — bisher trug nur das fertige einen Punkt. Erst mit „Nur Vorschau" ansehen und '
       + 'Zeit einplanen: jedes Umbenennen ist eine eigene Anfrage.'],
     personal: ['Personal zuweisen',    assignStaff,

@@ -2311,7 +2311,7 @@ Zuordnung tragen.
 HLF 20 neun Sitze hat und ein GW drei. Wer das Profil auf fünf Wachen legt,
 holt sich rund 200 zusätzliche Sitze ins Werben.
 
-## D-97 Drei Punkte statt grün-oder-nichts (v0.66.0)
+## D-97 Drei Punkte statt grün-oder-nichts (v0.65.2)
 
 **Lage.** Bis v0.65.1 kannte ein Fahrzeugname genau zwei Zustände: 🟢 oder gar
 nichts. Damit sah „noch nie jemand draufgesetzt" genauso aus wie „es fehlt
@@ -2348,7 +2348,7 @@ Besatzung, nur Fahrzeuge; „gelbe Wache" müßte erst erfunden werden, und
 erfundene Bedeutungen sind der Anfang jeder Fehlanzeige. Sie trägt weiter 🟢,
 sobald jedes ihrer Fahrzeuge grün ist, und sonst nichts.
 
-## D-98 Der Ausschluß wandert vom roten auf den schwarzen Punkt (v0.66.0)
+## D-98 Der Ausschluß wandert vom roten auf den schwarzen Punkt (v0.65.2)
 
 **Lage.** 🔴 im Wachennamen hieß bis v0.65.1 „diese Wache geht den Planer nichts
 an". Mit D-97 schreibt der Planer denselben roten Punkt selbst in
@@ -2374,7 +2374,7 @@ niemandem eine Markierung in einen Namen, die er nicht bestellt hat — und ein
 Lauf über 102 Wachen, um ein Zeichen zu tauschen, ist genau die Art von
 Eigenmächtigkeit, vor der die ganze Vorschau-Mechanik schützen soll.
 
-## D-99 Der grüne Punkt schützt nur noch Fahrzeuge (v0.66.0)
+## D-99 Der grüne Punkt schützt nur noch Fahrzeuge (v0.65.2)
 
 **Lage.** `geschuetzt(o)` las den grünen Punkt aus jedem Namen — auch aus dem
 der Wache. Eine einmal grün gewordene Wache war damit vollständig verriegelt:
@@ -2398,7 +2398,7 @@ Entfernt an vier Stellen: `zuweisungenLoeschen:1356`, `hakenAbgleichen:1668`,
 schuetzt ihre Fahrzeuge" in `test-planung.js` wurde umgedreht statt gestrichen
 — die Regel hat sich geändert, nicht ihre Prüfwürdigkeit.
 
-## D-100 Ausbildungsbedarf wahlweise gegen min oder max (v0.66.0)
+## D-100 Ausbildungsbedarf wahlweise gegen min oder max (v0.65.2)
 
 **Lage.** „Fehlt" im Reiter Ausbildung rechnete immer gegen **alle Sitze** jedes
 geplanten Fahrzeugs. Für eine Wache, die längst jedes Fahrzeug ausrücken lassen

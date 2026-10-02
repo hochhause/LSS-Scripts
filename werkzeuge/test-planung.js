@@ -832,7 +832,7 @@ const RTW = 28, WLF = 46, AB = 49;      // AB-Oel hat keine Sitze, ist also Anha
   S.opts = {};
 }
 {
-  /* Seit v0.66.0 schuetzt der gruene Punkt NUR noch das Fahrzeug. Am
+  /* Seit v0.65.2 schuetzt der gruene Punkt NUR noch das Fahrzeug. Am
      Wachennamen ist er Auskunft, kein Schloss: das ungruene RTW darauf faellt.
      Vorher sperrte eine einmal gruen gewordene Wache jeden Eingriff. */
   S.opts = {};
@@ -1344,7 +1344,7 @@ console.log('\n32. Fachkraft vom gruenen Fahrzeug holen');
 }
 
 /* ── 33. Drei Punkte: voll, teilweise, darunter ───────────────────────
-   Seit v0.66.0 sagt die Farbe im Namen, wie weit ein Fahrzeug besetzt ist.
+   Seit v0.65.2 sagt die Farbe im Namen, wie weit ein Fahrzeug besetzt ist.
    Gerechnet wird an genau einer Stelle, damit Namenslauf und Personallauf
    nicht auseinanderlaufen. */
 console.log('\n33. Punkt je Fahrzeug');
