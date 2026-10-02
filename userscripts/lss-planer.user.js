@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.65.2
+// @version      0.65.3
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.65.2';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.65.3';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2316,8 +2316,18 @@ async function setzeFms(v, ziel, dry) {
 }
 
 /** Ausbauten und Wache nachziehen: Ist alles zugehörige einsatzbereit,
-    darf auch der Ausbau an — sonst aus. Leere Stellplätze zählen nicht. */
+    darf auch der Ausbau an — sonst aus. Leere Stellplätze zählen nicht.
+
+    Seit v0.65.3 **abschaltbar und von Haus aus aus** (Sasha, 02.10.). Daß ein
+    Personallauf nebenbei eine ganze Wache oder einen Ausbau stillegt, ist der
+    weitreichendste Eingriff dieses Laufs und stand bis dahin in niemandes
+    Wahl: wer Leute verteilen wollte, bekam das Schalten dazu. Eine
+    abgeschaltete Wache nimmt an keinem Einsatz mehr teil — das gehört
+    bestellt, nicht mitgeliefert. */
 async function pflegeAusbauten(b, dry) {
+  /* Die Sperre steht hier und nicht nur am Aufruf: so kann ein später
+     hinzukommender Aufrufer sie nicht übersehen. */
+  if (!S.opts.ausbautenSchalten) return 0;
   /* Bis v0.65.1 ließ ein grüner Wachenname diesen Lauf ganz aus — „eine grüne
      Wache abzuschalten wäre ein Eingriff in genau das, was fertig ist". Seit
      v0.65.2 ist der grüne Punkt an der Wache Auskunft und kein Schloß: sonst
@@ -2701,6 +2711,11 @@ async function assignStaff(sel, dry) {
   }
   const taufen = !!vorlagen && !vorlagen.fehler;
   if (taufen) vorlagen.hinweise.forEach(t => log(t, 'warn'));
+  /* Einmal vorweg, nicht je Wache: der Schalter gilt für den ganzen Lauf.
+     Gesagt werden muß es trotzdem — sonst sucht man hinterher vergebens nach
+     der Zeile, die früher „Wache X: nicht einsatzbereit" hieß. */
+  if (!S.opts.ausbautenSchalten)
+    log('Ausbauten und Wachen werden nicht geschaltet — der Haken dafür steht oben.', 'warn');
 
   /* Vorgemerkte Umschaltungen nachholen, sofern das Fahrzeug daheim ist —
      aber nur an den Wachen, die für diesen Lauf gewählt sind. Ohne diese
@@ -4023,8 +4038,9 @@ function render() {
     personal: ['Personal zuweisen',    assignStaff,
       'Verteilt vorhandenes Personal auf die Fahrzeuge: erst Ausgebildete auf ihre Fachfahrzeuge, dann der Rest. '
       + 'Anschließend wird die Einsatzbereitschaft nachgezogen: Fahrzeuge ohne ausreichende Besatzung gehen auf '
-      + 'Status 6, ausreichend besetzte kommen zurück auf 2, und Ausbauten samt Wache folgen ihren Fahrzeugen. '
-      + 'Auf Wunsch bekommt jedes Fahrzeug im selben Durchgang gleich seinen Punkt in den Namen.']
+      + 'Status 6, ausreichend besetzte kommen zurück auf 2. Auf Wunsch bekommt jedes Fahrzeug '
+      + 'im selben Durchgang gleich seinen Punkt in den Namen, und ebenfalls auf Wunsch folgen '
+      + 'Ausbauten und Wache ihren Fahrzeugen — beides steht von Haus aus aus.']
   };
 
   if (tab === 'ueber') {
@@ -4548,7 +4564,14 @@ function render() {
       <span style="color:var(--lp-dim2)">— jedes Fahrzeug bekommt gleich hier seinen Punkt,
       nach der Vorlage aus dem Reiter „Namen": ${HAKEN} jeder Sitz belegt, ${PUNKT_TEIL} ab
       Mindestbesetzung, ${PUNKT_LEER} darunter. Spart den zweiten Durchgang samt zweitem Abruf
-      je Wache. Grüne Fahrzeuge bleiben unberührt, solange sie nicht freigegeben sind.</span></label>`;
+      je Wache. Grüne Fahrzeuge bleiben unberührt, solange sie nicht freigegeben sind.</span></label>
+    <label style="display:block;margin:0 0 10px;color:${S.opts.ausbautenSchalten ? 'var(--lp-akzent)' : 'var(--lp-dim)'}">
+      <input type="checkbox" id="lssp-ausbschalt" ${S.opts.ausbautenSchalten ? 'checked' : ''}>
+      <b>Ausbauten und Wache mitschalten</b>
+      <span style="color:var(--lp-dim2)">— steht hinter einem Ausbau kein einsatzbereites
+      Fahrzeug mehr, wird er abgeschaltet; die Wache selbst hängt am Grundtopf. Das ist der
+      weitreichendste Eingriff dieses Laufs: <b>eine abgeschaltete Wache nimmt an keinem Einsatz
+      mehr teil.</b> Darum von Haus aus aus.</span></label>`;
   const heimwarnung = tab !== 'personal' ? '' : `
     <div style="border:1px solid #6b4a1f;background:#2a1f10;border-radius:3px;padding:9px 11px;margin:0 0 10px;color:var(--lp-akzent)">
       <b>Vorher alle Fahrzeuge einrücken lassen.</b> Der Status lässt sich nur umschalten, wenn ein
@@ -4774,6 +4797,10 @@ function render() {
   });
   b.querySelector('#lssp-fzname')?.addEventListener('change', e => {
     S.opts.fzUmbenennen = e.target.checked; store.set(KEY_OPTS, S.opts);
+  });
+  b.querySelector('#lssp-ausbschalt')?.addEventListener('change', e => {
+    S.opts.ausbautenSchalten = e.target.checked; store.set(KEY_OPTS, S.opts);
+    render();                       // die Beschriftung färbt sich mit, wie bei „Grüne freigeben"
   });
   b.querySelectorAll('input[name=lsspmode]').forEach(r => r.onchange = e => {
     S.opts.strict = e.target.value === 'strict'; store.set(KEY_OPTS, S.opts);

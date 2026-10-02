@@ -1,6 +1,6 @@
 # Leitstellenspiel-Werkzeuge — Projektstand
 
-Stand: 01.10.2026, Skript v0.65.2. Diese Datei und `CLAUDE.md` genügen, um an
+Stand: 02.10.2026, Skript v0.65.3. Diese Datei und `CLAUDE.md` genügen, um an
 einem beliebigen Punkt weiterzuarbeiten. Uploads von Stammdaten, Spielbestand
 oder Seitenabzügen braucht es nicht mehr — alles Nötige steckt in den Dateien
 unten oder wird aus dem Spiel gelesen.
@@ -9,13 +9,13 @@ unten oder wird aus dem Spiel gelesen.
 
 | Datei | Zweck |
 |---|---|
-| `lss-planer.user.js` | Userscript v0.65.2: setzt das Wunschbild im Spiel um |
+| `lss-planer.user.js` | Userscript v0.65.3: setzt das Wunschbild im Spiel um |
 | `lss-farben.user.js` | v0.2.0: reine Anzeige — blendet 🟢🟡🔴 aus und färbt den Namen entsprechend, Status 6 rot. ⚫ bleibt stehen |
 | `lss-einruecken.user.js` | v0.3.0: Fahrzeuge zurück zur Wache rufen — **über den Einsatz**, mit dem Verweis „Alle eigenen Fahrzeuge rückalarmieren" (D-90) |
 | `lss-einsatz-flott.user.js` | v0.3.0: nächsten Einsatz vorwärmen — *nicht in dieser Ablage* |
 | `CLAUDE.md` | Arbeitsanweisung: Sprache, Prüfungen, Gefahren |
 | `NAECHSTER_SCHRITT.md` | was offen ist |
-| `DECISIONS.md` | 100 Entscheidungen mit Begründung, auch die verworfenen |
+| `DECISIONS.md` | 101 Entscheidungen mit Begründung, auch die verworfenen |
 | `personal-soll.js` | einmaliges Konsolenskript: Personal-Sollwert aller Wachen |
 | `lss-personalbedarf.json` | Personalanforderungen je Fahrzeugtyp — **Pflegequelle** für `PB` |
 | `lss-fahrzeugprofile.md` | Soll-Papier: Profile, Stellplatz-Formeln, Ausbauten je Gebäudeart — **Pflegequelle** für `MODELL_STANDARD` und `LAYOUTS_STANDARD` |
@@ -90,6 +90,14 @@ Gewinn: `hakenAbgleichen` bräuchte dafür wieder ein `readRoster()` je Wache.
 Vorlage, Längengrenze und Schutz kommen aus derselben Stelle wie im Reiter
 „Namen" — `fahrzeugNameSetzen()` (`lss-planer.user.js:1506`). Taugt die Vorlage
 nichts, wird nur nicht umbenannt; das Personal wird trotzdem zugewiesen.
+
+**Ausbauten und Wache schalten, seit v0.65.3 (D-101):** `pflegeAusbauten()`
+zieht Ausbauten und die Wache ihren Fahrzeugen nach — steht dahinter kein
+einsatzbereites Fahrzeug mehr, geht beides aus. Das lief bis v0.65.2 bei jedem
+Personallauf ungefragt mit und ist der weitreichendste Eingriff des Laufs: eine
+abgeschaltete Wache nimmt an keinem Einsatz mehr teil. Jetzt am Haken
+`S.opts.ausbautenSchalten`, Vorgabe **aus**. Die Sperre steht in der Funktion
+selbst (`:2327`), damit kein neuer Aufrufer sie übersieht.
 
 ## Lehrgänge sind Schlüssel (seit v0.22)
 

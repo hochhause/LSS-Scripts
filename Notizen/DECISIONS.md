@@ -2420,3 +2420,29 @@ findet.
 Mitgezogen hat es `fortschritt(b).lehrgang` und damit den Filter „nur offene" —
 beabsichtigt: wer nur auf das Nahziel sieht, will auch die Wachenliste danach
 sortiert haben.
+
+## D-101 Ausbauten und Wachen schalten nur noch auf Bestellung (v0.65.3)
+
+**Lage.** `assignStaff` rief am Ende jeder Wache `pflegeAusbauten()` — ohne
+Schalter, ohne Frage. Steht hinter einem Ausbau kein einsatzbereites Fahrzeug
+mehr, wird er abgeschaltet; die Wache selbst hängt am Grundtopf und geht
+denselben Weg. Wer also Personal verteilen wollte, bekam das Schalten dazu.
+
+Das ist der weitreichendste Eingriff des ganzen Laufs. Eine abgeschaltete Wache
+nimmt an **keinem Einsatz mehr teil** — und anders als ein falscher Name oder
+eine schiefe Besatzung fällt das nicht beim nächsten Blick in die Liste auf,
+sondern erst, wenn der Einsatz woanders hingeht.
+
+**Entschieden** (Sasha, 02.10.). Haken im Personal-Reiter, `S.opts.ausbautenSchalten`,
+Vorgabe **aus**. Was so tief eingreift, gehört bestellt, nicht mitgeliefert.
+
+**Die Sperre sitzt in `pflegeAusbauten()` selbst** (`lss-planer.user.js:2327`),
+nicht nur am Aufruf: ein später hinzukommender Aufrufer kann sie dort nicht
+übersehen. Zusätzlich sagt `assignStaff` einmal je Lauf, daß nicht geschaltet
+wird — sonst sucht man hinterher die Zeile, die früher „Wache X: nicht
+einsatzbereit" hieß, und hält ihr Fehlen für einen Fehler. „Nichts passiert"
+und „nichts zu tun" müssen unterscheidbar bleiben.
+
+**Verworfen:** die Vorgabe auf **an** zu lassen und nur abschaltbar zu machen.
+Das hätte für jede bestehende Installation nichts geändert — und genau die
+bestehenden Installationen sind es, die den Eingriff nie bestellt haben.
