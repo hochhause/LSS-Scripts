@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Sprechwunsch — Ziel von selbst wählen
 // @namespace    https://leitstellenspiel.de/
-// @version      0.1.1
+// @version      0.2.0
 // @description  Ein Knopf neben dem FMS-Zeichen erledigt den Sprechwunsch: Patient ins nächste passende Krankenhaus, Gefangener in die nächste freie Zelle
 // @match        https://www.leitstellenspiel.de/*
 // @grant        none
@@ -14,7 +14,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.1.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.2.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 
 // Die Funkliste steht nur im Hauptfenster; in den Lightboxen des Spiels hätte
 // das Skript nichts zu tun und würde seinen Knopf doppelt setzen.
@@ -85,7 +85,7 @@ const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }
 };
-const opts = store.get(KEY_OPTS, { dry: true, eigeneZuerst: false });
+const opts = store.get(KEY_OPTS, { eigeneZuerst: false });
 
 /* ═══════════════════════════════════════════════════════════════════
    Lesen, was die Fahrzeugseite anbietet
@@ -219,7 +219,6 @@ async function erledige(fzId, name) {
   const wo = `${z.name} — ${z.km != null ? z.km.toFixed(2) + ' km' : 'Entfernung unbekannt'}`
     + `, ${z.frei} frei${z.verband ? `, Verband${z.abgabe ? ` (${z.abgabe} % Abgabe)` : ''}` : ''}`;
 
-  if (opts.dry) { log(`${name}: ${art} → ${wo}  [Vorschau, nichts geschickt]`); return { art, ziel: z, dry: true }; }
   await getAction(z.href);
   log(`${name}: ${art} → ${wo}`, 'good');
   return { art, ziel: z };
@@ -252,9 +251,6 @@ const css = `
 `;
 
 let el, busy = false, protokoll = [];
-/* Einmal je Seitenaufruf fragen, ob scharf geschaltet werden soll — öfter
-   wäre Bevormundung, seltener ließe den Haken für immer unentdeckt. */
-let gefragt = false;
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 function zeichneProtokoll() {
   const pre = el?.querySelector('#lssfms-log');
@@ -296,46 +292,23 @@ function knopfSetzen(zeile) {
   b.onclick = async ev => {
     ev.preventDefault(); ev.stopPropagation();
     if (busy) return;
-    /* Zwei Durchgänge: beim ersten kann „Nur Vorschau" dazwischenkommen.
-       Sagt der Mensch dann „scharf schalten", läuft derselbe Griff gleich
-       noch einmal — sonst müßte er raten, daß er nochmal drücken soll. */
-    for (let versuch = 0; versuch < 2; versuch++) {
-      b.disabled = true; b.textContent = '…'; b.title = ruhe;
-      let r;
-      try { r = await erledige(zeile.id, zeile.name); }
-      catch (e) {
-        log(`${zeile.name}: fehlgeschlagen — ${e.message}`, 'err');
-        b.textContent = '!'; b.title = e.message; b.disabled = false;
-        return;
-      }
-      if (r.fehler) {
-        /* Der Grund gehört an den Knopf, nicht in ein Fenster, das niemand
-           offen hat. Wieder freigeben: der nächste Versuch kann klappen,
-           sobald woanders ein Bett frei wird. */
-        b.textContent = '!'; b.title = r.fehler; b.disabled = false;
-        log(`${zeile.name}: ${r.fehler}`, 'warn');
-        return;
-      }
-      if (!r.dry) {
-        b.textContent = '✓'; b.title = `${r.art} → ${r.ziel.name}`;
-        return;
-      }
-      /* Vorschau. „Sonst ist aber nichts passiert" war die erste Rückmeldung
-         eines fremden Nutzers (04.10.) — und sie stimmte: der Knopf blieb
-         ausgegraut stehen und nannte keinen Grund. Beides war falsch. Er wird
-         wieder freigegeben, sagt im Titel was los ist, und beim ersten Mal
-         wird gefragt, statt den Haken im Profilmenü suchen zu lassen. */
-      b.textContent = 'Vorschau'; b.disabled = false;
-      b.title = `Nur Vorschau — es wurde NICHTS geschickt. Ziel wäre: ${r.ziel.name}. `
-        + 'Abschalten: Profil → „Sprechwunsch — Einstellungen" → Haken „Nur Vorschau" weg.';
-      if (versuch || gefragt) return;
-      gefragt = true;
-      if (!confirm('„Nur Vorschau" ist eingeschaltet — es wurde nichts geschickt.\n\n'
-        + `${r.art} wäre: ${r.ziel.name}\n\n`
-        + 'Jetzt scharf schalten und wirklich senden?\n'
-        + '(Der Haken sitzt im Profilmenü unter „Sprechwunsch — Einstellungen".)')) return;
-      opts.dry = false; store.set(KEY_OPTS, opts);
+    b.disabled = true; b.textContent = '…'; b.title = ruhe;
+    let r;
+    try { r = await erledige(zeile.id, zeile.name); }
+    catch (e) {
+      log(`${zeile.name}: fehlgeschlagen — ${e.message}`, 'err');
+      b.textContent = '!'; b.title = e.message; b.disabled = false;
+      return;
     }
+    if (r.fehler) {
+      /* Der Grund gehört an den Knopf, nicht in ein Fenster, das niemand
+         offen hat. Wieder freigeben: der nächste Versuch kann klappen,
+         sobald woanders ein Bett frei wird. */
+      b.textContent = '!'; b.title = r.fehler; b.disabled = false;
+      log(`${zeile.name}: ${r.fehler}`, 'warn');
+      return;
+    }
+    b.textContent = '✓'; b.title = `${r.art} → ${r.ziel.name}`;
   };
   anker.insertAdjacentElement('afterend', b);
 }
@@ -350,10 +323,13 @@ async function alleErledigen() {
   if (busy) return;
   const liste = offene();
   if (!liste.length) return log('Kein Sprechwunsch offen — nichts zu tun.', 'warn');
-  if (!opts.dry && !confirm(`${liste.length} Sprechwünsche erledigen?\n\n`
+  /* Der eine Knopf, der viele Fahrzeuge auf einmal losschickt, fragt weiter
+     nach — nicht als Vorschau, sondern weil ein Fehlgriff hier sechzehnfach
+     wirkt. Der Knopf in der Zeile fragt nichts: dort ist der Griff der Befehl. */
+  if (!confirm(`${liste.length} Sprechwünsche erledigen?\n\n`
     + 'Jedes Fahrzeug fährt danach sein Ziel an.')) return;
   busy = true; protokoll = [];
-  log(opts.dry ? `── Vorschau: ${liste.length} Sprechwünsche ──` : `── ${liste.length} Sprechwünsche ──`, 'good');
+  log(`── ${liste.length} Sprechwünsche ──`, 'good');
   let ok = 0, offen = 0;
   for (const z of liste) {
     try {
@@ -361,7 +337,7 @@ async function alleErledigen() {
       if (r.fehler) { log(`${z.name}: ${r.fehler}`, 'warn'); offen++; } else ok++;
     } catch (e) { log(`${z.name}: fehlgeschlagen — ${e.message}`, 'err'); offen++; }
   }
-  log(`${opts.dry ? 'Vorschau' : 'Fertig'}: ${ok} zugewiesen${offen ? `, ${offen} offen geblieben` : ''}`,
+  log(`Fertig: ${ok} zugewiesen${offen ? `, ${offen} offen geblieben` : ''}`,
       offen ? 'warn' : 'good');
   busy = false;
   knoepfeSetzen();
@@ -383,20 +359,19 @@ function zeichne() {
       freier Kapazität <b>und</b> passender Fachabteilung, der Gefangene in die nächste Wache mit
       freier Zelle. Eigene und Verbandsziele stehen dabei in einem Topf — das Spiel führt sie
       getrennt auf, dieses Skript sortiert sie zusammen.
-      <b>Nichts wird abgeschickt</b>, solange „Nur Vorschau" angehakt ist.</p>
+      <b>Der Knopf in der Zeile schickt sofort</b> — es gibt keine Zwischenstufe. Findet sich
+      kein passendes Ziel, passiert nichts und der Grund steht im Titel des Knopfes.</p>
     <div class="row">
       <button class="act go" id="lssfms-alle">Alle erledigen (${offene().length})</button>
       <button class="act" id="lssfms-neu">Knöpfe neu setzen</button>
     </div>
     <div class="row">
-      <label style="color:#8b9aa9"><input type="checkbox" id="lssfms-dry" ${opts.dry ? 'checked' : ''}> Nur Vorschau</label>
       <label style="color:#8b9aa9" title="Verbandshäuser nehmen eine Abgabe. Mit diesem Haken geht der Patient zum nächsten EIGENEN Ziel, auch wenn ein fremdes näher liegt.">
         <input type="checkbox" id="lssfms-eigen" ${opts.eigeneZuerst ? 'checked' : ''}> Eigene bevorzugen</label>
     </div>
     <pre id="lssfms-log"></pre>`;
   b.querySelector('#lssfms-alle').onclick = alleErledigen;
   b.querySelector('#lssfms-neu').onclick = knoepfeSetzen;
-  b.querySelector('#lssfms-dry').onchange = e => { opts.dry = e.target.checked; store.set(KEY_OPTS, opts); };
   b.querySelector('#lssfms-eigen').onchange = e => { opts.eigeneZuerst = e.target.checked; store.set(KEY_OPTS, opts); };
   zeichneProtokoll();
 }

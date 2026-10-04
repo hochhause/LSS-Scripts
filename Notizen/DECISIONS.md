@@ -2513,7 +2513,9 @@ blieb unsichtbar. Behoben über `fensterZeigen()`.
   dem Knopf in der Zeile. Nur falls das Menü fehlt, bleibt ein Schwebeknopf —
   eine Einstellung, an die niemand herankommt, wäre schlimmer.
 
-**Nachtrag v0.1.1 — „Sonst ist aber nichts passiert".** Die erste Rückmeldung
+**Nachtrag v0.1.1 — „Sonst ist aber nichts passiert"** (überholt durch D-103, der
+den Vorschaumodus ganz gestrichen hat — der Vorgang steht hier, weil er
+erklärt, warum)**.** Die erste Rückmeldung
 eines fremden Nutzers am 04.10. lautete: Knopf gedrückt, er heißt jetzt
 „Vorschau", ist ausgegraut, sonst nichts. Das Urteil „bei mir läuft es
 tadellos" stimmte ebenfalls — bei Sasha war der Haken längst draußen, bei ihm
@@ -2541,3 +2543,36 @@ Knopf klickbar und ruft **nur** die Fahrzeugseite ab, Bestätigen schaltet
 **Offen:** wie eine Krankenhauszeile ohne freie Betten aussieht (es gab keine)
 und ob es eine dritte Sorte Sprechwunsch gibt. Beides meldet das Skript, statt
 zu raten.
+
+## D-103 Der Sprechwunsch kennt keine Vorschau mehr (lss-sprechwunsch v0.2.0)
+
+**Entschieden.** Sasha, 04.10.: „nimm die Rückfrage raus und entferne den
+Vorschaumodus für dieses Skript." Der Knopf in der Zeile schickt jetzt sofort —
+keine Zwischenstufe, keine Frage, kein Haken.
+
+**Warum die Hausregel hier nicht greift.** „Nur Vorschau" steht in `CLAUDE.md`,
+weil der Planer Fahrzeuge **kauft, zerstört und Wachen umbenennt** — Taten, die
+Credits kosten und sich schlecht zurücknehmen lassen. Ein Sprechwunsch ist das
+Gegenteil: ein Fahrzeug fährt das nächste passende Ziel an, also genau das, was
+der Mensch sonst von Hand anklickt. Wer auf „Senden" drückt, hat die
+Entscheidung bereits getroffen; eine Vorschau fragt ihn dasselbe ein zweites
+Mal.
+
+Dazu kam der Befund aus D-102: die Vorgabe „Vorschau" ließ das Skript für
+jeden, der sie nicht kannte, **kaputt aussehen**. Der Zwischenschritt hat kein
+einziges Unglück verhindert, aber mindestens einen Nutzer glauben lassen, nichts
+funktioniere. Ein Sicherheitsnetz, das nur Verwirrung stiftet, ist keins.
+
+**Nicht gestrichen: die Rückfrage am Sammelknopf.** „Alle erledigen" schickt
+mit einem Griff sechzehn Fahrzeuge los — dort wirkt ein Fehlgriff
+sechzehnfach, und die Frage ist nicht die Wiederholung einer Entscheidung,
+sondern die einzige. Der Zeilenknopf fragt nichts: dort **ist** der Griff der
+Befehl.
+
+**Preis.** Ein Fehlgriff auf den falschen Zeilenknopf schickt ein Fahrzeug los,
+und zurückholen muß man es von Hand (oder mit `lss-einruecken`). Das ist
+derselbe Preis, den ein Fehlklick im Spiel selbst hat.
+
+Geprüft ohne Spielkonto mit nachgebauter Funkzeile: ein Klick, zwei Abrufe —
+die Fahrzeugseite lesen, dann der Transportverweis — und `confirm` wurde
+**nicht** aufgerufen.
