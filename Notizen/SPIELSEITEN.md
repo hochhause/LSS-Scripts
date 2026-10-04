@@ -334,3 +334,98 @@ Ablesbar daran, und mehr nicht:
   Einsatz und rührt den Einsatz nicht an.
 - Was der Aufruf antwortet, und ob ein Rückalarm ohne eigene Fahrzeuge am
   Einsatz denselben `HTTP 200` liefert wie ein erfolgreicher.
+
+## Sprechwunsch (FMS 5): Funkliste, Krankenhaus, Zelle
+
+Nachgemessen am 04.10.2026 mit Playwright an einem angemeldeten Browser, rein
+lesend. **Kein Verweis wurde angeklickt** — in diesem Spiel löst ein GET-Verweis
+die Tat aus, und hier gilt das für jedes „Anfahren".
+
+### Die Funkliste — dort hängen die Knöpfe
+
+```
+#radio_outer > #radio > .panel > #radio_panel_body
+  ul#radio_messages_important     die Sprechwünsche
+  ul#radio_messages               die gewöhnlichen Meldungen (war leer)
+```
+
+Eine Zeile, vollständig:
+
+```html
+<li class="radio_message_vehicle_126215751 ">
+  <span title="Sprechwunsch" class="building_list_fms building_list_fms_5">5</span>
+  <img src="…" class="vehicle_search" vehicle_id="126215751">
+  <a href="/vehicles/126215751" class="btn btn-xs btn-default lightbox-open">RTH</a>
+  <a href="/missions/4423709978?…" class="btn … mission-radio-button">Zum Einsatz</a>
+  Sprechwunsch</li>
+```
+
+Die Fahrzeugnummer steht **zweimal**: in der Klasse des `li` und als
+`vehicle_id` am Lupensymbol. Letzteres ist die ehrlichere Quelle — die Klasse
+trägt ein Leerzeichen am Ende und ist nur ein Namensanhängsel.
+
+### `/vehicles/<id>` trägt die Zielauswahl — und sagt selbst, welche Sorte
+
+Ein Fahrzeug mit Sprechwunsch zeigt auf seiner eigenen Seite die ganze Auswahl.
+**Welche Art Sprechwunsch es ist, muß nicht geraten werden**: entweder die
+Krankenhaustabellen stehen da oder die Zellenauswahl.
+
+**Patient** (RTW, RTH — gleich gebaut):
+
+```
+table#own-hospitals        Gebäude · Entfernung · Freie Betten · Fachabteilung · [Anfahren]
+table#alliance-hospitals   Gebäude · Entfernung · Freie Betten · Abgabe · Fachabteilung · [Anfahren]
+  Fachabteilung: <span class="label label-success">Ja</span>
+                 <span class="label label-warning">Nein</span>
+  Freie Betten:  „36 / 40"      Entfernung: „5,15 km"      Abgabe: „10 %"
+  Knopf: <a class="btn btn-success" href="/vehicles/<fz>/patient/<zielgebäude>">Anfahren</a>
+         in der eigenen Tabelle zusätzlich id="btn_approach_<zielgebäude>"
+```
+
+**Gefangener** (Streifenwagen) — **nicht im Seitentext.** Im Browser stehen
+dort Knöpfe (`#prison-select-<fz> > a[data-prison-id]`, `btn-danger` = null
+freie Zellen), aber die baut das Spiel erst selbst. Wer die Seite mit `fetch`
+liest, findet `prison-select` **leer** vor.
+
+Im Rohtext stehen nur die **eigenen** Wachen, als Folge von
+`erb_prisons.push({…});`. Die des Verbands holt die Seite nach — mit demselben
+Abruf, den auch der „mehr laden"-Knopf benutzt:
+
+```
+GET /building/load_prisons?mission_id=<einsatz>
+→ { "prisons": [...], "alliance_prisons": [...] }
+   je Eintrag: id · name · is_alliance · distance_in_km "1,62" · free_cells "10"
+               prison_cells_count · mission_prisoners_count · caption
+```
+
+Das ist die vollständige Quelle — Entfernung, freie Zellen und eigen/Verband
+ohne jedes HTML-Lesen. Gemessen: 24 eigene, 79 vom Verband, drei davon ohne
+freie Zelle. Der Transportverweis wird daraus zusammengesetzt wie auf der
+Seite: `/vehicles/<fz>/gefangener/<ziel>?load_all_prisons=false&show_only_available=false`
+— was die beiden Parameter bewirken, ist **nicht** nachgemessen, sie bleiben
+deshalb stehen (dieselbe Regel wie beim Rückalarm, D-90).
+
+### Zwei Fallen
+
+**Die Sorte steht zweimal da.** `data-transport-request-type` trägt am
+Überschriftenblock `prisoner-header`, am Inhaltsblock `prisoner` — und der
+Kopfteil kommt zuerst. `querySelector` liest also den Kopf und erkennt die
+Sorte nicht wieder; gesucht werden muß der genaue Wert.
+
+**Die Listen sind nicht durchgehend nach Entfernung sortiert.** Eigene und
+fremde Ziele stehen hintereinander, jede Gruppe für sich aufsteigend. Bei der
+Streife lief die Entfernung bis Platz 24 hoch und sprang dann zurück. Wer
+schlicht den ersten Eintrag nimmt, bekommt das nächste **eigene** Ziel, nicht
+das nächste überhaupt. Beim Patienten sind es zwei getrennte Tabellen,
+dasselbe in grün.
+
+### Größen am Konto, 04.10.2026
+
+16 Sprechwünsche gleichzeitig, alle FMS 5. Ein RTW hatte 5 eigene und 50
+Verbandskrankenhäuser zur Wahl (33 davon mit der nötigen Fachabteilung), ein
+RTH 5 und 51 (41 mit Fachabteilung); die Streife 24 eigene und 79
+Verbandswachen, 3 davon ohne freie Zelle.
+
+**Nicht gemessen:** wie eine Zeile aussieht, deren Krankenhaus **keine** freien
+Betten hat — es gab keine. Ob dort der Knopf fehlt oder `btn-danger` trägt wie
+bei den Zellen, ist offen.

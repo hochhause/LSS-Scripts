@@ -15,11 +15,12 @@ Firefox). Auf den Namen klicken, Tampermonkey fragt nach der Installation.
 
 | Skript | Fassung | Was es tut |
 |---|---|---|
-| [**LSS Planer**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-planer.user.js) | 0.65.1 | Vergleicht das hinterlegte Wunschbild mit dem Spielstand und setzt die Unterschiede um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge, Wachennamen. |
-| [**LSS Farben**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-farben.user.js) | 0.1.1 | Färbt fertige Wachen und Fahrzeuge grün, Status 6 rot, und nimmt den Markierungspunkt aus der Anzeige. |
+| [**LSS Planer**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-planer.user.js) | 0.65.3 | Vergleicht das hinterlegte Wunschbild mit dem Spielstand und setzt die Unterschiede um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge, Wachennamen. |
+| [**LSS Farben**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-farben.user.js) | 0.2.0 | Nimmt die Markierungspunkte 🟢🟡🔴 aus der Anzeige und färbt dafür den Namen — fertig, teilweise, lahm; Status 6 rot. Das ⚫ eines ausgeschlossenen Gebäudes bleibt stehen. |
+| [**LSS Sprechwunsch**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-sprechwunsch.user.js) | 0.1.0 | Ein Knopf **„Senden"** neben dem FMS-Zeichen der Funkliste erledigt den Sprechwunsch: Patient ins nächste Krankenhaus mit freier Kapazität **und** Fachabteilung, Gefangener in die nächste freie Zelle — eigene und Verbandsziele in einem Topf. |
 | [**LSS Einrücken**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-einruecken.user.js) | 0.3.0 | Ruft Fahrzeuge zurück — über den Verweis „Alle eigenen Fahrzeuge rückalarmieren" der Einsatzseite. Alle Einsätze auf einmal oder nur die, an denen zu lange etwas steht. |
 
-Alle drei Skripte tragen `@updateURL`. Tampermonkey fragt den Rohtext von `main`
+Alle vier Skripte tragen `@updateURL`. Tampermonkey fragt den Rohtext von `main`
 regelmäßig ab und bietet eine Korrektur von selbst an; von Hand geht es über
 *Dashboard → Hilfsprogramme → Alle Skripte aktualisieren*.
 

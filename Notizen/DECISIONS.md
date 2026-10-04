@@ -2446,3 +2446,73 @@ und „nichts zu tun" müssen unterscheidbar bleiben.
 **Verworfen:** die Vorgabe auf **an** zu lassen und nur abschaltbar zu machen.
 Das hätte für jede bestehende Installation nichts geändert — und genau die
 bestehenden Installationen sind es, die den Eingriff nie bestellt haben.
+## D-102 Sprechwunsch: das Spiel sagt die Sorte, nicht der Fahrzeugtyp (lss-sprechwunsch v0.1.0)
+
+**Lage.** Sasha, 04.10.: ein Knopf neben „Zum Einsatz" in der Funkliste, der
+einen Sprechwunsch (FMS 5) von selbst erledigt. Zwei Sorten — Patient ins
+Krankenhaus mit passender Fachabteilung, Gefangener in die nächste freie Zelle,
+eigene und Verbandsziele gleichberechtigt, beide mit freier Kapazität.
+
+**Erst gemessen, dann gebaut.** Zu Funkliste, Krankenhaus- und Zellenauswahl
+stand in `SPIELSEITEN.md` kein Wort. Gemessen wurde mit einem sichtbaren
+Playwright-Browser an Sashas angemeldeter Sitzung, rein lesend — **kein
+„Anfahren" wurde angeklickt**, denn beide Transporte sind GET-Verweise und
+damit bereits die Tat.
+
+**Entschieden: die Sorte kommt vom Spiel.** Nicht am Fahrzeugtyp geraten —
+`/vehicles/<id>` trägt `data-transport-request-type` mit „patient" oder
+„prisoner". Damit braucht das Skript keine Typtabelle und bleibt richtig, wenn
+das Spiel morgen einen dritten Fall einführt: der wird gemeldet statt geraten.
+
+**Drei Fallen, alle beim Messen aufgefallen:**
+
+1. **Das Merkmal steht zweimal da** — `prisoner-header` am Überschriftenblock,
+   `prisoner` am Inhalt, Kopf zuerst. `querySelector` liest also den Kopf.
+   Gesucht wird der genaue Wert.
+2. **Die Zellenliste steht nicht im Seitentext.** Im Browser sieht man 74
+   Knöpfe, im `fetch`-Rohtext ist `.prison-select` leer; dort stehen nur die
+   **eigenen** Wachen als `erb_prisons.push(…)`. Die vollständige Liste liefert
+   `/building/load_prisons?mission_id=<id>` als JSON — derselbe Abruf, den der
+   „mehr laden"-Knopf der Seite benutzt. Wer das übersieht, schickt jeden
+   Gefangenen in eine eigene Wache und hält das für „das nächste Ziel".
+3. **Keine der Listen ist durchgehend nach Entfernung sortiert.** Erst die
+   eigenen, dann die fremden, jede Gruppe für sich aufsteigend. Der erste
+   Eintrag ist das nächste *eigene* Ziel. Das Skript führt zusammen und
+   sortiert selbst.
+
+**Nichts wird geraten, auch nicht der Verweis.** Beim Patienten wird der
+`href` der Tabellenzeile wörtlich genommen, beim Gefangenen so zusammengesetzt,
+wie die Seite ihn baut — samt `?load_all_prisons=false&show_only_available=false`,
+deren Bedeutung nicht nachgemessen ist (dieselbe Regel wie D-90).
+
+**Kein passendes Ziel heißt: melden und stehenlassen.** Weder ein Haus ohne
+Fachabteilung noch eines ohne Betten. Ein wartender Patient ist besser als
+einer, der falsch abgeliefert wird — und der Grund steht im Protokoll, nicht
+nur „nichts passiert".
+
+**Geprüft am laufenden Spiel**, mit „Nur Vorschau": die Auswahl wurde aus dem
+Userscript herausgeschnitten und gegen echte Fahrzeugseiten gerechnet (Streife:
+103 Ziele, 100 mit Platz, Wahl „Polizei 13" 1,62 km; RTW: 55 Häuser, 33 mit
+Fachabteilung, Wahl „Кладбище" 8,62 km). Danach wurde das ganze Skript ins
+offene Fenster gespritzt — zehn Sprechwünsche, zehn Knöpfe an der richtigen
+Stelle, ein Klick erzeugte die Protokollzeile ohne einen einzigen
+schreibenden Aufruf. Dabei fiel ein echter Oberflächenfehler auf: der
+Zeilenknopf öffnete das Fenster, ohne seinen Rumpf zu zeichnen — das Protokoll
+blieb unsichtbar. Behoben über `fensterZeigen()`.
+
+**Die Oberfläche, nach Sashas Durchsicht am 04.10.:**
+
+- Der Knopf heißt **„Senden"** und steht **gleich rechts vom FMS-Zeichen**,
+  nicht hinter „Zum Einsatz". Dort sucht ihn das Auge, das ohnehin schon auf
+  der 5 liegt.
+- **Ein Klick öffnet nichts.** Wer ihn drückt, will senden, nicht lesen. Was
+  dabei herauskam, steht danach am Knopf selbst — Text und Titel —, und der
+  Grund eines Fehlschlags ebenso. Vorher riß jeder Klick das Fenster auf.
+- Die **Einstellungen hängen im Profilmenü** (`#menu_profile`), nicht als
+  Schwebeknopf über der Karte: ein gewöhnlicher Lauf soll nichts zeigen außer
+  dem Knopf in der Zeile. Nur falls das Menü fehlt, bleibt ein Schwebeknopf —
+  eine Einstellung, an die niemand herankommt, wäre schlimmer.
+
+**Offen:** wie eine Krankenhauszeile ohne freie Betten aussieht (es gab keine)
+und ob es eine dritte Sorte Sprechwunsch gibt. Beides meldet das Skript, statt
+zu raten.
