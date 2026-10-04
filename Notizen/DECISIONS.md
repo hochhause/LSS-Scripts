@@ -2513,6 +2513,31 @@ blieb unsichtbar. Behoben über `fensterZeigen()`.
   dem Knopf in der Zeile. Nur falls das Menü fehlt, bleibt ein Schwebeknopf —
   eine Einstellung, an die niemand herankommt, wäre schlimmer.
 
+**Nachtrag v0.1.1 — „Sonst ist aber nichts passiert".** Die erste Rückmeldung
+eines fremden Nutzers am 04.10. lautete: Knopf gedrückt, er heißt jetzt
+„Vorschau", ist ausgegraut, sonst nichts. Das Urteil „bei mir läuft es
+tadellos" stimmte ebenfalls — bei Sasha war der Haken längst draußen, bei ihm
+nicht. Zwei Fehler, beide meine:
+
+1. **Der Knopf blieb nach einer Vorschau ausgegraut.** Richtig wäre das nur
+   nach einer wirklichen Sendung; in der Vorschau ist nichts geschehen, also
+   gehört er wieder freigegeben.
+2. **Nirgends stand der Grund.** Ein frischer Nutzer hat die Vorgabe
+   „Nur Vorschau" an und kennt weder den Haken noch das Profilmenü.
+
+Behoben: der Knopf wird wieder klickbar, sein Titel sagt „NICHTS geschickt"
+samt Weg zum Haken, und **beim ersten Mal je Seitenaufruf** wird gefragt, ob
+scharf geschaltet werden soll — wer zustimmt, dessen Griff läuft sofort noch
+einmal durch, statt ihn raten zu lassen, daß er erneut drücken muß. Öfter zu
+fragen wäre Bevormundung, gar nicht zu fragen ließe den Haken unentdeckt.
+
+**Die Vorgabe bleibt „Nur Vorschau".** Sie ist die Hausregel dieser Ablage, und
+ein Skript, das beim ersten Klick ungefragt Fahrzeuge losschickt, wäre genau
+das, wovor sie schützt. Geprüft wurde der neue Ablauf ohne Spielkonto, mit
+nachgebauter Funkzeile und untergeschobener Fahrzeugseite: Abbrechen läßt den
+Knopf klickbar und ruft **nur** die Fahrzeugseite ab, Bestätigen schaltet
+`dry` ab und ruft danach den Transportverweis.
+
 **Offen:** wie eine Krankenhauszeile ohne freie Betten aussieht (es gab keine)
 und ob es eine dritte Sorte Sprechwunsch gibt. Beides meldet das Skript, statt
 zu raten.

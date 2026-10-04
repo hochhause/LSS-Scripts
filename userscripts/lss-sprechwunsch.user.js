@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Sprechwunsch — Ziel von selbst wählen
 // @namespace    https://leitstellenspiel.de/
-// @version      0.1.0
+// @version      0.1.1
 // @description  Ein Knopf neben dem FMS-Zeichen erledigt den Sprechwunsch: Patient ins nächste passende Krankenhaus, Gefangener in die nächste freie Zelle
 // @match        https://www.leitstellenspiel.de/*
 // @grant        none
@@ -14,7 +14,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.1.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.1.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 
 // Die Funkliste steht nur im Hauptfenster; in den Lightboxen des Spiels hätte
 // das Skript nichts zu tun und würde seinen Knopf doppelt setzen.
@@ -252,6 +252,9 @@ const css = `
 `;
 
 let el, busy = false, protokoll = [];
+/* Einmal je Seitenaufruf fragen, ob scharf geschaltet werden soll — öfter
+   wäre Bevormundung, seltener ließe den Haken für immer unentdeckt. */
+let gefragt = false;
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 function zeichneProtokoll() {
   const pre = el?.querySelector('#lssfms-log');
@@ -293,23 +296,45 @@ function knopfSetzen(zeile) {
   b.onclick = async ev => {
     ev.preventDefault(); ev.stopPropagation();
     if (busy) return;
-    b.disabled = true; b.textContent = '…'; b.title = ruhe;
-    try {
-      const r = await erledige(zeile.id, zeile.name);
+    /* Zwei Durchgänge: beim ersten kann „Nur Vorschau" dazwischenkommen.
+       Sagt der Mensch dann „scharf schalten", läuft derselbe Griff gleich
+       noch einmal — sonst müßte er raten, daß er nochmal drücken soll. */
+    for (let versuch = 0; versuch < 2; versuch++) {
+      b.disabled = true; b.textContent = '…'; b.title = ruhe;
+      let r;
+      try { r = await erledige(zeile.id, zeile.name); }
+      catch (e) {
+        log(`${zeile.name}: fehlgeschlagen — ${e.message}`, 'err');
+        b.textContent = '!'; b.title = e.message; b.disabled = false;
+        return;
+      }
       if (r.fehler) {
         /* Der Grund gehört an den Knopf, nicht in ein Fenster, das niemand
            offen hat. Wieder freigeben: der nächste Versuch kann klappen,
            sobald woanders ein Bett frei wird. */
         b.textContent = '!'; b.title = r.fehler; b.disabled = false;
         log(`${zeile.name}: ${r.fehler}`, 'warn');
-      } else {
-        b.textContent = r.dry ? 'Vorschau' : '✓';
-        b.title = `${r.art} → ${r.ziel.name}`
-          + (r.dry ? ' (Vorschau — nichts geschickt)' : '');
+        return;
       }
-    } catch (e) {
-      log(`${zeile.name}: fehlgeschlagen — ${e.message}`, 'err');
-      b.textContent = '!'; b.title = e.message; b.disabled = false;
+      if (!r.dry) {
+        b.textContent = '✓'; b.title = `${r.art} → ${r.ziel.name}`;
+        return;
+      }
+      /* Vorschau. „Sonst ist aber nichts passiert" war die erste Rückmeldung
+         eines fremden Nutzers (04.10.) — und sie stimmte: der Knopf blieb
+         ausgegraut stehen und nannte keinen Grund. Beides war falsch. Er wird
+         wieder freigegeben, sagt im Titel was los ist, und beim ersten Mal
+         wird gefragt, statt den Haken im Profilmenü suchen zu lassen. */
+      b.textContent = 'Vorschau'; b.disabled = false;
+      b.title = `Nur Vorschau — es wurde NICHTS geschickt. Ziel wäre: ${r.ziel.name}. `
+        + 'Abschalten: Profil → „Sprechwunsch — Einstellungen" → Haken „Nur Vorschau" weg.';
+      if (versuch || gefragt) return;
+      gefragt = true;
+      if (!confirm('„Nur Vorschau" ist eingeschaltet — es wurde nichts geschickt.\n\n'
+        + `${r.art} wäre: ${r.ziel.name}\n\n`
+        + 'Jetzt scharf schalten und wirklich senden?\n'
+        + '(Der Haken sitzt im Profilmenü unter „Sprechwunsch — Einstellungen".)')) return;
+      opts.dry = false; store.set(KEY_OPTS, opts);
     }
   };
   anker.insertAdjacentElement('afterend', b);
