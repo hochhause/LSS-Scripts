@@ -2681,6 +2681,14 @@ Vollbesetzung als unbesetzbar geführt und dafür Personal abgezogen.
 (`api.lss-manager.de/de_DE/vehicles`, Feld `minPersonnel`) und `extensions[].caption`
 der Wache in `/api/buildings`.
 
+**Nachtrag 06.10.2026:** Der Ausbauname ist bestätigt. Feuer 01 (18068819)
+baut den Ausbau, `/api/buildings` liefert `caption` „Wald- und
+Vegetationsbrandbekämpfung", `type_id` 30. `min` und `est` sind weiter offen.
+Wunschbild der Feuerwache (Sashas Plan, per Datei eingespielt, nicht
+`MODELL_STANDARD`): GTLF 10000 W, TLF 5000 W, 2× GW-Waldbrand im
+Waldbrand-Topf, 2× Anh Waldbrand statt Anh Lüfter und Anh Schlauch, weil eine
+Feuerwache höchstens 5 Anhänger-Stellplätze hat (SPIELSEITEN.md).
+
 ## D-106 Wunschbild sichern und laden — Zuordnung nur für Wachen dieses Kontos (v0.65.5)
 
 **Lage.** „Wunschbild kopieren" und „Einfügen …" gab es seit v0.32 — aber

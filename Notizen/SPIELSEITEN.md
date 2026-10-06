@@ -492,6 +492,13 @@ TLF 5000 W, GTLF 10000 W, GW-Waldbrand, GW-L1, GW-L2, MTF-L, LF-L, WLF und
 GW-L2-Wasser. Anh Waldbrand steht zusätzlich auf dem Anhänger-Stellplatz,
 AB-Waldbrand auf dem Abrollbehälter-Stellplatz.
 
+Nachgemessen am 06.10.2026 an Feuer 01 (Stufe 19, Ausbau im Bau): in
+`/api/buildings` heißt der Ausbau „Wald- und Vegetationsbrandbekämpfung",
+`type_id` 30. Die Wachenseite führt genau **5** Zeilen „Anhänger-Stellplatz"
+(gebaute und baubare zusammen); mehr lassen sich nicht bauen. Bei
+„Abrollbehälter-Stellplatz" waren es 13 Zeilen, das Wunschbild plant 14. Das ist
+noch nicht geklärt.
+
 Die Kaufliste zeigt die neuen Typen auch an Wachen **ohne** den Ausbau — wie
 schon gemessen, ist sie nach Gebäudeart gefiltert, nicht nach Ausbauten.
 
