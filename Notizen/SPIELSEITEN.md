@@ -463,3 +463,34 @@ der ersten Zelle.
 
 Gemessen: 5 eigene, 50 Verband. Die eigene Tabelle klappt per CSS ab der
 elften Zeile zu (`#showRetired:checked + table tbody tr:nth-child(n+11)`).
+
+## Waldbrand-Update (06.10.2026)
+
+Gemessen am Erscheinungstag, rein lesend, an der Kaufliste einer Feuerwache
+(`/buildings/<id>/vehicles/new`), an deren Wachenseite und an der eigenen
+Feuerwehrschule. Gebaut, gekauft oder ausgebildet war noch nichts davon.
+
+| Typ | Name | Sitze | Lehrgang laut Kaufseite |
+|---|---|---|---|
+| 187 | TLF 3000 W | 3 | Sonderausbildung (Wald- und Vegetationsbrandbekämpfung) |
+| 188 | TLF 5000 W | 3 | dto. |
+| 189 | GTLF 10000 W | 3 | dto. |
+| 190 | GW-Waldbrand | 3 | dto. |
+| 191 | Anh Waldbrand | 0 | „Benötigt 1 Person mit Sonderausbildung … für das Zugfahrzeug"; Zugfahrzeuge GW-Waldbrand, GW-L1, GW-L2, LF-L, MTF-L, GW-L2-Wasser |
+| 192 | AB-Waldbrand | 0 | „Benötigt ein Tragefahrzeug (WLF)" und Sonderausbildung „für das tragende Fahrzeug" — **ohne Zahl** |
+
+**Mindestbesetzung steht nirgends** — weder im Rohtext noch auf der gerenderten
+Seite. Die LSS-Manager-API endete am selben Tag noch bei Typ 186.
+
+Lehrgang in `#education_select` der Feuerwehrschule: Wert `wildfire:19`, Text
+„Wald- und Vegetationsbrandbekämpfung (3 Tage)".
+
+Ausbau auf der Wachenseite: Bauplatz **30**, 200.000 Credits oder 25 Coins,
+5 Tage. „Erstellt vier Stellplätze für und ermöglicht den Kauf von Fahrzeugen
+der Wald- und Vegetationsbrandbekämpfung." Die Stellplätze nehmen TLF 3000 W,
+TLF 5000 W, GTLF 10000 W, GW-Waldbrand, GW-L1, GW-L2, MTF-L, LF-L, WLF und
+GW-L2-Wasser. Anh Waldbrand steht zusätzlich auf dem Anhänger-Stellplatz,
+AB-Waldbrand auf dem Abrollbehälter-Stellplatz.
+
+Die Kaufliste zeigt die neuen Typen auch an Wachen **ohne** den Ausbau — wie
+schon gemessen, ist sie nach Gebäudeart gefiltert, nicht nach Ausbauten.

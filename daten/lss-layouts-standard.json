@@ -51,6 +51,12 @@
     "label": "NEA200",
     "from": "Netzersatzanlage 200",
     "per": 2
+   },
+   {
+    "key": "wald",
+    "label": "Waldbrand",
+    "from": "Wald- und Vegetationsbrandbekämpfung",
+    "per": 4
    }
   ]
  },

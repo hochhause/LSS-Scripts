@@ -109,10 +109,10 @@ wer dort etwas ändert, zieht den Auszug nach oder streicht ihn.
 
 | eingebaut im Skript | aus dem Spiel gelesen |
 |---|---|
-| `PB` — 186 Fahrzeugtypen, Sitze, Lehrgänge, Anhängerkopplung | Bestand (`/api/buildings`, `/api/v2/vehicles`) |
+| `PB` — 192 Fahrzeugtypen, Sitze, Lehrgänge, Anhängerkopplung | Bestand (`/api/buildings`, `/api/v2/vehicles`) |
 | `MODELL_STANDARD` — Wunschbild je Gebäudeart | Ausbildungsstand, laufende Lehrgänge |
 | `LAYOUTS_STANDARD` — Stellplätze als Formel | Ausbaukatalog (Bauplatz-Nummern) |
-| `KURSE_FEST` — 60 Lehrgangsnamen | Kursangebot je Schulart |
+| `KURSE_FEST` — 61 Lehrgangsnamen | Kursangebot je Schulart |
 | `GEBAEUDE_NAMEN` | |
 
 Der frühere Plan-Import aus dem Artefakt ist seit v0.52.0 **entfernt** (D-78).

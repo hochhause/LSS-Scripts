@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.65.3
+// @version      0.65.4
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.65.3';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.65.4';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -229,7 +229,7 @@ const GEBAEUDE_NAMEN = {
    seinem eigenen Ausbaustand aus, statt eine fremde Wache abzubilden.
    Gebäudearten ohne Eintrag fallen auf „Stufe + 1“ zurück. */
 const LAYOUTS_STANDARD = {
-  "0": {"maxLevel":19,"pools":[{"key":"normal","label":"Normal","from":"level","bonus":{"Großwache":10}},{"key":"ab","label":"Abrollbehälter","from":"Abrollbehälter-Stellplatz","per":1},{"key":"anh","label":"Anhänger","from":"Anhänger-Stellplatz","per":1},{"key":"drohne","label":"Drohne","from":"Drohneneinheit","per":1},{"key":"vpfl","label":"Verpflegung","from":"Verpflegungsdienst","per":2},{"key":"bahn","label":"Bahnrettung","from":"Bahnrettung","per":1},{"key":"tier","label":"Tierrettung","from":"Tierrettung","per":1},{"key":"nea200","label":"NEA200","from":"Netzersatzanlage 200","per":2}]},
+  "0": {"maxLevel":19,"pools":[{"key":"normal","label":"Normal","from":"level","bonus":{"Großwache":10}},{"key":"ab","label":"Abrollbehälter","from":"Abrollbehälter-Stellplatz","per":1},{"key":"anh","label":"Anhänger","from":"Anhänger-Stellplatz","per":1},{"key":"drohne","label":"Drohne","from":"Drohneneinheit","per":1},{"key":"vpfl","label":"Verpflegung","from":"Verpflegungsdienst","per":2},{"key":"bahn","label":"Bahnrettung","from":"Bahnrettung","per":1},{"key":"tier","label":"Tierrettung","from":"Tierrettung","per":1},{"key":"nea200","label":"NEA200","from":"Netzersatzanlage 200","per":2},{"key":"wald","label":"Waldbrand","from":"Wald- und Vegetationsbrandbekämpfung","per":4}]},
   "2": {"pools":[{"key":"normal","label":"Stellplätze","from":"level","bonus":{"Großwache":10}}]},
   "6": {"pools":[{"key":"normal","label":"Normal","from":"level","bonus":{"Großwache":10}},{"key":"hund","label":"Diensthunde","from":"Diensthundestaffel","per":1},{"key":"dgl","label":"DGL","from":"Dienstgruppenleitung","per":1},{"key":"motorrad","label":"Motorrad","from":"Motorradstaffel","per":2},{"key":"ap","label":"Autobahn","from":"Autobahnpolizei","per":2},{"key":"gefkw","label":"Gewahrsam","from":"Großgewahrsam","per":1}]},
   "9": {"pools":[{"key":"gesamt","label":"Stellplätze","from":"fixed","base":1,"bonus":{"1. Technischer Zug: Fachgruppe Notversorgung/Notinstandsetzung":2,"1. Technischer Zug: Zugtrupp":1,"2. Technischer Zug - Bergungsgruppe":1,"2. Technischer Zug: Fachgruppe Notversorgung/Notinstandsetzung":2,"2. Technischer Zug: Zugtrupp":1,"Fachgruppe Räumen":4,"Fachgruppe Wassergefahren":5,"Fachgruppe Ortung":4,"Fachgruppe Wasserschaden/Pumpen":4,"Fachgruppe Schwere Bergung":1,"Fachgruppe Elektroversorgung":2,"Ortsverbands-Mannschaftstransportwagen":2,"Trupp Unbemannte Luftfahrtsysteme":1,"Fachzug Führung und Kommunikation":5,"Fachgruppe Logistik-Verpflegung":3,"Fachgruppe Brückenbau":3}}]},
@@ -467,7 +467,22 @@ const PB = {
   "183":{"c":"Anh Plattform (FGr BrB)","min":0,"max":0,"est":null,"kurse":[{"k":"thw_bridge_construction","art":"min","n":6}],"zug":[181]},
   "184":{"c":"FuStW (AP)","min":2,"max":2,"kurse":[{"k":"highway_police","art":"alle","n":null}]},
   "185":{"c":"GW-Tierrettung","min":2,"max":6},
-  "186":{"c":"Anh Tierrettung","min":0,"max":0,"zug":[90,4,27,53,104,105,1,5,6,8,9,15,16,18,21,22,36,37,88,89,185]}
+  "186":{"c":"Anh Tierrettung","min":0,"max":0,"zug":[90,4,27,53,104,105,1,5,6,8,9,15,16,18,21,22,36,37,88,89,185]},
+  /* Waldbrand-Update, abgelesen am 06.10.2026 an der Kaufliste einer
+     Feuerwache (SPIELSEITEN.md). Gemessen sind Sitze, Lehrgang, Zugfahrzeuge
+     und beim Anhänger die Zahl. **Nicht** gemessen ist `min`: das Spiel nennt
+     sie auf keiner Seite, und die LSS-Manager-API kannte die Typen am selben
+     Tag noch nicht. 1 ist der Wert jedes anderen Fahrzeugs mit drei Sitzen in
+     dieser Tabelle — eine Annahme, keine Messung (D-105). */
+  "187":{"c":"TLF 3000 W","min":1,"max":3,"kurse":[{"k":"wildfire","art":"alle","n":null}]},
+  "188":{"c":"TLF 5000 W","min":1,"max":3,"kurse":[{"k":"wildfire","art":"alle","n":null}]},
+  "189":{"c":"GTLF 10000 W","min":1,"max":3,"kurse":[{"k":"wildfire","art":"alle","n":null}]},
+  "190":{"c":"GW-Waldbrand","min":1,"max":3,"kurse":[{"k":"wildfire","art":"alle","n":null}]},
+  "191":{"c":"Anh Waldbrand","min":0,"max":0,"est":1,"kurse":[{"k":"wildfire","art":"min","n":1}],"zug":[190,104,105,107,106,11]},
+  /* Die Kaufseite verlangt die Ausbildung „für das tragende Fahrzeug", nennt
+     aber keine Zahl. 1 wie beim AB-Gefahrgut und wie beim Anh Waldbrand, wo
+     die Zahl ausdrücklich steht — ebenfalls eine Annahme (D-105). */
+  "192":{"c":"AB-Waldbrand","min":0,"max":0,"est":1,"kurse":[{"k":"wildfire","art":"alle","n":null}],"zug":[46]}
 };
 
 /* Zusammengeführte Sicht: Stammdaten schlagen den Plan, der Plan liefert
@@ -607,7 +622,7 @@ async function ausbauKatalogLesen() {
 
 
 /* ── Was an einer Wache überhaupt gekauft werden kann ─────────────────
-   Der Katalog kennt 186 Fahrzeugtypen, aber an einer Rettungswache steht kein
+   Der Katalog kennt 192 Fahrzeugtypen, aber an einer Rettungswache steht kein
    Löschboot. Eine vollständige Tabelle „Typ gehört zu Gebäudeart“ habe ich
    nicht, und raten kommt nicht in Frage — also drei Quellen, in dieser
    Reihenfolge:
@@ -3022,6 +3037,7 @@ const KURSE_FEST = {
   thw_drone: "Trupp Unbemannte Luftfahrtsysteme",
   care_service_equipment: "Verpflegungshelfer", police_wasserwerfer: "Wasserwerfer",
   wechsellader: "Wechsellader Lehrgang", werkfeuerwehr: "Werkfeuerwehr-Ausbildung",
+  wildfire: "Wald- und Vegetationsbrandbekämpfung",   // Waldbrand-Update, Schulauswahl 06.10.2026
   police_helicopter_lift: "Windenoperator", rescue_helicopter_lift: "Windenoperator",
   police_einsatzleiter: "Zugführer (leBefKw)", thw_zugtrupp: "Zugtrupp"
 };

@@ -2643,3 +2643,40 @@ bei 6,7 · 13,6 · 23,9 · 32,7 · 34,0 km, der Verband ab 22,7 km. Das Haus bei
 23,9 km steht jetzt zwischen den Verbandshäusern statt unter fünfzig davon.
 Geprüft an der offenen Seite: 56 Zeilen, durchgehend aufsteigend, zweiter
 Durchgang ohne Wirkung.
+
+## D-105 Waldbrand-Update: Katalog nachgetragen, Wunschbild unverändert (v0.65.4)
+
+**Lage.** Am 06.10.2026 brachte das Spiel die Erweiterung „Wald- und
+Vegetationsbrandbekämpfung", sechs Fahrzeugtypen (187–192) und den Lehrgang
+`wildfire`. Ein Typ, den `PB` nicht kennt, fällt aus jeder Rechnung still
+heraus (`vehMeta` → `null`) — wer so ein Fahrzeug kauft, bekäme weder Personal
+noch Punkt noch Lehrgangsbedarf.
+
+**Entschieden.** Nachgetragen wird, was das Spiel ist, nicht was Sasha haben
+will: `PB` 187–192, `KURSE_FEST.wildfire`, der Stellplatz-Topf `wald` der
+Feuerwache (4 Plätze aus dem Ausbau). Das **Wunschbild bleibt unverändert** —
+ob und wie viele Waldbrandfahrzeuge eine Feuerwache haben soll, ist eine
+Planfrage, und sie stellt sich erst, wenn Ausbau (Wochen) und Lehrgang (Tage)
+überhaupt erreichbar sind.
+
+**Gemessen** an der Kaufliste einer Feuerwache und an der Feuerwehrschule
+(SPIELSEITEN.md): Sitze, Lehrgang je Typ, Zugfahrzeuge des Anhängers, die
+Zahl „1 Person mit Sonderausbildung für das Zugfahrzeug", Schlüssel und Dauer
+des Lehrgangs, Bauplatz 30, vier Stellplätze.
+
+**Angenommen, nicht gemessen — und darum hier:**
+
+| Wert | gesetzt | warum |
+|---|---|---|
+| `min` bei 187–190 | 1 | Das Spiel nennt die Mindestbesetzung auf keiner Seite, die LSS-Manager-API kannte die Typen am selben Tag nicht. Jedes andere Fahrzeug mit drei Sitzen in `PB` hat 1. |
+| `est` beim AB-Waldbrand | 1 | Die Kaufseite verlangt die Ausbildung „für das tragende Fahrzeug", ohne Zahl. 1 wie beim AB-Gefahrgut und beim Anh Waldbrand, wo die Zahl ausdrücklich steht. |
+| Ausbauname in `/api/buildings` | „Wald- und Vegetationsbrandbekämpfung" | So heißt er auf der Wachenseite. Gebaut hat ihn noch niemand, also war die API-Schreibweise nicht prüfbar. Weicht sie ab, findet `poolsOf` den Topf nicht. |
+
+**Fehlerrichtung, falls `min` falsch ist:** liegt sie in Wahrheit bei 2 oder 3,
+zeigt der Punkt ein Fahrzeug mit einer Person zu früh gelb. Das ist die
+harmlosere Richtung — `min` = `max` hätte jedes Waldbrandfahrzeug bis zur
+Vollbesetzung als unbesetzbar geführt und dafür Personal abgezogen.
+
+**Nachmessen**, sobald das erste Fahrzeug steht: LSS-Manager-API
+(`api.lss-manager.de/de_DE/vehicles`, Feld `minPersonnel`) und `extensions[].caption`
+der Wache in `/api/buildings`.
