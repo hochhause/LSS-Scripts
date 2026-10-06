@@ -23,8 +23,7 @@ const teile = [
   schnitt('function mindestBedarf(v) {', '/* Umschaltungen, die gerade nicht möglich'),
   schnitt('/** Soll je Kursschlüssel für eine Wache.', '/** Liest die Personalauswahl einer Wache'),
   schnitt('function sitzeFuerKurs(meta, feld', '/* Das Spiel nennt „N in Ausbildung“'),
-  schnitt('/** Leitet den Ausbildungsstand aus einer gelesenen Personalliste ab.', '/* Wer in diesem Lauf schon eingeteilt wurde.'),
-  schnitt('function doppelKandidaten(b, key, liste) {', '/** Wählt Personen aus.'),
+  schnitt('/** Leitet den Ausbildungsstand aus einer gelesenen Personalliste ab.', '/* Personallisten für einen Lauf über mehrere Lehrgänge'),
   schnitt('/** Trägt jedem Fahrzeug einer Wache seinen Punkt ein', '/** Setzt oder entfernt das Häkchen')
 ].join('\n');
 
@@ -64,17 +63,17 @@ const echteVon = b => mineOf(b).filter(v => !istPlatzhalter(v));
 `;
 
 const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
-           bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
+           bedarfKeys, doppelKombis, zaehleAus, quals, S,
            courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
            verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
-           anhaengerAn, fahrzeugStand, punkteFuerWache, sicherungPruefen, PB_TYPEN: PB,
+           anhaengerAn, fahrzeugStand, punkteFuerWache, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN: PB,
            MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
            nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
-        bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
+        bedarfKeys, doppelKombis, zaehleAus, quals, S,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
         verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
-        anhaengerAn, fahrzeugStand, punkteFuerWache, sicherungPruefen, PB_TYPEN,
+        anhaengerAn, fahrzeugStand, punkteFuerWache, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN,
         MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
         nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken } = kern;
 
@@ -299,33 +298,12 @@ const box = (id, ...kurse) => ({ id: String(id), kurse });
   pruefe('für so viele Plätze, wie das WLF hat', kombis[0].n, 3);
 }
 
-/* ── 10. Wen die Ausbildung anfassen darf ──────────────────────────── */
-console.log('\n10. Auswahl für die Schule');
-{
-  const b = ziel(1, 2, { 64: 1 });                     // nur GW-Wasserrettung geplant
-  S.byBuilding = new Map([[1, []]]);
-  const liste = [box(1), box(2, 'notarzt'), box(3, 'gw_wasserrettung')];
-  pruefe('kein Doppelbedarf → keine Ausgebildeten',
-    doppelKandidaten(b, 'gw_wasserrettung', liste).map(p => p.id), []);
-}
-{
-  const b = ziel(1, 2, { 129: 1 });                    // ELW2 Drohne
-  S.byBuilding = new Map([[1, []]]);
-  const liste = [box(1), box(2, 'elw2'), box(3, 'elw2', 'fire_drone'), box(4, 'notarzt')];
-  const k = doppelKandidaten(b, 'fire_drone', liste).map(p => p.id);
-  pruefe('nur wer den Partnerkurs schon hat', k, ['2']);
-  pruefe('der Fertige bleibt draußen', k.includes('3'), false);
-  pruefe('der Notarzt bleibt draußen', k.includes('4'), false);
-}
-{
-  const b = ziel(1, 2, { 129: 1 });
-  S.byBuilding = new Map([[1, []]]);
-  // Bedarf ist gedeckt: sechs Sitze, sechs fertige Doppelqualifizierte
-  const liste = Array.from({ length: 6 }, (_, i) => box(i + 1, 'elw2', 'fire_drone'));
-  liste.push(box(9, 'elw2'));
-  pruefe('gedeckter Doppelbedarf zieht niemanden mehr nach',
-    doppelKandidaten(b, 'fire_drone', liste).map(p => p.id), []);
-}
+/* ── 10. Wen die Ausbildung anfassen darf ──────────────────────────────
+   Seit v0.66.0 in Abschnitt 37 (`lehrgangsKandidaten`). Die frühere Auswahl
+   `doppelKandidaten` las die Schulliste, die nicht sagt, wer auf welchem
+   Fahrzeug sitzt, und kannte nur Paare, die jeder Sitz verlangt (D-107).
+   Ob ein gedeckter Bedarf niemanden mehr nachzieht, entscheidet jetzt die
+   Anzahl, nicht die Auswahl. */
 
 /* ── 11. Bedarf hängt nicht mehr am Klartext ───────────────────────── */
 console.log('\n11. Bedarf rechnet auf Schlüsseln');
@@ -1472,6 +1450,58 @@ console.log('\n36. Sicherung laden');
     !!sicherungPruefen({ modell: { 0: { profiles: { x: { vehicles: { 30: '2' } } } } } }, bestand, {}).fehler, true);
   pruefe('unbekannter Fahrzeugtyp ist kein Fehler, aber gezaehlt',
     sicherungPruefen({ modell: { 0: { profiles: { x: { vehicles: { 999: 1 } } } } } }, bestand, {}).fremdeTypen, 1);
+}
+
+/* ── 37. Wer in einen Lehrgang darf (Sasha, 06.10.2026) ───────────────
+   Nur wer verfuegbar und keinem Fahrzeug zugewiesen ist; gewollte
+   Doppelausbildungen vorneweg; niemand wird von einem Fahrzeug abgezogen —
+   lieber eine Meldung, die sagt, wie viele unterwegs sind. */
+console.log('\n37. Lehrgangskandidaten');
+const lp = (id, quals = [], assignedTo = null, inAusbildung = [], verfuegbar = true) =>
+  ({ id: String(id), name: 'P' + id, quals, inAusbildung, assignedTo: assignedTo && String(assignedTo), verfuegbar });
+{
+  const ids = r => r.liste.map(x => x.id);
+  const lf = fz(30);                                   // HLF 20: min 1, max 9
+  const b = wache([lf]);
+  const leute = [
+    lp(1), lp(2, ['gw_messtechnik']), lp(3, [], null, ['wildfire']), lp(4, ['wildfire']),
+    lp(5, [], lf.id), lp(6, [], lf.id), lp(7, [], null, [], false), lp(8)
+  ];
+  const r = lehrgangsKandidaten(b, 'wildfire', leute);
+  pruefe('nur verfuegbare Ungelernte ohne Fahrzeug', ids(r), ['1', '8']);
+  pruefe('von Fahrzeugen niemand, aber gezaehlt', r.amFahrzeug, 2);
+  pruefe('wer unterwegs ist, gezaehlt fuer die Meldung', r.unterwegs, 1);
+}
+{
+  /* Doppelausbildung gewollt — aber auch der Drohnenpilot wird nicht von
+     seinem Fahrzeug geholt. Der ohne Fahrzeug kommt vor den Ungelernten. */
+  const lf = fz(30);
+  const b = wache([lf]);
+  const leute = [lp(1), lp(2, ['fire_drone']), lp(3, ['fire_drone'], lf.id), lp(4, ['fire_drone', 'gw_messtechnik'])];
+  const r = lehrgangsKandidaten(b, 'elw2', leute);
+  pruefe('der freie Drohnenpilot kommt zuerst', r.liste.map(x => x.id), ['2', '1']);
+  pruefe('der Drohnenpilot auf dem Fahrzeug bleibt dort', r.amFahrzeug, 1);
+  pruefe('wer mehr als den Partner hat, bleibt draussen', r.liste.some(x => x.id === '4'), false);
+}
+{
+  /* Die Meldung nennt den Ausweg. */
+  const k = { liste: [], amFahrzeug: 3, unterwegs: 4 };
+  const t = zuWenigLeute({ caption: 'Feuer 03' }, 6, 10, k);
+  pruefe('Meldung nennt Status 2', /Status 2/.test(t), true);
+  pruefe('Meldung nennt die Zugewiesenen', /3 passende sind Fahrzeugen zugewiesen/.test(t), true);
+  pruefe('ohne Unterwegs keine Wartebitte',
+         /Status 2/.test(zuWenigLeute({ caption: 'X' }, 1, 2, { amFahrzeug: 1, unterwegs: 0 })), false);
+}
+{
+  /* Betreuung + Verpflegungshelfer, in beide Richtungen. */
+  const p = (id, quals = []) => ({ id: String(id), quals, inAusbildung: [], assignedTo: null });
+  const b = wache([]);
+  pruefe('Verpflegungshelfer darf in die Betreuung',
+         lehrgangsKandidaten(b, 'care_service', [p(1, ['care_service_equipment'])]).liste.length, 1);
+  pruefe('Betreuer darf zum Verpflegungshelfer',
+         lehrgangsKandidaten(b, 'care_service_equipment', [p(1, ['care_service'])]).liste.length, 1);
+  pruefe('aber nicht in einen fremden Lehrgang',
+         lehrgangsKandidaten(b, 'wildfire', [p(1, ['care_service'])]).liste.length, 0);
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');

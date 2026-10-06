@@ -2722,3 +2722,78 @@ Handgriff, kein Hintergrundlauf.
 
 **Nicht im Spiel angesehen:** die beiden neuen Knöpfe im Plan-Reiter und der
 Download. Die Prüfung ist mit 17 Proben in `test-planung.js` abgedeckt.
+
+## D-107 Lehrgänge starten und füllen — eine Auswahlregel, von der Zuweisungsseite (v0.66.0)
+
+**Lage.** Sasha: das Füllen von Lehrgängen „funktionierte mehr schlecht als
+recht". Drei Ursachen, alle im Code nachvollzogen:
+
+1. **Falsche Quelle.** Die Leute kamen aus `schooling_personal_select`. Die
+   Liste sagt nicht, wer auf welchem Fahrzeug sitzt und wer gerade unterwegs
+   ist — und `CLAUDE.md` nennt sie seit langem unvollständig.
+2. **Betreuung + Verpflegungshelfer wurde nie erkannt.** `doppelKandidaten`
+   kannte nur Paare, die *jeder* Sitz eines Fahrzeugs verlangt (ELW2 Drohne).
+   Der GW-Bt fordert „1× Betreuung, 2× Verpflegungshelfer" und fiel durch.
+3. **Ohne Plan kein Bedarf.** Ein Lehrgang, den der Plan nicht vorsieht —
+   Waldbrand am Erscheinungstag —, ließ sich gar nicht starten.
+
+Dazu fehlte das Wichtigste ganz: Lehrgänge in Schulen **starten**. Der Planer
+konnte nur fremde, bereits offene füllen.
+
+**Entschieden** (Sasha, 06.10.), eine Regel für alle drei Wege —
+Hintergrund-Füllen fremder Lehrgänge (`waehlePersonen`), Anhaken auf der
+Schulseite (`fuelleWache`), neuer Lauf „Lehrgang starten"
+(`lehrgangStarten`). Die Regel steht an **einer** Stelle,
+`lehrgangsKandidaten` (`lss-planer.user.js:2378`):
+
+- nur wer **keinen** Lehrgang hat,
+- außer den gewollten Paaren ELW 2 + Drohne und Betreuung +
+  Verpflegungshelfer — wer genau den Partner hat, kommt zuerst,
+- nur wer **verfügbar** ist (nicht gerade mit einem Fahrzeug unterwegs),
+- **niemand, der einem Fahrzeug zugewiesen ist.**
+
+Gelesen wird von der Zuweisungsseite (`readRoster`), die jetzt auch den Status
+liefert (`verfuegbar`).
+
+**Die Regel änderte sich zweimal am selben Tag — beides gehört festgehalten.**
+Zuerst hieß es „möglichst ohne Fahrzeug, aber keine Besatzung unter ihr
+Minimum, grüne Fahrzeuge in Ruhe lassen". Gebaut war das schon: ein Durchgang,
+der vom Fahrzeug mit dem größten Überschuß nimmt. Dann Sasha: *lieber eine
+Meldung „nicht genug Leute verfügbar, warte bis mehr Fahrzeuge auf Status 2
+sind" als Leute von Fahrzeugen abwählen.* **Verworfen** ist damit das Abziehen
+überhaupt, samt Mindestbesatzungs- und Grün-Rechnung. Auch der Drohnenpilot auf
+dem Drohnenwagen bleibt dort; die Doppelausbildung greift nur bei Leuten ohne
+Fahrzeug. Reicht es nicht, sagt `zuWenigLeute`, wie viele passende unterwegs
+und wie viele zugewiesen sind.
+
+**Die 50-%-Regel vom 27.08. ist ersetzt.** `darfInDenKurs` ließ Ausgebildete in
+einen zweiten Lehrgang, wenn ihr erster an der Wache um die Hälfte überdeckt
+war. Die neue Regel nimmt Ausgebildete nur noch in den beiden Paaren —
+gestrichen.
+
+**Wie viele je Wache.** Eine Zahl („je Wache") oder leer = was laut Plan
+fehlt. Die Zahl ist für Lehrgänge ohne Plan gedacht: bei Waldbrand wußte Sasha
+noch nicht, wie viele es braucht, und nahm „lieber mehr als weniger", 10 je
+Wache.
+
+**Wo.** Erst eigene Schulen, dann auf Wunsch die des Verbands (Haken, Vorgabe
+an: „halt einfach was immer frei ist"). Welche Wachen eine Schule bedienen
+darf, wird nicht hergeleitet, sondern von ihrer Seite gelesen — eigene
+Schulen nennen sie im Rohtext; Verbandsschulen erst auf der Seite des
+gestarteten Lehrgangs. Vor einem Verbandsstart wird über `zustaendigFuer`
+geprüft, ob die Schulart die verbliebenen Wachen überhaupt nimmt, sonst stünde
+ein leerer Lehrgang da.
+
+**Freigabe** für den Verband eine Stunde, kostenlos — Sashas Gewohnheit, damit
+andere unbelegte Plätze füllen können. Abwählbar.
+
+**Gemessen statt geraten.** Beide Abläufe wurden am 06.10. mit einem echten
+Start mitgeschnitten (Feldnamen in SPIELSEITEN.md): Sasha startete in der
+eigenen Feuerwehrschule 20 Leute der Feuer 01/02; ich startete in der
+Feuerwehrschule des Verbands einen Lehrgang und schickte 10 Leute der Feuer 03.
+Dabei fiel die Verfügbarkeit auf: die Lehrgangsseite bot 234 von 276 Leuten
+an, alle 42 fehlenden waren „Im Fahrzeug" unterwegs.
+
+**Nicht im Spiel angesehen:** der neue Kasten im Reiter Ausbildung und ein
+Lauf des Planers selbst. Die Regel ist mit Proben abgedeckt (Abschnitt 37),
+die Formulare sind die gemessenen.

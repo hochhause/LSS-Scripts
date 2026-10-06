@@ -494,3 +494,57 @@ AB-Waldbrand auf dem Abrollbehälter-Stellplatz.
 
 Die Kaufliste zeigt die neuen Typen auch an Wachen **ohne** den Ausbau — wie
 schon gemessen, ist sie nach Gebäudeart gefiltert, nicht nach Ausbauten.
+
+## Lehrgang starten — eigene Schule und Verbandsschule (06.10.2026)
+
+Mitgeschnitten beim Abschicken, je ein echter Start. Das Sicherheitstoken
+stand in der Aufzeichnung und wurde danach gelöscht; es gilt nur für die
+Sitzung.
+
+### Eigene Schule — ein Formular, Personen gleich dabei
+
+```
+POST /buildings/<schule>/education
+  utf8=✓ · authenticity_token
+  building_rooms_use        1 … freie Räume (Auswahl auf der Seite)
+  education_select          "schlüssel:nummer", z. B. wildfire:19 — von der Seite lesen
+  alliance[duration]        0 = direkt starten ohne Freigabe · 3600 · 43200 · 86400 · 172800
+  alliance[cost]            0 · 100 · … · 500   (Credits je Tag und Teilnehmer)
+  dispatch_center_filter    leer (Leitstellen-Filter, nur Anzeige)
+  personal_ids[]            je Person einmal
+  commit=Ausbilden
+```
+
+Die Schulseite nennt im **Rohtext** die Wachen, die sie ausbilden darf
+(`.building_list[building_id]`, an der Feuerwehrschule 25, an der
+Polizeischule 29), die freien Räume und die Lehrgänge. Ohne freien Raum fehlt
+das Formular ganz (Rettungsschule mit vier laufenden Lehrgängen).
+
+### Verbandsschule — zwei Schritte
+
+```
+1. POST /buildings/<verbandsschule>/education
+     utf8 · authenticity_token · building_rooms_use · education_select
+     alliance[duration] · alliance[cost]          — KEINE Personen, kein Leitstellen-Filter
+   → Weiterleitung auf /schoolings/<neu>
+2. POST /schoolings/<neu>/education
+     utf8 · authenticity_token · personal_ids[] · commit=Ausbilden
+```
+
+Die Seite der Verbandsschule nennt **keine** Wachen; erst die Seite des
+gestarteten Lehrgangs listet sie (`.building_list`, die Ankreuzfelder laden
+beim Aufklappen nach). An der Verbandsschule ist die Freigabe von Haus aus „1
+Stunde", an der eigenen „direkt starten".
+
+Gefunden über die Verbandsseite `/verband/gebauede`: je Schule ein Verweis
+„Neuen Lehrgang starten" auf `/buildings/<id>`.
+
+Auffällig: derselbe Lehrgang stand an der Verbandsschule mit **1 Tag**, an der
+eigenen mit **3 Tagen** — vermutlich ein Ausbau der Schule. Nicht nachgeprüft.
+
+### Wer auf einer Lehrgangsseite angeboten wird
+
+Nur Personen mit Status **„Verfügbar"**. Gemessen an Feuer 03: 234 von 276
+angeboten, alle 42 fehlenden „Im Fahrzeug: …", also gerade unterwegs — auch
+solche, die keinem Fahrzeug fest zugewiesen sind. Der Status steht auf der
+Zuweisungsseite in der dritten Spalte.

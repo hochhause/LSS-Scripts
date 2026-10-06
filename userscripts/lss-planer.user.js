@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.65.5
+// @version      0.66.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.65.5';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.66.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -47,7 +47,11 @@ let chain = Promise.resolve();
 /* Lange Läufe müssen abbrechbar sein: Panel zu, Tab gewechselt, Fehlerserie.
    Ohne das lief eine angefangene Kette über hunderte Wachen weiter. */
 let lauf = null;
-const laufStarten = () => { lauf?.abort(); lauf = new AbortController(); return lauf.signal; };
+const laufStarten = () => {
+  lauf?.abort(); lauf = new AbortController();
+  rosterImLauf.clear();          // ein neuer Lauf liest die Personallisten frisch
+  return lauf.signal;
+};
 /* Der Regler bleibt stehen, auch nachdem abgebrochen wurde. Wer ihn hier auf
    null setzt, löscht die einzige Spur des Abbruchs: `abgebrochen()` meldete
    danach für immer „läuft weiter", und `queued` gab jeder folgenden Anfrage
@@ -2337,6 +2341,72 @@ function fahrzeugStand(v, besatzung) {
   return { art: 'voll', grund: '' };
 }
 
+/* ── Wer in einen Lehrgang darf ───────────────────────────────────────
+   Sashas Regeln vom 06.10.2026, in dieser Rangfolge:
+
+   1. Nur wer noch **keinen** Lehrgang hat. Ein zweiter Kurs macht aus einem
+      Kopf keine zweite Besatzung — er zieht ihn nur woanders ab.
+   2. Ausnahme: Paare, bei denen die Doppelausbildung ausdrücklich gewollt
+      ist. ELW 2 + Drohne für den ELW2 Drohne; Betreuung + Verpflegungshelfer
+      für Bt-Kombi und GW-Bt, wo die Zahl der Köpfe zählt und nicht die der
+      Fahrzeuge. Wer genau den Partner hat, kommt **zuerst**.
+   3. **Niemand von einem Fahrzeug.** Wer einem Fahrzeug zugewiesen ist,
+      bleibt dort — auch die Doppelkandidaten. Sasha, später am selben Tag:
+      lieber eine Meldung „nicht genug Leute verfügbar" als Leute, die von
+      Fahrzeugen abgezogen werden. Damit entfallen die beiden Zwischenregeln
+      „nicht unter die Mindestbesatzung" und „grüne Fahrzeuge in Ruhe lassen":
+      von keinem Fahrzeug wird überhaupt jemand genommen.
+   4. Nur wer **verfügbar** ist. Wer gerade mit einem Fahrzeug außer Haus
+      ist, bietet die Lehrgangsseite gar nicht an (gemessen 06.10.2026).
+
+   Wer schon in einer Schule sitzt, kommt nie in Frage — das Spiel nähme ihn
+   nicht, und er fehlte doppelt in der Rechnung.
+
+   Bis v0.65.5 kamen die Leute aus der Schulauswahl
+   (`schooling_personal_select`). Die sagt nicht, wer auf welchem Fahrzeug
+   sitzt und wer unterwegs ist — Regel 3 und 4 waren damit gar nicht
+   prüfbar, und Regel 2 kannte nur Paare, die jeder Sitz eines Fahrzeugs
+   verlangt; „1× Betreuung, 2× Verpflegungshelfer" fiel durch. Jetzt: die
+   Zuweisungsseite (`readRoster`). */
+const DOPPEL_ERWUENSCHT = [['elw2', 'fire_drone'], ['care_service', 'care_service_equipment']];
+
+/** Kandidaten einer Wache für den Lehrgang `key`, in Nehm-Reihenfolge:
+    erst Doppelkandidaten, dann Ungelernte. `leute` ist
+    `readRoster(b).people`. Zurück: `{ liste, amFahrzeug, unterwegs }` — die
+    beiden Zahlen sagen, wie viele **sonst passende** Leute aus welchem Grund
+    draußen blieben, damit die Meldung den Ausweg nennen kann. */
+function lehrgangsKandidaten(b, key, leute) {
+  const partner = new Set(DOPPEL_ERWUENSCHT.filter(p => p.includes(key)).flat().filter(k => k !== key));
+  const art = p => {
+    if ((p.inAusbildung || []).length) return null;
+    const q = p.quals || [];
+    if (q.includes(key)) return null;
+    if (!q.length) return 'neu';
+    return partner.size && q.every(k => partner.has(k)) ? 'doppel' : null;
+  };
+  const liste = [];
+  let amFahrzeug = 0, unterwegs = 0;
+  for (const gruppe of ['doppel', 'neu']) {
+    for (const p of leute) {
+      if (art(p) !== gruppe) continue;
+      if (p.assignedTo) { amFahrzeug++; continue; }
+      if (p.verfuegbar === false) { unterwegs++; continue; }
+      liste.push(p);
+    }
+  }
+  return { liste, amFahrzeug, unterwegs };
+}
+
+/** Die Meldung, wenn eine Wache nicht genug Leute hergibt. Eine Stelle für
+    alle drei Wege, damit sie überall dasselbe sagt. */
+function zuWenigLeute(b, da, gewollt, k) {
+  return `${b.caption}: nur ${da} von ${gewollt} verfügbar`
+    + (k.unterwegs ? ` — ${k.unterwegs} passende sind gerade mit Fahrzeugen unterwegs; `
+                     + 'warte, bis mehr Fahrzeuge auf Status 2 stehen' : '')
+    + (k.amFahrzeug ? `${k.unterwegs ? ';' : ' —'} ${k.amFahrzeug} passende sind Fahrzeugen zugewiesen `
+                      + 'und werden nicht abgezogen' : '');
+}
+
 /** Welche Anfragen bringen eine Wache vom Ist- in den Sollzustand?
     Rein rechnend und ohne Server — genau hier saß der Fehler aus D-81.
 
@@ -2761,7 +2831,13 @@ async function readRoster(b) {
       name: tr.querySelector('td')?.textContent.trim() || '',
       quals,
       inAusbildung,
-      assignedTo: link ? link.getAttribute('href').split('/')[2] : null
+      assignedTo: link ? link.getAttribute('href').split('/')[2] : null,
+      /* Dritte Spalte: „Verfügbar", „Im Fahrzeug: …" (gerade außer Haus) oder
+         „Im Unterricht: …". Nur wer verfügbar ist, steht auf einer Lehrgangsseite
+         zur Wahl (gemessen 06.10.2026: 234 von 276, alle 42 fehlenden „Im
+         Fahrzeug"). Steht dort etwas anderes, gilt die Person als nicht da —
+         lieber einen zu wenig als einen, den das Spiel ablehnt. */
+      verfuegbar: /Verfügbar/.test(tr.children[2]?.textContent || '')
     });
   });
   /* Die Zuweisungsseite nennt je Person den laufenden Lehrgang. Bisher diente
@@ -4541,6 +4617,33 @@ function render() {
           <b>Nur bis zur Mindestbesetzung</b> <span style="color:var(--lp-dim2)">— so viele, daß
           jedes Fahrzeug ausrücken kann. Das Nahziel; die Zahlen fallen deutlich kleiner aus.</span></label>
       </div>
+      <div style="border:1px solid var(--lp-rand);border-radius:3px;padding:9px 11px;margin:0 0 10px">
+        <div style="margin-bottom:6px"><b>Lehrgang starten</b>
+          <span style="color:var(--lp-dim2)">— für die unten gewählten Wachen, erst in eigenen Schulen,
+          dann auf Wunsch in Schulen des Verbands (je Start ein Raum). Genommen werden nur Leute ohne
+          Lehrgang, die verfügbar und keinem Fahrzeug zugewiesen sind — von Fahrzeugen wird niemand
+          abgezogen. Reicht das nicht, sagt die Meldung, wie viele gerade unterwegs sind. Ausnahme beim
+          Lehrgang: ELW 2 + Drohne und Betreuung + Verpflegungshelfer werden bewußt doppelt ausgebildet.</span></div>
+        <div class="row" style="gap:10px;flex-wrap:wrap">
+          <select id="lssp-ks-kurs" style="min-width:220px">
+            <option value="">— Lehrgang wählen —</option>
+            ${[...new Set([...Object.keys(KURSE_FEST), ...Object.keys(learnedCourses())])]
+              .map(k => [k, kursNamen(k)[0] || k])
+              .sort((x, y) => String(x[1]).localeCompare(String(y[1]), 'de'))
+              .map(([k, n]) => `<option value="${escA(k)}" ${S.opts.ksKurs === k ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+          </select>
+          <label title="Leer: so viele, wie laut Plan noch fehlen">je Wache
+            <input type="number" id="lssp-ks-anzahl" min="0" max="50" style="width:60px"
+                   placeholder="Plan" value="${S.opts.ksAnzahl || ''}"></label>
+          <label><input type="checkbox" id="lssp-ks-frei" ${S.opts.ksFreigabe !== false ? 'checked' : ''}>
+            1 Stunde für den Verband freigeben (kostenlos)</label>
+          <label><input type="checkbox" id="lssp-ks-verband" ${S.opts.ksVerband !== false ? 'checked' : ''}>
+            auch Schulen des Verbands</label>
+          <label style="color:var(--lp-dim)"><input type="checkbox" id="lssp-ks-vorschau" checked> Nur Vorschau</label>
+          <span style="flex:1"></span>
+          <button class="act go" id="lssp-ks-los">Lehrgang starten</button>
+        </div>
+      </div>
       ${buildingList()}
       <div class="row" style="margin-top:10px">
         <button class="act go" id="lssp-scan">Ausbildungsstand erfassen</button>
@@ -4565,6 +4668,42 @@ function render() {
       store.set(KEY_OPTS, S.opts);
       standNeu(); render();
     });
+    /* Lehrgang, Anzahl und Freigabe bleiben gespeichert — wer drei Wachen
+       nacheinander bedient, soll sie nicht dreimal einstellen. „Nur Vorschau"
+       dagegen steht bei jedem Zeichnen wieder an: es gilt für einen Handgriff. */
+    const ksMerk = () => {
+      S.opts.ksKurs = b.querySelector('#lssp-ks-kurs').value;
+      S.opts.ksAnzahl = Math.max(0, Math.min(50, parseInt(b.querySelector('#lssp-ks-anzahl').value, 10) || 0));
+      S.opts.ksFreigabe = b.querySelector('#lssp-ks-frei').checked;
+      S.opts.ksVerband = b.querySelector('#lssp-ks-verband').checked;
+      store.set(KEY_OPTS, S.opts);
+    };
+    ['#lssp-ks-kurs', '#lssp-ks-anzahl', '#lssp-ks-frei', '#lssp-ks-verband']
+      .forEach(q => b.querySelector(q).onchange = ksMerk);
+    b.querySelector('#lssp-ks-los').onclick = async ev => {
+      if (S.busy) return;
+      ksMerk();
+      const key = S.opts.ksKurs;
+      if (!key) return log('Erst einen Lehrgang wählen.', 'warn');
+      const sel = selectedBuildings();
+      if (!sel.length) return log('Keine Wache ausgewählt.', 'warn');
+      const dry = b.querySelector('#lssp-ks-vorschau').checked;
+      const name = kursNamen(key)[0] || key;
+      if (!dry && !await frage(`${name} für ${sel.length} Wachen starten — `
+        + (S.opts.ksVerband !== false ? 'erst eigene Schulen, dann Schulen des Verbands' : 'nur eigene Schulen') + '?\n\n'
+        + (S.opts.ksAnzahl ? `${S.opts.ksAnzahl} Personen je Wache` : 'So viele je Wache, wie laut Plan fehlen')
+        + (S.opts.ksFreigabe !== false ? ', eine Stunde für den Verband freigegeben.' : ', ohne Freigabe.')
+        + '\n\nDer Lehrgang startet wirklich.')) return;
+      S.busy = true; ev.target.disabled = true; laufStarten();
+      S.log = []; log(dry ? '── Vorschau ──' : '── Ausführung ──', 'good');
+      try {
+        const n = await lehrgangStarten(key, sel, S.opts.ksAnzahl, S.opts.ksFreigabe !== false,
+                                        S.opts.ksVerband !== false, dry);
+        log(dry ? `Vorschau: ${n} Personen würden in ${name} geschickt.`
+                : `Fertig: ${n} Personen in ${name} geschickt.`, 'good');
+      } catch (e) { log('Abbruch: ' + e.message, 'err'); }
+      S.busy = false; ev.target.disabled = false; fortAus();
+    };
     auswahlBinden(b);
 
     const draw = () => {
@@ -5522,27 +5661,6 @@ function educationPage() {
 
   /** Hakt so viele Personen an, wie in den Lehrgang passen — nach Bedarf
       sortiert, und nur bei Wachen, die auch wirklich welche brauchen. */
-  /** Darf diese schon ausgebildete Person in einen weiteren Lehrgang?
-      Regel (Sasha, 27.08.): ja, aber nur wenn der Lehrgang, den sie bereits
-      hat, an dieser Wache um mindestens die Hälfte über dem liegt, was die
-      Fahrzeuge brauchen, die ihn fordern. Sonst reißt die Ausbildung ein Loch
-      in eine Besetzung, die gerade steht — und der Grund gehört genannt.
-      Ungelernte gehen immer zuerst; das ist D-07 und bleibt. */
-  function darfInDenKurs(el, c) {
-    const eigene = [...c.attributes].filter(a => a.value === 'true').map(a => a.name);
-    if (!eigene.length) return { ok: true };
-    const id = idOf(el), typ = typeOf(el);
-    for (const k of eigene) {
-      const noetig = bedarfDerWache({ id, building_type: typ }, k).max;
-      if (!noetig) continue;                       // hier gar nicht verlangt
-      const da = trainedAt(id, k);
-      if (da === null) return { ok: false, grund: `${kursNamen(k)[0] || k} nicht erfaßt` };
-      if (da < noetig * 1.5)
-        return { ok: false, grund: `${kursNamen(k)[0] || k} ${da}/${noetig} — keine 50 % Überdeckung` };
-    }
-    return { ok: true };
-  }
-
   /** Öffnet eine Wache bei Bedarf und hakt bis zum Ziel an.
       Gibt zurück, wie viele gesetzt wurden; Übergangenes wandert mit Begründung
       nach `uebergangen`, damit am Ende nicht „nichts gefunden" dasteht, wo in
@@ -5567,28 +5685,30 @@ function educationPage() {
     }
 
     let offen = Math.max(0, ziel - boxes.filter(c => c.checked).length);
-    /* Ungelernt oder nicht — erkannt am Ankreuzfeld selbst. Es trägt jeden
-       Lehrgangsschlüssel als Wahrheitswert. Früher wurde dafür
-       `#school_personal_education_<id>` befragt; das Element steht zwar da, ist
-       aber leer, also landeten ALLE im Topf „ungelernt" und die Reihenfolge,
-       für die D-07 geschrieben wurde, war wirkungslos. */
-    const ohne = [], mit = [];
-    for (const c of boxes) {
-      if (c.checked || c.disabled || c.getAttribute(key) === 'true') continue;
-      ([...c.attributes].some(a => a.value === 'true') ? mit : ohne).push(c);
+    /* Wer angehakt werden darf, entscheidet `lehrgangsKandidaten` — dieselbe
+       Regel wie im Hintergrund und beim Starten eigener Lehrgänge (D-107).
+       Die Ankreuzfelder dieser Seite sagen nur, wer welchen Lehrgang hat,
+       nicht, wer auf welchem Fahrzeug sitzt; das steht allein auf der
+       Zuweisungsseite. Ist die nicht lesbar, wird nichts angehakt: ohne sie
+       ließe sich weder die Mindestbesatzung noch ein grünes Fahrzeug schützen. */
+    const b = S.byId.get(id);
+    let erlaubt = null;
+    try { const r = b && await readRoster(b); if (r) erlaubt = lehrgangsKandidaten(b, key, r.people); }
+    catch (e) { uebergangen.push(`${nameVon(el)}: Zuweisungsseite nicht lesbar — ${e.message}`); return 0; }
+    if (!erlaubt) {
+      uebergangen.push(`${nameVon(el)}: ${b ? 'keine Fahrzeuge' : 'nicht im Bestand'} — `
+        + 'ohne Zuweisungsseite ist nicht prüfbar, wer auf welchem Fahrzeug sitzt');
+      return 0;
     }
-
+    const feld = new Map(boxes.map(c => [String(c.value), c]));
     let gesetzt = 0;
-    for (const c of ohne) {
+    for (const p of erlaubt.liste) {
       if (!offen || frei - gesetzt <= 0) break;
+      const c = feld.get(String(p.id));
+      if (!c || c.checked || c.disabled) continue;
       c.checked = true; offen--; gesetzt++;
     }
-    for (const c of mit) {
-      if (!offen || frei - gesetzt <= 0) break;
-      const urteil = darfInDenKurs(el, c);
-      if (!urteil.ok) { uebergangen.push(`${nameVon(el)}: übergangen — ${urteil.grund}`); continue; }
-      c.checked = true; offen--; gesetzt++;
-    }
+    if (offen) uebergangen.push(zuWenigLeute(b, gesetzt, gesetzt + offen, erlaubt));
     return gesetzt;
   }
 
@@ -5985,44 +6105,28 @@ function bedarfDerWache(b, key) {
   return { min, max };
 }
 
-/* Wer in diesem Lauf schon eingeteilt wurde. Bleibt über mehrere Lehrgänge
-   hinweg erhalten, sonst würde dieselbe Wache mehrfach bedient. */
-const laufZuteilung = new Map();     // `buildingId|kurs` -> Anzahl
-const lz = (bid, key) => laufZuteilung.get(bid + '|' + key) || 0;
-
-/** Wer an dieser Wache noch fehlt, um eine geforderte Doppelqualifikation
-    zu erfüllen, und wen man dafür in genau diesen Kurs schicken müsste.
-    Alle anderen Ausgebildeten bleiben unangetastet: ein zweiter Lehrgang
-    macht aus einem Kopf keine zwei Besatzungen. */
-function doppelKandidaten(b, key, liste) {
-  const aus = [];
-  const vergeben = new Set();
-  for (const kombi of doppelKombis(b)) {
-    if (!kombi.kurse.includes(key)) continue;
-    const partner = kombi.kurse.filter(k => k !== key);
-    const fertig = liste.filter(p => kombi.kurse.every(k => p.kurse.includes(k))).length;
-    let offen = kombi.n - fertig;
-    if (offen <= 0) continue;
-    // Wer die übrigen Kurse der Kombination schon hat, ist einen Lehrgang
-    // davon entfernt. Wer mehr mitbringt, als die Kombination verlangt,
-    // bleibt draußen — sein Zusatzkurs verfiele.
-    for (const p of liste) {
-      if (offen <= 0) break;
-      if (vergeben.has(p.id) || p.kurse.includes(key)) continue;
-      if (!partner.every(k => p.kurse.includes(k))) continue;
-      if (p.kurse.some(k => !kombi.kurse.includes(k))) continue;
-      vergeben.add(p.id);
-      aus.push(p);
-      offen--;
-    }
-  }
-  return aus;
+/* Personallisten für einen Lauf über mehrere Lehrgänge: jede Wache wird
+   einmal gelesen, und wer abgeschickt ist, wird hier als „in Ausbildung"
+   vermerkt. Ohne das stünde er beim nächsten Lehrgang derselben Reihe
+   wieder als frei da — der Server weiß es, die gelesene Liste noch nicht.
+   Geleert wird bei jedem neuen Lauf (`laufStarten`). */
+const rosterImLauf = new Map();
+async function rosterFuerLauf(b) {
+  if (!rosterImLauf.has(b.id)) rosterImLauf.set(b.id, await readRoster(b));
+  return rosterImLauf.get(b.id);
+}
+/** Nach erfolgreichem Abschicken: die Leute sind ab jetzt in der Schule. */
+function alsInAusbildungVermerken(leute, key) {
+  for (const p of leute) p.inAusbildung = [...(p.inAusbildung || []), key];
 }
 
-/** Wählt Personen aus. Erst bekommt jede Wache die Mindestbesatzung,
-    danach wird auf die Vollbesetzung aufgefüllt.
-    Als vorhanden zählt: ausgebildet + in Ausbildung + in diesem Lauf zugeteilt. */
-async function waehlePersonen(key, plaetze, wachen, inAusbildung, ausgebildetLabel, melde) {
+/** Wählt Personen für einen Lehrgang mit `plaetze` freien Plätzen. Erst
+    bekommt jede Wache ihre Mindestbesatzung, danach wird aufgefüllt — der
+    Bedarf kommt aus dem Plan. **Wer** genommen wird, entscheidet allein
+    `lehrgangsKandidaten` (D-107).
+    Als vorhanden zählt, wer den Lehrgang hat oder gerade macht. Zurück
+    kommen die Personen selbst; vermerkt werden sie erst nach dem Abschicken. */
+async function waehlePersonen(key, plaetze, wachen, melde) {
   const daten = [];
   let gelesen = 0;
   for (const b of wachen) {
@@ -6030,41 +6134,26 @@ async function waehlePersonen(key, plaetze, wachen, inAusbildung, ausgebildetLab
     const { min, max } = bedarfDerWache(b, key);
     if (!max) continue;
     gelesen++;
-    const liste = await personalListe(b.id);
+    const roster = await rosterFuerLauf(b);
     if (melde) melde(gelesen, wachen.length, b);
-    /* Der eigene Zähler gilt: er verteilt Doppelqualifizierte auf einen Kurs.
-       Das grüne Label des LSS-Managers zählt sie doppelt und ließe die Wache
-       versorgter aussehen, als sie ist. Ohne eigene Zahl das Label nehmen. */
-    const ausgebildet = quals.by[b.id]?._verfuegbar != null
-      ? (quals.by[b.id][key] || 0)
-      : (ausgebildetLabel?.[b.id] ?? liste.filter(p => p.kurse.includes(key)).length);
-    const vorhanden = ausgebildet + (inAusbildung[b.id] || 0) + lz(b.id, key);
-
-    /* Nur Ungelernte in die Schule. Wer schon einen Lehrgang hat, sitzt
-       bereits auf einem Fahrzeug — ein zweiter Kurs zieht ihn dort weg,
-       ohne dass irgendwo eine Besatzung dazukommt. Ausnahme: die Wache
-       verlangt zwei Lehrgänge auf einem Sitz. */
-    const ungelernt = liste.filter(p => !p.kurse.length);
-    const doppelt = doppelKandidaten(b, key, liste);
-    const frei = [...ungelernt, ...doppelt];
-    daten.push({ b, min, max, vorhanden, frei, genommen: 0 });
+    if (!roster) continue;                       // ohne Fahrzeug keine Zuweisungsseite
+    const hat = p => p.quals.includes(key) || (p.inAusbildung || []).includes(key);
+    daten.push({ b, min, max, vorhanden: roster.people.filter(hat).length,
+                 frei: lehrgangsKandidaten(b, key, roster.people).liste, genommen: 0 });
   }
 
   const gewaehlt = [];
   const nimm = (w, wieviel) => {
     while (wieviel-- > 0 && gewaehlt.length < plaetze && w.frei.length) {
-      gewaehlt.push(w.frei.shift().id);
+      gewaehlt.push(w.frei.shift());
       w.genommen++;
-      laufZuteilung.set(w.b.id + '|' + key, lz(w.b.id, key) + 1);
     }
   };
-
   // Durchgang 1: überall die Mindestbesatzung erreichen
   for (const w of daten) nimm(w, Math.max(0, w.min - w.vorhanden - w.genommen));
   // Durchgang 2: auf die Vollbesetzung auffüllen
   if (gewaehlt.length < plaetze)
     for (const w of daten) nimm(w, Math.max(0, w.max - w.vorhanden - w.genommen));
-
   return gewaehlt;
 }
 
@@ -6125,14 +6214,13 @@ async function fuelleLehrgangHeadless(eintrag, melde) {
   const wachen = planWachen().filter(b => seite.ids.includes(b.id));
   if (!wachen.length) return { fehler: 'keine passenden Wachen auf der Seite' };
 
-  const gewaehlt = await waehlePersonen(key, plaetze, wachen,
-    seite.inAusbildung, seite.ausgebildetLabel, melde);
+  const gewaehlt = await waehlePersonen(key, plaetze, wachen, melde);
   if (!gewaehlt.length) return { gesetzt: 0, ausCache: seite.ausCache };
 
   const body = new URLSearchParams();
   body.append('utf8', '✓');
   body.append('authenticity_token', csrf());
-  gewaehlt.forEach(id => body.append('personal_ids[]', id));
+  gewaehlt.forEach(p => body.append('personal_ids[]', p.id));
   body.append('commit', 'Ausbilden');
 
   const r = await queued(async sig => fetch(`${eintrag.url}/education`, {
@@ -6143,13 +6231,232 @@ async function fuelleLehrgangHeadless(eintrag, melde) {
   await r.text();                       // Strom leeren, bevor der Takt weiterläuft
 
   // Die frisch Eingeteilten sind für weitere Lehrgänge nicht mehr verfügbar.
-  // Set statt includes, und nur neu ablegen, wo sich wirklich etwas ändert.
-  const weg = new Set(gewaehlt);
-  for (const [bid, liste] of personalCache) {
-    const rest = liste.filter(p => !weg.has(p.id));
-    if (rest.length !== liste.length) personalCache.set(bid, rest);
-  }
+  alsInAusbildungVermerken(gewaehlt, key);
   return { gesetzt: gewaehlt.length, ausCache: seite.ausCache };
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Eigene Lehrgänge starten (D-107)
+
+   Nachgemessen am 06.10.2026, ein echter Start durch Sasha in der
+   Feuerwehrschule, mitgeschnitten beim Abschicken (SPIELSEITEN.md):
+
+     POST /buildings/<schule>/education
+       utf8 · authenticity_token · building_rooms_use · education_select
+       alliance[duration] · alliance[cost] · dispatch_center_filter
+       personal_ids[] (je Person einmal) · commit=Ausbilden
+
+   `education_select` trägt „schlüssel:nummer" und wird von der Seite
+   gelesen, nicht gebaut. Die Schulseite liefert im Rohtext auch, welche
+   Wachen sie ausbilden darf (`.building_list[building_id]`) und wie viele
+   Räume frei sind — eine Schule nimmt nur Personal ihres eigenen Zweigs.
+   ═══════════════════════════════════════════════════════════════════ */
+const PLAETZE_JE_RAUM = 10;
+/* Sasha gibt jeden eigenen Lehrgang eine Stunde für den Verband frei,
+   kostenlos: belegt er nicht alle Plätze, können andere sie füllen. */
+const FREIGABE_SEKUNDEN = 3600;
+
+/** Eine Schulseite lesen: bietet sie `key` an, und wie viele Räume sind frei?
+    `null`, wenn nicht. Gleich gebaut für eigene und Verbandsschulen — nur
+    die Wachenliste fehlt bei letzteren im Rohtext (siehe unten). */
+async function schulSeite(s, key) {
+  const doc = new DOMParser().parseFromString(await getText(`/buildings/${s.id}`), 'text/html');
+  const form = doc.querySelector('form[action$="/education"]');
+  const opt = [...doc.querySelectorAll('#education_select option')].find(o => o.value.split(':')[0] === key);
+  const raeume = Math.max(0, ...[...doc.querySelectorAll('select[name="building_rooms_use"] option')]
+    .map(o => Number(o.value) || 0));
+  if (!form || !opt || !raeume) return null;
+  return {
+    s, raeume, wert: opt.value,
+    action: form.getAttribute('action'),
+    token: form.querySelector('input[name="authenticity_token"]')?.value || csrf(),
+    wachen: new Set([...doc.querySelectorAll('.building_list[building_id]')]
+      .map(e => Number(e.getAttribute('building_id')))),
+    tage: Number((opt.textContent.match(/(\d+)\s*Tag/) || [])[1]) || 7
+  };
+}
+
+/** Eigene Schulen, die `key` anbieten und einen Raum frei haben. */
+async function schulenFuer(key) {
+  const aus = [];
+  for (const s of schools()) {
+    if (abgebrochen()) break;
+    const sc = await schulSeite(s, key);
+    if (sc) aus.push(sc);
+  }
+  return aus;
+}
+
+/* Verbandsschulen, gemessen am 06.10.2026 mit einem echten Start (Sasha und
+   ich, Feuerwehrschule des Verbands, 10 Leute der Feuer 03):
+
+     1. POST /buildings/<schule>/education — Raum, Lehrgang, Freigabe, Kosten,
+        **ohne** Personen. Das Spiel leitet auf /schoolings/<neu> weiter.
+     2. POST /schoolings/<neu>/education — utf8, Token, personal_ids[], commit.
+
+   Die Schulseite nennt im Rohtext **keine** Wachen; welche sie nimmt, steht
+   erst auf der Seite des gestarteten Lehrgangs. Je Start ein Raum, also zehn
+   Plätze (Sasha: „jeweils ein Zimmer"). */
+async function verbandsSchulenFuer(key) {
+  let alle;
+  try { alle = await apiGet('/api/alliance_buildings'); }
+  catch (e) { log('Verbandsgebäude nicht lesbar: ' + e.message, 'warn'); return []; }
+  const aus = [];
+  for (const s of (Array.isArray(alle) ? alle : []).filter(istSchule)) {
+    if (abgebrochen()) break;
+    const sc = await schulSeite(s, key);
+    if (sc) aus.push(sc);
+  }
+  return aus;
+}
+
+/** Bis zu `plaetze` Personen reihum über die Wachen verteilen — reichen die
+    Plätze nicht, bekommt nicht die erste Wache alles und die letzte nichts.
+    Nimmt sie aus `w.leute` heraus. */
+function reihum(proWache, plaetze, darf = () => true) {
+  const fahrt = [], zaehl = new Map();
+  const passend = proWache.filter(w => w.leute.length && darf(w.b));
+  while (plaetze > 0 && passend.some(w => w.leute.length)) {
+    for (const w of passend) {
+      if (plaetze <= 0) break;
+      const p = w.leute.shift();
+      if (!p) continue;
+      fahrt.push(p); plaetze--;
+      zaehl.set(w.b, (zaehl.get(w.b) || 0) + 1);
+    }
+  }
+  return { fahrt, zaehl };
+}
+
+/** Ein Formular an die Schule schicken; Antwort samt Endadresse. */
+async function schulPost(pfad, felder, leute = []) {
+  const body = new URLSearchParams();
+  for (const [k, v] of felder) body.append(k, v);
+  leute.forEach(p => body.append('personal_ids[]', p.id));
+  body.append('commit', 'Ausbilden');
+  const r = await queued(async sig => fetch(pfad, {
+    method: 'POST', credentials: 'same-origin', body, signal: sig,
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+  }), WRITE_DELAY);
+  return { ok: r.ok, status: r.status, url: new URL(r.url, location.origin).pathname, html: await r.text() };
+}
+
+/** Nach einem angenommenen Start: Personen vermerken, laufende Zahl fortschreiben. */
+function gestartetVermerken(fahrt, zaehl, key, tage) {
+  alsInAusbildungVermerken(fahrt, key);
+  for (const [b, z] of zaehl) merkeInAusbildung(key, b.id, laufendeAusbildung(key, b.id) + z, tage);
+  sichereInAusbildung();
+}
+
+/** Lehrgang `key` für die Wachen `sel` in eigenen Schulen starten.
+    `jeWache` > 0: so viele je Wache. Sonst: was laut Plan noch fehlt
+    (gegen den Umschalter Mindestbesatzung/alle Sitze). */
+async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry) {
+  const name = kursNamen(key)[0] || key;
+  const proWache = [];
+  let i = 0;
+  for (const b of sel) {
+    schritt(i++, sel.length, b.caption);
+    if (abgebrochen()) { log('Abgebrochen.', 'warn'); return 0; }
+    const roster = await rosterFuerLauf(b);
+    if (!roster) { log(`${b.caption}: keine Fahrzeuge — ohne Zuweisungsseite ist niemand prüfbar`, 'warn'); continue; }
+    const hat = p => p.quals.includes(key) || (p.inAusbildung || []).includes(key);
+    let anzahl = jeWache;
+    if (!(anzahl > 0)) {
+      const ziel = courseNeed(b)[key] || 0;
+      const da = roster.people.filter(hat).length;
+      if (!ziel) { log(`${b.caption}: der Plan sieht hier kein ${name} vor — „je Wache" angeben, um trotzdem auszubilden`); continue; }
+      anzahl = ziel - da;
+      if (anzahl <= 0) { log(`${b.caption}: gedeckt (${da} von ${ziel})`, 'good'); continue; }
+    }
+    const k = lehrgangsKandidaten(b, key, roster.people);
+    const leute = k.liste.slice(0, anzahl);
+    if (leute.length < anzahl) log(zuWenigLeute(b, leute.length, anzahl, k), 'warn');
+    if (leute.length) proWache.push({ b, leute });
+  }
+  const gesamt = proWache.reduce((s2, w) => s2 + w.leute.length, 0);
+  if (!gesamt) { log(`Für ${name} ist an den gewählten Wachen niemand zu schicken.`, 'warn'); return 0; }
+
+  const offen = () => proWache.reduce((s2, w) => s2 + w.leute.length, 0);
+  const startFelder = (sc, raeume, mitFilter) => [
+    ['utf8', '✓'], ['authenticity_token', sc.token],
+    ['building_rooms_use', String(raeume)], ['education_select', sc.wert],
+    ['alliance[duration]', String(freigeben ? FREIGABE_SEKUNDEN : 0)], ['alliance[cost]', '0'],
+    ...(mitFilter ? [['dispatch_center_filter', '']] : [])   // gibt es nur an eigenen Schulen
+  ];
+  let n = 0;
+
+  // ── Eigene Schulen: ein Formular, Personen gleich dabei ──
+  for (const sc of await schulenFuer(key)) {
+    if (abgebrochen()) { log('Abgebrochen.', 'warn'); return n; }
+    const verfuegbar = proWache.filter(w => sc.wachen.has(w.b.id)).reduce((s2, w) => s2 + w.leute.length, 0);
+    if (!verfuegbar) continue;
+    const raeume = Math.min(sc.raeume, Math.ceil(verfuegbar / PLAETZE_JE_RAUM));
+    const { fahrt, zaehl } = reihum(proWache, raeume * PLAETZE_JE_RAUM, b2 => sc.wachen.has(b2.id));
+    const frei = raeume * PLAETZE_JE_RAUM - fahrt.length;
+    log(`${sc.s.caption}: ${name}, ${raeume} ${raeume === 1 ? 'Raum' : 'Räume'}, ${fahrt.length} Personen`
+      + (frei ? `, ${frei} Plätze frei${freigeben ? ' für den Verband' : ''}` : ''), 'good');
+    for (const [b2, z] of zaehl) log(`   ${b2.caption}: ${z}`);
+    if (!dry) {
+      const r = await schulPost(sc.action, startFelder(sc, raeume, true), fahrt);
+      if (!r.ok) { log(`   abgelehnt: HTTP ${r.status} — nichts als gestartet vermerkt`, 'err'); continue; }
+      gestartetVermerken(fahrt, zaehl, key, sc.tage);
+    }
+    n += fahrt.length;
+  }
+
+  // ── Verbandsschulen: erst starten, dann auf der Lehrgangsseite besetzen ──
+  if (offen() && mitVerband) {
+    /* Nur Schulen, deren Art die verbliebenen Wachen überhaupt ausbilden darf.
+       Sonst stünde nach dem Start ein leerer Lehrgang da — der Verpflegungs-
+       helfer etwa wird an Feuerwehr-, Rettungs- und THW-Schulen angeboten,
+       aber jede nimmt nur ihren eigenen Zweig. */
+    const typen = new Set(proWache.filter(w => w.leute.length).map(w => Number(w.b.building_type)));
+    for (const sc of await verbandsSchulenFuer(key)) {
+      const zweig = zustaendigFuer(sc.s.building_type);
+      if (zweig.size && ![...typen].some(t => zweig.has(t))) continue;
+      while (sc.raeume > 0 && offen()) {
+        if (abgebrochen()) { log('Abgebrochen.', 'warn'); return n; }
+        if (dry) {
+          const { fahrt } = reihum(proWache, PLAETZE_JE_RAUM);
+          log(`${sc.s.caption} (Verband): würde ${name} mit einem Raum starten und ${fahrt.length} Personen `
+            + 'schicken — welche Wachen die Schule nimmt, zeigt erst der gestartete Lehrgang.', 'good');
+          n += fahrt.length; sc.raeume--; continue;
+        }
+        const start = await schulPost(sc.action, startFelder(sc, 1, false));
+        if (!start.ok || !/^\/schoolings\/\d+/.test(start.url)) {
+          log(`${sc.s.caption} (Verband): nicht gestartet — HTTP ${start.status}, `
+            + `keine Weiterleitung auf einen Lehrgang (${start.url})`, 'err');
+          break;
+        }
+        sc.raeume--;
+        const seite = new DOMParser().parseFromString(start.html, 'text/html');
+        const nimmt = new Set([...seite.querySelectorAll('.building_list[building_id]')]
+          .map(e => Number(e.getAttribute('building_id'))));
+        const { fahrt, zaehl } = reihum(proWache, PLAETZE_JE_RAUM, b2 => nimmt.has(b2.id));
+        if (!fahrt.length) {
+          log(`${sc.s.caption} (Verband): Lehrgang ${start.url} gestartet, aber er nimmt keine der Wachen — `
+            + 'er bleibt leer und für den Verband freigegeben.', 'warn');
+          break;
+        }
+        const token = seite.querySelector('form[action$="/education"] input[name="authenticity_token"]')?.value || csrf();
+        const r = await schulPost(`${start.url}/education`, [['utf8', '✓'], ['authenticity_token', token]], fahrt);
+        if (!r.ok) {
+          log(`${sc.s.caption} (Verband): Lehrgang ${start.url} gestartet, Personen abgelehnt — HTTP ${r.status}. `
+            + 'Er bleibt leer und für den Verband freigegeben.', 'err');
+          break;
+        }
+        gestartetVermerken(fahrt, zaehl, key, sc.tage);
+        log(`${sc.s.caption} (Verband): ${name}, ${fahrt.length} Personen`, 'good');
+        for (const [b2, z] of zaehl) log(`   ${b2.caption}: ${z}`);
+        n += fahrt.length;
+      }
+    }
+  }
+
+  if (offen()) log(`${offen()} Personen bleiben — keine weitere Schule mit freiem Raum, `
+    + `die diese Wachen ausbilden darf${mitVerband ? '' : ' (Verbandsschulen sind abgewählt)'}.`, 'warn');
+  return n;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
