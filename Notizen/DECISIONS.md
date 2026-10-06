@@ -2624,8 +2624,22 @@ die Überschrift. Daß die Gruppen sich überschneiden, hält SPIELSEITEN.md fü
 dieselbe Streife fest: „die Entfernung lief bis Platz 24 hoch und sprang dann
 zurück". Für diesen Fall ist es gebaut, und die Probe stellt ihn nach.
 
-**Offen:** dasselbe für die Krankenhausauswahl. Die steht in **zwei Tabellen**
-mit **verschieden vielen Spalten** — die des Verbands trägt zusätzlich
-„Abgabe" (SPIELSEITEN.md). Zeilen lassen sich deshalb nicht einfach von einer
-in die andere schieben, ohne daß die Spalten verrutschen. Bevor das gebaut
-wird, gehört die Zeilenform nachgemessen; geraten wird sie nicht.
+**Krankenhäuser, nach Messung (06.10.).** Zwei Tabellen mit **verschieden
+vielen Spalten**: eigen 6, Verband 7 — dort zusätzlich „Abgabe" an vierter
+Stelle (Zeilenform in SPIELSEITEN.md). Die eigenen Zeilen wandern deshalb in
+die **Verbandstabelle**, die die Obermenge trägt, und bekommen „—" als Abgabe.
+Andersherum ginge die Abgabe verloren — und sie ist der einzige Grund, ein
+fernes eigenes Haus einem nahen fremden vorzuziehen. Die leere eigene Tabelle
+und ihre Überschrift werden ausgeblendet, der „↓"-Knopf der Verbandstabelle
+bleibt am Ende.
+
+**Bei abweichender Form wird nichts angefaßt.** Stimmt die Spaltenzahl nicht
+(Kopf 7, eigene Zeile 6, fremde 7), bleibt die Liste des Spiels stehen. Eine
+falsch zusammengesetzte Tabelle zeigte die Entfernung des Nachbarn neben dem
+falschen Haus — das ist schlimmer als zwei Listen.
+
+Am gemessenen RTW überschnitten sich die Gruppen tatsächlich: eigene Häuser
+bei 6,7 · 13,6 · 23,9 · 32,7 · 34,0 km, der Verband ab 22,7 km. Das Haus bei
+23,9 km steht jetzt zwischen den Verbandshäusern statt unter fünfzig davon.
+Geprüft an der offenen Seite: 56 Zeilen, durchgehend aufsteigend, zweiter
+Durchgang ohne Wirkung.

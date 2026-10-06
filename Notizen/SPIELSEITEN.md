@@ -429,3 +429,37 @@ Verbandswachen, 3 davon ohne freie Zelle.
 **Nicht gemessen:** wie eine Zeile aussieht, deren Krankenhaus **keine** freien
 Betten hat — es gab keine. Ob dort der Knopf fehlt oder `btn-danger` trägt wie
 bei den Zellen, ist offen.
+
+### Krankenhausauswahl im Browser — Zeilenform (06.10.2026)
+
+Nachgemessen in der Lightbox eines RTW (`/vehicles/<id>` im Iframe), rein
+lesend. Reihenfolge der Geschwister im Inhaltsblock:
+
+```
+div.alert.alert-info                     „Sprechwunsch …"
+h4                                        „Eigene Krankenhäuser"
+a.btn.btn-default.btn-xs                  „Alle Krankenhäuser anzeigen"
+input#showRetired                         Klappschalter, per CSS versteckt
+table#own-hospitals.table.table-striped.collapse-table
+label#showBtn.hidden / label#hideBtn.hidden
+h4                                        „Verbandskrankenhäuser"
+table#alliance-hospitals.table.table-striped
+br
+a#leave_without_transport_no_compensation   „Ohne Transport entlassen"
+```
+
+Zellen je Zeile — **verschieden viele**:
+
+```
+eigen   6   td(Name + div.visible-xs) · td.hidden-xs km · td.hidden-xs „19 / 40"
+            · td.hidden-xs Fachabteilung · td a.btn-success#btn_approach_<ziel> · td.hidden-xs leer
+Verband 7   wie oben, dazu td.hidden-xs „50 %" (Abgabe) an Stelle 4
+        +1  letzte Zeile: td[colspan=10] mit a.btn-default href="/vehicles/<fz>?load_all=true" „↓"
+```
+
+Der Kopf trägt 6 beziehungsweise 7 `th`. Spalte 1 ist in beiden Tabellen die
+Entfernung — der Zeilentext enthält sie **zweimal**, auch im `div.visible-xs`
+der ersten Zelle.
+
+Gemessen: 5 eigene, 50 Verband. Die eigene Tabelle klappt per CSS ab der
+elften Zeile zu (`#showRetired:checked + table tbody tr:nth-child(n+11)`).

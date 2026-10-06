@@ -287,10 +287,82 @@ function zellenAuswahlOrdnen(kasten) {
   return true;
 }
 
+/** Die Krankenhausauswahl einer Fahrzeugseite in eine Tabelle bringen.
+
+    Nachgemessen am 06.10.2026 an einem RTW in der Lightbox:
+
+      #own-hospitals        6 Zellen: Name · km · Betten · Fachabteilung · Anfahren · leer
+      #alliance-hospitals   7 Zellen: Name · km · Betten · **Abgabe** · Fachabteilung · Anfahren · leer
+                            dazu am Ende eine Zeile mit nur `td[colspan=10]` und dem
+                            Verweis „↓" (`?load_all=true`)
+
+    Die Verbandstabelle hat die Obermenge der Spalten, also wandern die eigenen
+    Zeilen **dorthin** und bekommen in der Abgabe-Spalte ein „—". Andersherum
+    ginge die Abgabe verloren, und die ist der einzige Grund, ein fernes
+    eigenes Haus einem nahen fremden vorzuziehen.
+
+    Weicht die Form ab — andere Spaltenzahl, anderer Kopf —, wird **nichts**
+    angefaßt. Eine falsch zusammengesetzte Tabelle schickte den Blick auf die
+    Entfernung des Nachbarn; lieber die Liste des Spiels wie gewohnt.
+
+    `wurzel` ist das Dokument, in dem gesucht wird. Ein Parameter statt
+    `document`, damit sich die Funktion im Lightbox-Rahmen von außen prüfen
+    läßt. */
+function krankenhausAuswahlOrdnen(wurzel) {
+  const eigen = wurzel.getElementById('own-hospitals');
+  const fremd = wurzel.getElementById('alliance-hospitals');
+  if (!fremd?.tBodies[0]) return false;
+  if (fremd.querySelectorAll('thead th').length !== 7) return false;
+  const istZiel = tr => !!tr.querySelector('a[href*="/patient/"]');
+
+  const zuziehen = eigen ? [...eigen.querySelectorAll('tbody tr')].filter(istZiel) : [];
+  if (zuziehen.some(tr => tr.children.length !== 6)) return false;
+  const vorhanden = [...fremd.tBodies[0].rows];
+  if (vorhanden.filter(istZiel).some(tr => tr.children.length !== 7)) return false;
+
+  const ziele = [...vorhanden.filter(istZiel), ...zuziehen];
+  if (ziele.length < 2 && !zuziehen.length) return false;
+  /* Spalte 1 ist bei beiden Tabellen die Entfernung. Gelesen wird nur diese
+     Zelle — im ganzen Zeilentext stünde die Kilometerzahl ein zweites Mal im
+     `div.visible-xs` der ersten Zelle, und danach ein „19 / 40". */
+  const kmVon = tr => km(tr.children[1]?.textContent) ?? Infinity;
+  const soll = [...ziele].sort((a, b) => kmVon(a) - kmVon(b));
+  const bisher = vorhanden.filter(istZiel);
+  if (!zuziehen.length && soll.every((tr, i) => tr === bisher[i])) return false;
+
+  for (const tr of zuziehen) {
+    const abgabe = wurzel.createElement('td');
+    abgabe.className = 'hidden-xs';
+    abgabe.textContent = '—';
+    abgabe.title = 'eigenes Krankenhaus, keine Abgabe';
+    tr.insertBefore(abgabe, tr.children[3]);
+  }
+  // Der „↓"-Knopf und was sonst kein Ziel ist, bleibt hinter der Liste.
+  const marke = vorhanden.find(tr => !istZiel(tr)) || null;
+  const buendel = wurzel.createDocumentFragment();
+  soll.forEach(tr => buendel.appendChild(tr));
+  fremd.tBodies[0].insertBefore(buendel, marke);
+
+  if (eigen) {
+    /* Die leere eigene Tabelle samt Überschrift verschwinden. Der Verweis
+       „Alle Krankenhäuser anzeigen" bleibt stehen — er lädt mehr eigene
+       Häuser nach, und die landen nach dem Neuaufbau wieder hier. */
+    eigen.hidden = true;
+    let h = eigen.previousElementSibling;
+    while (h && h.tagName !== 'H4') h = h.previousElementSibling;
+    if (h) h.hidden = true;
+  }
+  let kopf = fremd.previousElementSibling;
+  while (kopf && kopf.tagName !== 'H4') kopf = kopf.previousElementSibling;
+  if (kopf) kopf.textContent = 'Krankenhäuser — eigene und Verband, nach Entfernung';
+  return true;
+}
+
 /** Ein Durchgang über alles, was gerade an Auswahl dasteht. */
 function auswahlOrdnen() {
   let n = 0;
   for (const k of document.querySelectorAll('div.prison-select')) if (zellenAuswahlOrdnen(k)) n++;
+  if (krankenhausAuswahlOrdnen(document)) n++;
   return n;
 }
 
