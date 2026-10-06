@@ -2680,3 +2680,45 @@ Vollbesetzung als unbesetzbar geführt und dafür Personal abgezogen.
 **Nachmessen**, sobald das erste Fahrzeug steht: LSS-Manager-API
 (`api.lss-manager.de/de_DE/vehicles`, Feld `minPersonnel`) und `extensions[].caption`
 der Wache in `/api/buildings`.
+
+## D-106 Wunschbild sichern und laden — Zuordnung nur für Wachen dieses Kontos (v0.65.5)
+
+**Lage.** „Wunschbild kopieren" und „Einfügen …" gab es seit v0.32 — aber
+„Einfügen" ersetzte das ganze Wunschbild **ungeprüft und ungefragt**, und es
+übernahm die Zuordnung samt aller Wachennummern. Auf einem anderen Konto
+landete damit eine Zuordnung, die dort keiner Wache gehört. Ein kaputtes
+JSON-Objekt ersetzte kommentarlos sämtliche Pläne.
+
+**Entschieden** (Sasha, 06.10.). Sicherung als **Datei** dazu, beide Wege
+laufen durch dieselbe Prüfung (`sicherungPruefen`) und dieselbe Rückfrage.
+
+**Keine Konto-Kennung.** Wachennummern sind spielweit eindeutig. Übernommen
+wird jede Zuordnung, deren Wache **in diesem Bestand** steht — aus einem
+fremden Konto paßt keine, und es kommen genau die Pläne herüber. Niemand muß
+angeben, woher eine Datei stammt, und abgerissene eigene Wachen fallen
+nebenbei heraus. Eine Kennung im Dateikopf hätte dasselbe weniger gut
+gekonnt: sie unterscheidet nur ganze Konten, nicht einzelne Wachen.
+
+**Zusammenführen statt ersetzen.** Was die Datei für eine eigene Wache sagt,
+gilt. Eine eigene Wache, die in der Datei fehlt, **behält** ihr Profil,
+solange es im neuen Wunschbild noch existiert. Sonst ersetzte eine Datei aus
+einem fremden Konto die eigene Zuordnung durch Leere.
+
+**Ohne geladenen Bestand bleibt die Zuordnung ganz unberührt.** Dann ist
+keine Wache prüfbar — weder eine aus der Datei noch eine eigene —, und das
+Zusammenführen hätte die eigene Zuordnung durch bloßes Nichtwissen geleert.
+Gemeldet wird, daß erst der Bestand geladen werden muß.
+
+**Was die Prüfung ablehnt:** kein Objekt, fremdes Format, kein `modell`,
+Gebäudetyp ohne Nummer, Profil ohne Objekt, Anzahlen, die keine ganzen Zahlen
+≥ 0 sind. **Was sie durchläßt:** unbekannte Fahrzeugtypen — eine neuere
+Fassung kann Typen kennen, die diese noch nicht kennt (gerade erst passiert,
+D-105). Sie werden gezählt und in der Rückfrage genannt.
+
+**Verworfen:** die Datei automatisch beim Speichern jeder Planänderung
+mitzuschreiben. Ein Userscript ohne `@grant` kann nicht still auf die Platte
+schreiben, jeder Download fragt den Browser — eine Sicherung ist deshalb ein
+Handgriff, kein Hintergrundlauf.
+
+**Nicht im Spiel angesehen:** die beiden neuen Knöpfe im Plan-Reiter und der
+Download. Die Prüfung ist mit 17 Proben in `test-planung.js` abgedeckt.

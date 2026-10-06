@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.65.4
+// @version      0.65.5
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.65.4';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.65.5';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -514,6 +514,86 @@ Object.defineProperty(S, 'zuordnung', {
 const strukturKopie = o => JSON.parse(JSON.stringify(o));
 /** Nach Änderungen am Wunschbild: speichern und alles Gerechnete verwerfen. */
 function modellGeaendert() { const m = S.modell; S.modell = m; }
+
+/* ── Sicherung: Wunschbild und Zuordnung als Datei ───────────────────
+   Eine Hülle mit Format und Fassung, damit eine Datei sagt, was sie ist —
+   ein nacktes `{modell, zuordnung}` wie bis v0.65.4 wird weiter gelesen.
+
+   Die Zuordnung hängt an **Wachennummern**, und die sind spielweit eindeutig.
+   Eine Konto-Kennung braucht es deshalb nicht: übernommen wird, was auf eine
+   Wache **dieses** Bestands zeigt. Aus einem fremden Konto paßt nichts, und es
+   kommen nur die Pläne herüber — genau das gewünschte Verhalten, ohne daß
+   jemand angeben muß, woher die Datei stammt. Nebenbei fallen Zuordnungen
+   abgerissener eigener Wachen heraus. */
+const SICHERUNG_FORMAT = 'lssplaner-wunschbild';
+
+/** Prüft eine eingelesene Sicherung, **ohne** etwas zu übernehmen.
+    `gebaeude` ist der Bestand (`S.buildings`), `bisher` die geltende
+    Zuordnung. Zurück kommt entweder `{fehler}` oder das, was übernommen
+    würde, samt Zählung für die Rückfrage.
+
+    Geprüft wird die Form, nicht der Geschmack: ein Wunschbild, dessen
+    Gerüst nicht stimmt, ersetzte sonst alle Pläne durch etwas, an dem jede
+    Rechnung zerbricht. Unbekannte Fahrzeugtypen sind dagegen kein Fehler —
+    eine neuere Fassung kann Typen kennen, die diese noch nicht kennt. */
+function sicherungPruefen(d, gebaeude, bisher) {
+  const istObj = o => !!o && typeof o === 'object' && !Array.isArray(o);
+  const istAnzahl = n => Number.isInteger(n) && n >= 0;
+  if (!istObj(d)) return { fehler: 'kein JSON-Objekt' };
+  if (d.format && d.format !== SICHERUNG_FORMAT) return { fehler: `fremdes Format „${d.format}"` };
+  const modell = d.modell;
+  if (!istObj(modell) || !Object.keys(modell).length) return { fehler: 'kein Wunschbild (Feld „modell") enthalten' };
+
+  let profile = 0, fremdeTypen = 0;
+  for (const [typ, eintrag] of Object.entries(modell)) {
+    if (!/^\d+$/.test(typ)) return { fehler: `Gebäudetyp „${typ}" ist keine Nummer` };
+    if (!istObj(eintrag?.profiles)) return { fehler: `Gebäudetyp ${typ}: keine Profile` };
+    for (const [name, p] of Object.entries(eintrag.profiles)) {
+      const wo = `Gebäudetyp ${typ}, Profil „${name}"`;
+      if (!istObj(p)) return { fehler: `${wo}: kein Objekt` };
+      for (const feld of ['vehicles', 'extensions']) {
+        if (p[feld] == null) continue;
+        if (!istObj(p[feld])) return { fehler: `${wo}: „${feld}" ist keine Liste` };
+        for (const [k, n] of Object.entries(p[feld]))
+          if (!istAnzahl(n)) return { fehler: `${wo}: ${k} hat keine gültige Anzahl (${JSON.stringify(n)})` };
+      }
+      if (p.pools != null && !istObj(p.pools)) return { fehler: `${wo}: „pools" ist keine Liste` };
+      fremdeTypen += Object.keys(p.vehicles || {}).filter(id => !PB[id]).length;
+      profile++;
+    }
+  }
+
+  /* Zuordnung zusammenführen statt ersetzen: was die Datei für eine eigene
+     Wache sagt, gilt; eine eigene Wache, die in der Datei fehlt, behält ihr
+     Profil, solange es im neuen Wunschbild noch existiert. So überschreibt
+     eine fremde Datei die eigene Zuordnung nicht mit Leere. */
+  const wachen = new Map((gebaeude || []).map(b => [String(b.id), b]));
+  const hatProfil = (b, p) => !!modell[String(b.building_type)]?.profiles?.[p];
+  const neu = istObj(d.zuordnung) ? d.zuordnung : {};
+  /* Ohne geladenen Bestand läßt sich keine Wache zuordnen — und auch keine
+     bisherige prüfen. Dann bleibt die bisherige Zuordnung, wie sie ist;
+     geleert würde sie sonst durch bloßes Nichtwissen. */
+  if (!wachen.size)
+    return { modell, zuordnung: { ...(bisher || {}) }, typen: Object.keys(modell).length, profile,
+             fremdeTypen, uebernommen: 0, fremd: 0, ohneProfil: 0,
+             behalten: Object.keys(bisher || {}).length, inDatei: Object.keys(neu).length, ohneBestand: true };
+  const zuordnung = {};
+  let uebernommen = 0, fremd = 0, ohneProfil = 0, behalten = 0;
+  for (const [bid, p] of Object.entries(neu)) {
+    const b = wachen.get(String(bid));
+    if (!b) { fremd++; continue; }
+    if (!hatProfil(b, p)) { ohneProfil++; continue; }
+    zuordnung[bid] = p; uebernommen++;
+  }
+  for (const [bid, p] of Object.entries(bisher || {})) {
+    if (bid in zuordnung) continue;
+    const b = wachen.get(String(bid));
+    if (b && hatProfil(b, p)) { zuordnung[bid] = p; behalten++; }
+  }
+  return { modell, zuordnung, typen: Object.keys(modell).length, profile, fremdeTypen,
+           uebernommen, fremd, ohneProfil, behalten, inDatei: Object.keys(neu).length,
+           ohneBestand: false };
+}
 
 /* Wer mit v0.32 schon gespeichert hat, trägt die alten Profilnamen im
    Speicher. Einmalig umbenennen, sonst zeigt die Zuordnung ins Leere und alle
@@ -4246,7 +4326,17 @@ function render() {
       ` : '<p class="hint">Für diesen Gebäudetyp gibt es noch kein Profil. Leg eines an.</p>'}
 
       <div class="row" style="margin-top:12px">
-        <button class="act" id="lssp-pexport">Wunschbild kopieren</button>
+        <b>Sicherung</b>
+        <span style="color:var(--lp-dim2);font-size:11px">alle Pläne samt Zuordnung der Wachen</span>
+        <span style="flex:1"></span>
+        <button class="act" id="lssp-pdatei">Als Datei sichern</button>
+        <button class="act" id="lssp-pladen">Aus Datei laden …</button>
+        <input type="file" id="lssp-pdateiwahl" accept=".json,application/json" hidden>
+      </div>
+      <div class="row">
+        <span style="color:var(--lp-dim2);font-size:11px;flex:1">Beim Laden bleibt jede Zuordnung
+          stehen, deren Wache in diesem Konto steht. Aus einem anderen Konto kommen nur die Pläne.</span>
+        <button class="act" id="lssp-pexport">Kopieren</button>
         <button class="act" id="lssp-pimport">Einfügen …</button>
       </div>
       ${logKopf()}<pre id="lssp-log"></pre>`;
@@ -4353,23 +4443,64 @@ function render() {
       render();
     });
 
+    const sicherungText = () => JSON.stringify({
+      format: SICHERUNG_FORMAT, v: 1, version: VERSION, erstellt: new Date().toISOString(),
+      modell: S.modell, zuordnung: S.zuordnung }, null, 1);
+
+    /* Datei und Zwischenablage laufen durch dieselbe Prüfung und dieselbe
+       Rückfrage. Bis v0.65.4 ersetzte „Einfügen" ungeprüft und ungefragt das
+       ganze Wunschbild — und übernahm fremde Wachennummern gleich mit. */
+    const sicherungLaden = async (txt, woher) => {
+      let d;
+      try { d = JSON.parse(txt); }
+      catch (e) { return log(`${woher}: kein gültiges JSON — ${e.message}`, 'err'); }
+      const r = sicherungPruefen(d, S.buildings, S.zuordnung);
+      if (r.fehler) return log(`${woher}: nicht übernommen — ${r.fehler}. Das bisherige Wunschbild bleibt.`, 'err');
+      const zeilen = [
+        `Wunschbild ersetzen? ${r.typen} Gebäudetypen, ${r.profile} Profile.`,
+        r.ohneBestand
+          ? `Zuordnung: Bestand nicht geladen — von ${r.inDatei} Einträgen der Datei wird keiner übernommen, `
+            + `die bisherige Zuordnung (${r.behalten} Wachen) bleibt. Erst „Bestand neu laden", dann noch einmal laden.`
+          : `Zuordnung: ${r.uebernommen} von ${r.inDatei} übernommen`
+            + (r.fremd ? `, ${r.fremd} gehören nicht zu diesem Konto` : '')
+            + (r.ohneProfil ? `, ${r.ohneProfil} zeigen auf ein Profil, das es nicht gibt` : '')
+            + (r.behalten ? `; ${r.behalten} eigene Zuordnungen bleiben wie sie sind` : '') + '.',
+        r.fremdeTypen ? `${r.fremdeTypen} Fahrzeugeinträge haben Typen, die diese Fassung nicht kennt — sie werden übergangen.` : ''
+      ].filter(Boolean);
+      if (!await frage(zeilen.join('\n\n'))) return log('Nichts übernommen.', 'warn');
+      S.modell = r.modell;
+      S.zuordnung = r.zuordnung;
+      planTyp = planProfil = null;
+      render();
+      zeilen.slice(1).forEach(t => log(t, 'warn'));
+      log(`${woher}: ${r.profile} Profile übernommen, ${Object.keys(r.zuordnung).length} Wachen zugeordnet.`, 'good');
+    };
+
+    b.querySelector('#lssp-pdatei').onclick = () => {
+      /* Ein Verweis mit `download` genügt — ohne @grant, ohne Bibliothek.
+         Das Datum im Namen, damit mehrere Stände nebeneinander liegen können. */
+      const url = URL.createObjectURL(new Blob([sicherungText()], { type: 'application/json' }));
+      const a = Object.assign(document.createElement('a'),
+        { href: url, download: `lss-planer-wunschbild-${new Date().toISOString().slice(0, 10)}.json` });
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      log(`Gesichert: ${Object.keys(S.modell).length} Gebäudetypen, `
+        + `${Object.keys(S.zuordnung).length} zugeordnete Wachen.`, 'good');
+    };
+    b.querySelector('#lssp-pladen').onclick = () => b.querySelector('#lssp-pdateiwahl').click();
+    b.querySelector('#lssp-pdateiwahl').onchange = async e => {
+      const datei = e.target.files?.[0];
+      e.target.value = '';             // dieselbe Datei zweimal wählen soll wieder auslösen
+      if (datei) await sicherungLaden(await datei.text(), datei.name);
+    };
     b.querySelector('#lssp-pexport').onclick = async () => {
-      const txt = JSON.stringify({ modell: S.modell, zuordnung: S.zuordnung }, null, 1);
-      try { await navigator.clipboard.writeText(txt); log('Wunschbild in der Zwischenablage.', 'good'); }
+      const txt = sicherungText();
+      try { await navigator.clipboard.writeText(txt); log('Wunschbild samt Zuordnung in der Zwischenablage.', 'good'); }
       catch { log('Kopieren nicht möglich. Hier zum Herausnehmen:\n' + txt); }
     };
     b.querySelector('#lssp-pimport').onclick = async () => {
       const txt = prompt('Wunschbild einfügen (JSON):');
-      if (!txt) return;
-      try {
-        const d = JSON.parse(txt);
-        const m = d.modell || d.types || d;
-        if (typeof m !== 'object') throw new Error('kein Objekt');
-        S.modell = m;
-        if (d.zuordnung) S.zuordnung = d.zuordnung;
-        planTyp = planProfil = null;
-        log('Wunschbild übernommen.', 'good'); render();
-      } catch (e) { log('Nicht lesbar: ' + e.message, 'err'); }
+      if (txt) await sicherungLaden(txt, 'Eingefügt');
     };
     b.querySelector('#lssp-pstd').onclick = async () => {
       const vorlage = MODELL_STANDARD[planTyp];

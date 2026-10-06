@@ -67,14 +67,14 @@ const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, bes
            bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
            courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
            verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
-           anhaengerAn, fahrzeugStand, punkteFuerWache, PB_TYPEN: PB,
+           anhaengerAn, fahrzeugStand, punkteFuerWache, sicherungPruefen, PB_TYPEN: PB,
            MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
            nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, doppelKandidaten, quals, S,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
         verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
-        anhaengerAn, fahrzeugStand, punkteFuerWache, PB_TYPEN,
+        anhaengerAn, fahrzeugStand, punkteFuerWache, sicherungPruefen, PB_TYPEN,
         MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
         nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken } = kern;
 
@@ -1429,6 +1429,49 @@ console.log('\n35. Ausbildungsbedarf: Mindestbesetzung statt alle Sitze');
   pruefe('alle Sitze: 12 Wasserretter', courseNeed(b, 'max').gw_wasserrettung, 12);
   pruefe('nur Mindestbesetzung: 2', courseNeed(b, 'min').gw_wasserrettung, 2);
   S.plan = null; memoK.clear();
+}
+
+/* ── 36. Sicherung laden: eigenes Konto, fremdes Konto, kaputte Datei ──
+   Wachennummern sind spielweit eindeutig. Was auf eine Wache dieses Bestands
+   zeigt, bleibt; aus einem fremden Konto kommen nur die Pläne. */
+console.log('\n36. Sicherung laden');
+{
+  const modell = { 0: { profiles: { standard: { vehicles: { 30: 2 }, extensions: {} },
+                                    klein:    { vehicles: { 30: 1 } } } },
+                   2: { profiles: { standard: { vehicles: { 28: 3 } } } } };
+  const bestand = [{ id: 11, building_type: 0 }, { id: 12, building_type: 0 }, { id: 21, building_type: 2 }];
+  const datei = { format: 'lssplaner-wunschbild', v: 1, modell,
+                  zuordnung: { 11: 'klein', 21: 'standard' } };
+
+  const eigen = sicherungPruefen(datei, bestand, { 12: 'standard' });
+  pruefe('eigenes Konto: beide Zuordnungen kommen an', eigen.uebernommen, 2);
+  pruefe('und die nicht erwaehnte Wache behaelt ihr Profil', eigen.zuordnung, { 11: 'klein', 21: 'standard', 12: 'standard' });
+  pruefe('Profile gezaehlt', [eigen.typen, eigen.profile], [2, 3]);
+
+  const fremdeDatei = { modell, zuordnung: { 9001: 'klein', 9002: 'standard' } };   // alte Form ohne Huelle
+  const fremd = sicherungPruefen(fremdeDatei, bestand, { 11: 'standard' });
+  pruefe('fremdes Konto: keine Zuordnung uebernommen', fremd.uebernommen, 0);
+  pruefe('und als fremd gezaehlt', fremd.fremd, 2);
+  pruefe('die eigene Zuordnung bleibt stehen', fremd.zuordnung, { 11: 'standard' });
+  pruefe('die Plaene kommen trotzdem', fremd.modell, modell);
+
+  const ohneProfil = sicherungPruefen({ modell, zuordnung: { 21: 'klein' } }, bestand, {});
+  pruefe('Profil fehlt beim Gebaeudetyp: verworfen', [ohneProfil.uebernommen, ohneProfil.ohneProfil], [0, 1]);
+
+  const blind = sicherungPruefen(datei, [], { 11: 'standard', 99: 'alt' });
+  pruefe('Bestand nicht geladen: bisherige Zuordnung bleibt ganz', blind.zuordnung, { 11: 'standard', 99: 'alt' });
+  pruefe('und wird so gemeldet', blind.ohneBestand, true);
+
+  pruefe('kein Objekt', !!sicherungPruefen([1, 2], bestand, {}).fehler, true);
+  pruefe('fremdes Format', !!sicherungPruefen({ format: 'anderes', modell }, bestand, {}).fehler, true);
+  pruefe('ohne Wunschbild', !!sicherungPruefen({ zuordnung: {} }, bestand, {}).fehler, true);
+  pruefe('Gebaeudetyp keine Nummer', !!sicherungPruefen({ modell: { feuer: { profiles: {} } } }, bestand, {}).fehler, true);
+  pruefe('negative Anzahl',
+    !!sicherungPruefen({ modell: { 0: { profiles: { x: { vehicles: { 30: -1 } } } } } }, bestand, {}).fehler, true);
+  pruefe('Anzahl als Text',
+    !!sicherungPruefen({ modell: { 0: { profiles: { x: { vehicles: { 30: '2' } } } } } }, bestand, {}).fehler, true);
+  pruefe('unbekannter Fahrzeugtyp ist kein Fehler, aber gezaehlt',
+    sicherungPruefen({ modell: { 0: { profiles: { x: { vehicles: { 999: 1 } } } } } }, bestand, {}).fremdeTypen, 1);
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');
