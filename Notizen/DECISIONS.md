@@ -2797,3 +2797,21 @@ an, alle 42 fehlenden waren „Im Fahrzeug" unterwegs.
 **Nicht im Spiel angesehen:** der neue Kasten im Reiter Ausbildung und ein
 Lauf des Planers selbst. Die Regel ist mit Proben abgedeckt (Abschnitt 37),
 die Formulare sind die gemessenen.
+
+**Nachtrag v0.66.1 — Ausnahme für Doppelkandidaten** (Sasha, 06.10., dritte
+Präzisierung). Ein Doppelkandidat darf **doch** von seinem Fahrzeug, wenn
+genau dieses Fahrzeug die neue Ausbildung braucht — der Drohnenpilot auf dem
+ELW2 Drohne geht in den ELW-2-Lehrgang. Fällt die Besatzung dadurch unter ihr
+Minimum, geht das Fahrzeug auf Status 6 (`nachAbzugAbmelden`, über
+`setzeFms`; ist es unterwegs, wird die Umschaltung vorgemerkt wie im
+Personallauf). Ungelernte werden weiterhin nie von einem Fahrzeug geholt.
+
+Zwei Festlegungen ohne ausdrückliche Vorgabe, darum hier:
+
+- **Grüne Fahrzeuge** geben auch hier niemanden ab (`geschuetzt`), solange
+  „Grüne freigeben" nicht gesetzt ist — dieselbe Regel wie überall, wo etwas
+  weggenommen würde.
+- **Die Schulseite** (`fuelleWache`) nimmt weiter niemanden vom Fahrzeug. Dort
+  hakt der Planer nur an; ob danach „Ausbilden" gedrückt wird, weiß er nicht,
+  und Status 6 im Voraus wäre falsch. Die Ausnahme gilt in den beiden Läufen,
+  die selbst abschicken.

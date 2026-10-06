@@ -1473,15 +1473,29 @@ const lp = (id, quals = [], assignedTo = null, inAusbildung = [], verfuegbar = t
   pruefe('wer unterwegs ist, gezaehlt fuer die Meldung', r.unterwegs, 1);
 }
 {
-  /* Doppelausbildung gewollt — aber auch der Drohnenpilot wird nicht von
-     seinem Fahrzeug geholt. Der ohne Fahrzeug kommt vor den Ungelernten. */
-  const lf = fz(30);
-  const b = wache([lf]);
-  const leute = [lp(1), lp(2, ['fire_drone']), lp(3, ['fire_drone'], lf.id), lp(4, ['fire_drone', 'gw_messtechnik'])];
+  /* Doppelausbildung: der freie Drohnenpilot zuerst, dann der vom ELW2
+     Drohne — dieses Fahrzeug braucht den ELW-2-Lehrgang selbst. Der
+     Drohnenpilot auf dem HLF bleibt sitzen: sein Fahrzeug braucht ihn nicht. */
+  const lf = fz(30), drohne = fz(129);                 // ELW2 Drohne: fire_drone + elw2 auf jedem Sitz
+  const b = wache([lf, drohne]);
+  const leute = [lp(1), lp(2, ['fire_drone']), lp(3, ['fire_drone'], lf.id),
+                 lp(4, ['fire_drone', 'gw_messtechnik']), lp(5, ['fire_drone'], drohne.id)];
   const r = lehrgangsKandidaten(b, 'elw2', leute);
-  pruefe('der freie Drohnenpilot kommt zuerst', r.liste.map(x => x.id), ['2', '1']);
-  pruefe('der Drohnenpilot auf dem Fahrzeug bleibt dort', r.amFahrzeug, 1);
+  pruefe('frei vor Fahrzeug vor Ungelernt', r.liste.map(x => x.id), ['2', '5', '1']);
+  pruefe('wer vom Fahrzeug kommt, traegt es', r.liste.find(x => x.id === '5').vomFahrzeug, String(drohne.id));
+  pruefe('der Drohnenpilot auf dem HLF bleibt dort', r.amFahrzeug, 1);
   pruefe('wer mehr als den Partner hat, bleibt draussen', r.liste.some(x => x.id === '4'), false);
+  pruefe('auf der Schulseite niemand vom Fahrzeug',
+         lehrgangsKandidaten(b, 'elw2', leute, { vomFahrzeug: false }).liste.map(x => x.id), ['2', '1']);
+}
+{
+  /* Ein gruenes ELW2 Drohne gibt niemanden ab. */
+  const drohne = fz(129, { caption: HAKEN + ' ELW2 Drohne' });
+  const b = wache([drohne]);
+  const r = lehrgangsKandidaten(b, 'elw2', [lp(1, ['fire_drone'], drohne.id)]);
+  pruefe('gruenes Fahrzeug: niemand', r.liste.length, 0);
+  pruefe('ein Ungelernter vom Fahrzeug wird nie genommen',
+         lehrgangsKandidaten(wache([fz(129)]), 'elw2', [lp(9, [], 'x')]).liste.length, 0);
 }
 {
   /* Die Meldung nennt den Ausweg. */

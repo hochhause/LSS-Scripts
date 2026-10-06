@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.66.0
+// @version      0.66.1
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.66.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.66.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2370,12 +2370,24 @@ function fahrzeugStand(v, besatzung) {
    Zuweisungsseite (`readRoster`). */
 const DOPPEL_ERWUENSCHT = [['elw2', 'fire_drone'], ['care_service', 'care_service_equipment']];
 
+/* Ausnahme zu Regel 3, wieder Sasha am 06.10.: ein **Doppelkandidat** darf
+   von seinem Fahrzeug, wenn genau dieses Fahrzeug die neue Ausbildung
+   braucht — der Drohnenpilot auf dem ELW2 Drohne geht in den ELW-2-Lehrgang.
+   Fällt die Besatzung dadurch unter ihr Minimum, kommt das Fahrzeug auf
+   Status 6 (`nachAbzugAbmelden`). Grüne Fahrzeuge bleiben auch hier
+   unberührt, wie überall, wo etwas weggenommen würde (`geschuetzt`).
+
+   Nur in Läufen, die selbst abschicken. Auf der Schulseite hakt der Planer
+   nur an und weiß nicht, ob danach wirklich abgeschickt wird — Status 6 im
+   Voraus wäre falsch, also dort `vomFahrzeug: false`. */
+
 /** Kandidaten einer Wache für den Lehrgang `key`, in Nehm-Reihenfolge:
-    erst Doppelkandidaten, dann Ungelernte. `leute` ist
-    `readRoster(b).people`. Zurück: `{ liste, amFahrzeug, unterwegs }` — die
-    beiden Zahlen sagen, wie viele **sonst passende** Leute aus welchem Grund
-    draußen blieben, damit die Meldung den Ausweg nennen kann. */
-function lehrgangsKandidaten(b, key, leute) {
+    Doppelkandidaten ohne Fahrzeug, Doppelkandidaten vom passenden Fahrzeug,
+    dann Ungelernte. `leute` ist `readRoster(b).people`. Wer vom Fahrzeug
+    kommt, trägt `vomFahrzeug` (dessen Id). Zurück: `{ liste, amFahrzeug,
+    unterwegs }` — die beiden Zahlen sagen, wie viele **sonst passende** Leute
+    aus welchem Grund draußen blieben, damit die Meldung den Ausweg nennt. */
+function lehrgangsKandidaten(b, key, leute, { vomFahrzeug = true } = {}) {
   const partner = new Set(DOPPEL_ERWUENSCHT.filter(p => p.includes(key)).flat().filter(k => k !== key));
   const art = p => {
     if ((p.inAusbildung || []).length) return null;
@@ -2384,17 +2396,43 @@ function lehrgangsKandidaten(b, key, leute) {
     if (!q.length) return 'neu';
     return partner.size && q.every(k => partner.has(k)) ? 'doppel' : null;
   };
-  const liste = [];
+  const fz = new Map(echteVon(b).map(v => [String(v.id), v]));
+  const brauchtKurs = v => { const a = anforderung(v); return a.alle.includes(key) || a.mind.has(key); };
+  const darfVom = p => {
+    const v = vomFahrzeug && fz.get(String(p.assignedTo));
+    return !!v && !geschuetzt(v) && brauchtKurs(v);
+  };
+  const frei = [], vomWagen = [], neu = [];
   let amFahrzeug = 0, unterwegs = 0;
-  for (const gruppe of ['doppel', 'neu']) {
-    for (const p of leute) {
-      if (art(p) !== gruppe) continue;
-      if (p.assignedTo) { amFahrzeug++; continue; }
-      if (p.verfuegbar === false) { unterwegs++; continue; }
-      liste.push(p);
-    }
+  for (const p of leute) {
+    const a = art(p);
+    if (!a) continue;
+    if (p.verfuegbar === false) { unterwegs++; continue; }
+    if (!p.assignedTo) { (a === 'doppel' ? frei : neu).push(p); continue; }
+    if (a === 'doppel' && darfVom(p)) { p.vomFahrzeug = String(p.assignedTo); vomWagen.push(p); continue; }
+    amFahrzeug++;
   }
-  return { liste, amFahrzeug, unterwegs };
+  return { liste: [...frei, ...vomWagen, ...neu], amFahrzeug, unterwegs };
+}
+
+/** Nach einem Abzug vom Fahrzeug: wer jetzt unter der Mindestbesatzung
+    steht, geht auf Status 6. Gezählt wird, wer dem Fahrzeug zugewiesen ist,
+    nicht in einer Schule sitzt und nicht eben mitgeschickt wurde. */
+async function nachAbzugAbmelden(b, fahrt, roster, dry) {
+  const weg = new Set(fahrt.map(p => p.id));
+  const fzIds = new Set(fahrt.filter(p => p.vomFahrzeug).map(p => p.vomFahrzeug));
+  let n = 0;
+  for (const vid of fzIds) {
+    const v = echteVon(b).find(x => String(x.id) === vid);
+    if (!v) continue;
+    const bleibt = roster.people.filter(p => p.assignedTo === vid && !weg.has(p.id)
+                                          && !(p.inAusbildung || []).length).length;
+    const min = anforderung(v).min;
+    if (bleibt >= min) continue;
+    log(`   ${v.caption}: nur noch ${bleibt} von ${min} — geht auf Status 6`, 'warn');
+    if (await setzeFms(v, 6, dry)) n++;
+  }
+  return n;
 }
 
 /** Die Meldung, wenn eine Wache nicht genug Leute hergibt. Eine Stelle für
@@ -5693,7 +5731,7 @@ function educationPage() {
        ließe sich weder die Mindestbesatzung noch ein grünes Fahrzeug schützen. */
     const b = S.byId.get(id);
     let erlaubt = null;
-    try { const r = b && await readRoster(b); if (r) erlaubt = lehrgangsKandidaten(b, key, r.people); }
+    try { const r = b && await readRoster(b); if (r) erlaubt = lehrgangsKandidaten(b, key, r.people, { vomFahrzeug: false }); }
     catch (e) { uebergangen.push(`${nameVon(el)}: Zuweisungsseite nicht lesbar — ${e.message}`); return 0; }
     if (!erlaubt) {
       uebergangen.push(`${nameVon(el)}: ${b ? 'keine Fahrzeuge' : 'nicht im Bestand'} — `
@@ -6230,6 +6268,7 @@ async function fuelleLehrgangHeadless(eintrag, melde) {
   if (!r.ok) return { fehler: `HTTP ${r.status}` };
   await r.text();                       // Strom leeren, bevor der Takt weiterläuft
 
+  await abmeldenNachSenden(gewaehlt, wachen, false);
   // Die frisch Eingeteilten sind für weitere Lehrgänge nicht mehr verfügbar.
   alsInAusbildungVermerken(gewaehlt, key);
   return { gesetzt: gewaehlt.length, ausCache: seite.ausCache };
@@ -6341,6 +6380,21 @@ async function schulPost(pfad, felder, leute = []) {
   return { ok: r.ok, status: r.status, url: new URL(r.url, location.origin).pathname, html: await r.text() };
 }
 
+/** Nach dem Senden (oder in der Vorschau an seiner Stelle): je Wache prüfen,
+    ob ein Fahrzeug durch einen Abzug unter seine Mindestbesatzung fiel.
+    Die Leute stammen aus `rosterImLauf`, daran erkennt man ihre Wache. */
+async function abmeldenNachSenden(fahrt, wachen, dry) {
+  if (!fahrt.some(p => p.vomFahrzeug)) return 0;
+  let n = 0;
+  for (const b of wachen) {
+    const roster = rosterImLauf.get(b.id);
+    if (!roster) continue;
+    const hier = fahrt.filter(p => roster.people.includes(p));
+    if (hier.some(p => p.vomFahrzeug)) n += await nachAbzugAbmelden(b, hier, roster, dry);
+  }
+  return n;
+}
+
 /** Nach einem angenommenen Start: Personen vermerken, laufende Zahl fortschreiben. */
 function gestartetVermerken(fahrt, zaehl, key, tage) {
   alsInAusbildungVermerken(fahrt, key);
@@ -6400,8 +6454,9 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry) {
     if (!dry) {
       const r = await schulPost(sc.action, startFelder(sc, raeume, true), fahrt);
       if (!r.ok) { log(`   abgelehnt: HTTP ${r.status} — nichts als gestartet vermerkt`, 'err'); continue; }
-      gestartetVermerken(fahrt, zaehl, key, sc.tage);
     }
+    await abmeldenNachSenden(fahrt, sel, dry);
+    if (!dry) gestartetVermerken(fahrt, zaehl, key, sc.tage);
     n += fahrt.length;
   }
 
@@ -6421,6 +6476,7 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry) {
           const { fahrt } = reihum(proWache, PLAETZE_JE_RAUM);
           log(`${sc.s.caption} (Verband): würde ${name} mit einem Raum starten und ${fahrt.length} Personen `
             + 'schicken — welche Wachen die Schule nimmt, zeigt erst der gestartete Lehrgang.', 'good');
+          await abmeldenNachSenden(fahrt, sel, true);
           n += fahrt.length; sc.raeume--; continue;
         }
         const start = await schulPost(sc.action, startFelder(sc, 1, false));
@@ -6446,8 +6502,9 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry) {
             + 'Er bleibt leer und für den Verband freigegeben.', 'err');
           break;
         }
-        gestartetVermerken(fahrt, zaehl, key, sc.tage);
         log(`${sc.s.caption} (Verband): ${name}, ${fahrt.length} Personen`, 'good');
+        await abmeldenNachSenden(fahrt, sel, false);
+        gestartetVermerken(fahrt, zaehl, key, sc.tage);
         for (const [b2, z] of zaehl) log(`   ${b2.caption}: ${z}`);
         n += fahrt.length;
       }
