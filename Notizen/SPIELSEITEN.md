@@ -525,7 +525,14 @@ POST /buildings/<schule>/education
 Die Schulseite nennt im **Rohtext** die Wachen, die sie ausbilden darf
 (`.building_list[building_id]`, an der Feuerwehrschule 25, an der
 Polizeischule 29), die freien Räume und die Lehrgänge. Ohne freien Raum fehlt
-das Formular ganz (Rettungsschule mit vier laufenden Lehrgängen).
+das Formular ganz (Rettungsschule mit vier laufenden Lehrgängen); dann steht
+dort „Die Klassenzimmer sind alle besetzt."
+
+**Genau ein freier Raum** (gemessen 06.10.2026 an fünf Schulen, eigenen und
+Verband): das Formular steht da, aber `building_rooms_use` fehlt ganz — keine
+Auswahl, kein verstecktes Feld. Abgeschickt ohne das Feld, startet der
+Lehrgang mit einem Raum. Wer die freien Räume aus den Optionen der Auswahl
+zählt, hält eine solche Schule für voll (Planer bis v0.66.1).
 
 ### Verbandsschule — zwei Schritte
 

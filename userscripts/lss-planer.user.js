@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.66.1
+// @version      0.66.2
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.66.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.66.2';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -6302,11 +6302,16 @@ async function schulSeite(s, key) {
   const doc = new DOMParser().parseFromString(await getText(`/buildings/${s.id}`), 'text/html');
   const form = doc.querySelector('form[action$="/education"]');
   const opt = [...doc.querySelectorAll('#education_select option')].find(o => o.value.split(':')[0] === key);
-  const raeume = Math.max(0, ...[...doc.querySelectorAll('select[name="building_rooms_use"] option')]
-    .map(o => Number(o.value) || 0));
+  /* Ist genau ein Raum frei, fehlt die Raumauswahl ganz — das Formular steht
+     aber da. Sind alle besetzt, fehlt das Formular („Die Klassenzimmer sind
+     alle besetzt."). Gemessen 06.10.2026 an fünf Schulen; vorher galt eine
+     Schule mit einem freien Raum als voll, jeder Lauf ließ ihn liegen. */
+  const auswahl = doc.querySelector('select[name="building_rooms_use"]');
+  const raeume = !form ? 0 : auswahl
+    ? Math.max(0, ...[...auswahl.options].map(o => Number(o.value) || 0)) : 1;
   if (!form || !opt || !raeume) return null;
   return {
-    s, raeume, wert: opt.value,
+    s, raeume, wert: opt.value, mitAuswahl: !!auswahl,
     action: form.getAttribute('action'),
     token: form.querySelector('input[name="authenticity_token"]')?.value || csrf(),
     wachen: new Set([...doc.querySelectorAll('.building_list[building_id]')]
@@ -6434,7 +6439,8 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry) {
   const offen = () => proWache.reduce((s2, w) => s2 + w.leute.length, 0);
   const startFelder = (sc, raeume, mitFilter) => [
     ['utf8', '✓'], ['authenticity_token', sc.token],
-    ['building_rooms_use', String(raeume)], ['education_select', sc.wert],
+    // Ohne Auswahl auf der Seite (ein Raum frei) schickt das Spiel das Feld nicht mit — wir auch nicht.
+    ...(sc.mitAuswahl ? [['building_rooms_use', String(raeume)]] : []), ['education_select', sc.wert],
     ['alliance[duration]', String(freigeben ? FREIGABE_SEKUNDEN : 0)], ['alliance[cost]', '0'],
     ...(mitFilter ? [['dispatch_center_filter', '']] : [])   // gibt es nur an eigenen Schulen
   ];
@@ -6479,7 +6485,11 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry) {
           await abmeldenNachSenden(fahrt, sel, true);
           n += fahrt.length; sc.raeume--; continue;
         }
-        const start = await schulPost(sc.action, startFelder(sc, 1, false));
+        /* Je Start frisch lesen: nach dem vorletzten Raum verschwindet die
+           Raumauswahl, und andere Verbandsmitglieder belegen zwischendurch. */
+        const jetzt = await schulSeite(sc.s, key);
+        if (!jetzt) { log(`${sc.s.caption} (Verband): kein Raum mehr frei`); break; }
+        const start = await schulPost(jetzt.action, startFelder(jetzt, 1, false));
         if (!start.ok || !/^\/schoolings\/\d+/.test(start.url)) {
           log(`${sc.s.caption} (Verband): nicht gestartet — HTTP ${start.status}, `
             + `keine Weiterleitung auf einen Lehrgang (${start.url})`, 'err');

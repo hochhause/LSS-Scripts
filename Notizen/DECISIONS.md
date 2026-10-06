@@ -2823,3 +2823,13 @@ Zwei Festlegungen ohne ausdrückliche Vorgabe, darum hier:
   hakt der Planer nur an; ob danach „Ausbilden" gedrückt wird, weiß er nicht,
   und Status 6 im Voraus wäre falsch. Die Ausnahme gilt in den beiden Läufen,
   die selbst abschicken.
+
+**Nachtrag v0.66.2 — der letzte freie Raum.** Beim Füllen von Hand (Waldbrand,
+Polizei, THW) blieb an jeder Schule ein Raum liegen: bei genau einem freien
+Raum fehlt `building_rooms_use` auf der Seite, und `schulSeite` zählte die
+Räume aus den Optionen dieser Auswahl — also 0. Jetzt gilt: kein Formular =
+voll, Formular ohne Auswahl = 1 Raum; das Feld wird dann auch nicht
+mitgeschickt (so tut es das Spiel). Verbandsschulen werden vor jedem Start neu
+gelesen statt einmal je Lauf, weil die Auswahl nach dem vorletzten Raum
+verschwindet und andere Mitglieder zwischendurch belegen (SPIELSEITEN.md,
+Lehrgang starten).
