@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Sprechwunsch — Ziel von selbst wählen
 // @namespace    https://leitstellenspiel.de/
-// @version      0.2.0
+// @version      0.3.0
 // @description  Ein Knopf neben dem FMS-Zeichen erledigt den Sprechwunsch: Patient ins nächste passende Krankenhaus, Gefangener in die nächste freie Zelle
 // @match        https://www.leitstellenspiel.de/*
 // @grant        none
@@ -14,11 +14,20 @@
 
 (function () {
 'use strict';
-const VERSION = '0.2.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.3.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 
-// Die Funkliste steht nur im Hauptfenster; in den Lightboxen des Spiels hätte
-// das Skript nichts zu tun und würde seinen Knopf doppelt setzen.
-if (window.top !== window.self) return;
+/* Zwei Teile mit verschiedenen Bühnen, seit v0.3.0.
+
+   Die **Funkliste** steht nur im Hauptfenster; in den Lightboxen des Spiels
+   hätte der Knopf nichts zu tun und erschiene doppelt. Bis v0.2.0 kehrte das
+   ganze Skript dort deshalb sofort um.
+
+   Die **Zielauswahl** steht genau dort, wo es umkehrte: `/vehicles/<id>` öffnet
+   das Spiel aus der Funkliste als Lightbox, also in einem Iframe
+   (`a.lightbox-open`, SPIELSEITEN.md 04.10.2026). Wer dort aussteigt, sieht die
+   Auswahl nie. Sie kann auch oben stehen — wer die Adresse von Hand aufruft —,
+   also läuft der Sortierer in beiden Fenstern und alles Übrige nur oben. */
+const imRahmen = window.top !== window.self;
 
 /* ═══════════════════════════════════════════════════════════════════
    Was dieses Skript tut, und was es dafür wissen muß
@@ -222,6 +231,83 @@ async function erledige(fzId, name) {
   await getAction(z.href);
   log(`${name}: ${art} → ${wo}`, 'good');
   return { art, ziel: z };
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Die Zielauswahl auf der Fahrzeugseite: ein Topf statt zwei
+
+   Dasselbe Ärgernis wie bei der selbsttätigen Wahl, nur für die Hand: das
+   Spiel führt eigene und Verbandsziele getrennt auf, jede Gruppe für sich
+   nach Entfernung. Wer mit den Augen das nächste Ziel sucht, muß zwei Listen
+   ineinanderschieben — und übersieht die Verbandswache um die Ecke, weil über
+   ihr eine Überschrift steht und darüber zwanzig eigene Wachen.
+
+   Hier wird nur **umsortiert**. Keine Zeile wird entfernt, kein Verweis
+   verändert, keine Anfrage geschickt: ein Neuladen stellt den alten Zustand
+   her. Die Trennüberschrift fällt weg — was sie sagte, steht ohnehin in jedem
+   Verbandseintrag („Abgabe an Besitzer: 10%").
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** Entfernung aus dem Knopftext: „…(Freie Zellen: 9, Entfernung: 0,88 km)".
+    Unbekannt heißt ans Ende, nicht heraus: ein Ziel, das wir nicht einordnen
+    können, soll trotzdem wählbar bleiben. */
+function entfernungAus(el) {
+  const m = String(el.textContent).match(/Entfernung:\s*([\d.,]+)\s*km/);
+  const z = m ? kommaZahl(m[1]) : null;
+  return z == null ? Infinity : z;
+}
+
+/** Die Zellenauswahl einer Fahrzeugseite nach Entfernung ordnen.
+
+    `div.prison-select` enthält je Ziel ein `<a data-prison-id>` und dazwischen
+    ein `<h5>Verbandszellen</h5>`. Eigene Ziele erkennt man an ihrer **Stelle**
+    vor dieser Überschrift — **nicht** am grünen Punkt im Namen: der stammt vom
+    Planer und steht nur an Wachen, die er fertig gemeldet hat. Für das
+    Sortieren spielt die Herkunft ohnehin keine Rolle, gefragt sind Kilometer.
+
+    Der Vergleich vorweg ist keine Sparsamkeit, sondern die Abbruchbedingung:
+    der Beobachter unten sieht jede Umstellung, die wir selbst vornehmen.
+    Stünde hier nicht „schon richtig, nichts tun", löste jeder Durchgang den
+    nächsten aus. */
+function zellenAuswahlOrdnen(kasten) {
+  const ziele = [...kasten.querySelectorAll('a[data-prison-id]')];
+  if (ziele.length < 2) return false;
+  const trenner = [...kasten.querySelectorAll('h5')];
+  const soll = [...ziele].sort((a, b) => entfernungAus(a) - entfernungAus(b));
+  if (!trenner.length && soll.every((a, i) => a === ziele[i])) return false;
+  trenner.forEach(h => h.remove());
+  /* Eingesetzt wird an der Stelle der alten Liste, nicht am Ende des Kastens.
+     Steht hinter den Zielen noch etwas vom Spiel — ein „mehr laden"-Knopf
+     etwa —, rutschte es sonst davor. Heute ist dort nichts; das soll aber
+     nicht die Voraussetzung dafür sein, daß die Reihenfolge stimmt. */
+  const marke = ziele[ziele.length - 1].nextSibling;
+  const buendel = document.createDocumentFragment();
+  soll.forEach(a => buendel.appendChild(a));   // vorhandenes Kind wird verschoben, nicht kopiert
+  kasten.insertBefore(buendel, marke);         // marke === null hängt ans Ende, das ist richtig
+  return true;
+}
+
+/** Ein Durchgang über alles, was gerade an Auswahl dasteht. */
+function auswahlOrdnen() {
+  let n = 0;
+  for (const k of document.querySelectorAll('div.prison-select')) if (zellenAuswahlOrdnen(k)) n++;
+  return n;
+}
+
+/* Die Zellenliste baut das Spiel erst im Browser, und der Knopf „mehr laden"
+   baut sie noch einmal neu (SPIELSEITEN.md). Beim Seitenaufbau ist also nichts
+   da, worauf man einmalig losgehen könnte — es braucht einen Beobachter.
+   Gebündelt auf den nächsten Bildaufbau, damit nicht jeder eingefügte Knopf
+   einen eigenen Durchgang auslöst. */
+function auswahlBeobachten() {
+  let geplant = false;
+  const anstossen = () => {
+    if (geplant) return;
+    geplant = true;
+    requestAnimationFrame(() => { geplant = false; auswahlOrdnen(); });
+  };
+  new MutationObserver(anstossen).observe(document.body, { childList: true, subtree: true });
+  auswahlOrdnen();
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -445,5 +531,9 @@ function aufbau() {
   knoepfeSetzen();
 }
 
-aufbau();
+/* Der Sortierer läuft in beiden Fenstern — die Zielauswahl steht meist in der
+   Lightbox, kann aber auch oben stehen. Das Fenster samt Funkknöpfen gibt es
+   nur oben, sonst stünde es in jeder Lightbox noch einmal. */
+auswahlBeobachten();
+if (!imRahmen) aufbau();
 })();

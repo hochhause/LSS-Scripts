@@ -11,12 +11,12 @@ unten oder wird aus dem Spiel gelesen.
 |---|---|
 | `lss-planer.user.js` | Userscript v0.65.3: setzt das Wunschbild im Spiel um |
 | `lss-farben.user.js` | v0.2.0: reine Anzeige — blendet 🟢🟡🔴 aus und färbt den Namen entsprechend, Status 6 rot. ⚫ bleibt stehen |
-| `lss-sprechwunsch.user.js` | v0.2.0: FMS 5 von selbst erledigen — Patient ins nächste passende Krankenhaus, Gefangener in die nächste freie Zelle (D-102) |
+| `lss-sprechwunsch.user.js` | v0.3.0: FMS 5 von selbst erledigen — Patient ins nächste passende Krankenhaus, Gefangener in die nächste freie Zelle (D-102); die Zellenauswahl der Fahrzeugseite wird nach Entfernung umsortiert (D-104) |
 | `lss-einruecken.user.js` | v0.3.0: Fahrzeuge zurück zur Wache rufen — **über den Einsatz**, mit dem Verweis „Alle eigenen Fahrzeuge rückalarmieren" (D-90) |
 | `lss-einsatz-flott.user.js` | v0.3.0: nächsten Einsatz vorwärmen — *nicht in dieser Ablage* |
 | `CLAUDE.md` | Arbeitsanweisung: Sprache, Prüfungen, Gefahren |
 | `NAECHSTER_SCHRITT.md` | was offen ist |
-| `DECISIONS.md` | 101 Entscheidungen mit Begründung, auch die verworfenen |
+| `DECISIONS.md` | 104 Entscheidungen mit Begründung, auch die verworfenen |
 | `personal-soll.js` | einmaliges Konsolenskript: Personal-Sollwert aller Wachen |
 | `lss-personalbedarf.json` | Personalanforderungen je Fahrzeugtyp — **Pflegequelle** für `PB` |
 | `lss-fahrzeugprofile.md` | Soll-Papier: Profile, Stellplatz-Formeln, Ausbauten je Gebäudeart — **Pflegequelle** für `MODELL_STANDARD` und `LAYOUTS_STANDARD` |

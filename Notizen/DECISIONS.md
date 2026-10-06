@@ -2576,3 +2576,56 @@ derselbe Preis, den ein Fehlklick im Spiel selbst hat.
 Geprüft ohne Spielkonto mit nachgebauter Funkzeile: ein Klick, zwei Abrufe —
 die Fahrzeugseite lesen, dann der Transportverweis — und `confirm` wurde
 **nicht** aufgerufen.
+
+## D-104 Die Zielauswahl der Seite wird umsortiert, nicht nur die eigene Wahl (lss-sprechwunsch v0.3.0)
+
+**Lage.** Seit v0.1.0 führt das Skript eigene und Verbandsziele in einem Topf
+zusammen — aber nur für **seine** Wahl. Wer von Hand aussucht, sieht weiter die
+Liste des Spiels: erst alle eigenen, dann eine Überschrift „Verbandszellen",
+dann die des Verbands, jede Gruppe für sich nach Entfernung. Die Wache um die
+Ecke steht damit unter zwanzig eigenen, und das Auge findet sie nicht.
+
+**Entschieden** (Sasha, 06.10.). Die Liste auf der Fahrzeugseite wird in eine
+einzige, durchgehend nach Entfernung sortierte Reihe gebracht. Die
+Trennüberschrift fällt weg; was sie sagte, steht ohnehin in jedem
+Verbandseintrag („Abgabe an Besitzer: 10%").
+
+**Nur umsortiert.** Keine Zeile wird entfernt, kein `href` angefaßt, keine
+Anfrage geschickt — ein Neuladen stellt den alten Zustand her. Deshalb auch
+**kein Schalter**: ein Haken für eine Umstellung, die ein F5 rückgängig macht,
+wäre Knopfwerk ohne Gegenwert (anders als D-101, wo der Lauf ein Konto ändert).
+
+**Das Skript läuft jetzt auch im Rahmen.** Bis v0.2.0 kehrte es in jeder
+Lightbox sofort um — richtig für die Funkknöpfe, fatal für diese Aufgabe: das
+Spiel öffnet `/vehicles/<id>` aus der Funkliste **als** Lightbox
+(`a.lightbox-open`, SPIELSEITEN.md). Die Auswahl steht also genau dort, wo das
+Skript ausstieg. Jetzt zwei Teile: der Sortierer überall, Fenster und
+Zeilenknöpfe nur im Hauptfenster.
+
+**Eigene werden nicht am grünen Punkt erkannt.** Im gemessenen Schnipsel
+tragen die eigenen Wachen 🟢 im Namen — das kommt aber vom **Planer** und steht
+nur an Wachen, die er fertig gemeldet hat. Wer danach griffe, hielte eine
+ungrüne eigene Wache für fremd. Fürs Sortieren ist die Herkunft ohnehin
+gleichgültig: gefragt sind Kilometer.
+
+**Abbruchbedingung statt Sparsamkeit.** `zellenAuswahlOrdnen` vergleicht erst
+und faßt nur an, wenn sich etwas ändert. Das ist nicht Feinschliff: der
+Beobachter sieht jede eigene Umstellung, und ohne dieses „schon richtig"
+löste jeder Durchgang den nächsten aus.
+
+**Eingesetzt wird an der Stelle der alten Liste**, nicht am Ende des Kastens.
+Heute steht hinter den Zielen nichts; stünde dort ein „mehr laden"-Knopf,
+rutschte er bei `appendChild` davor. Die Richtigkeit der Reihenfolge soll
+nicht davon abhängen, daß das Spiel nie etwas dahinter stellt.
+
+**Am gemessenen Schnipsel ändert sich wenig** — dort liegt jede der zwanzig
+eigenen Wachen näher als die nächste des Verbands, sichtbar verschwindet nur
+die Überschrift. Daß die Gruppen sich überschneiden, hält SPIELSEITEN.md für
+dieselbe Streife fest: „die Entfernung lief bis Platz 24 hoch und sprang dann
+zurück". Für diesen Fall ist es gebaut, und die Probe stellt ihn nach.
+
+**Offen:** dasselbe für die Krankenhausauswahl. Die steht in **zwei Tabellen**
+mit **verschieden vielen Spalten** — die des Verbands trägt zusätzlich
+„Abgabe" (SPIELSEITEN.md). Zeilen lassen sich deshalb nicht einfach von einer
+in die andere schieben, ohne daß die Spalten verrutschen. Bevor das gebaut
+wird, gehört die Zeilenform nachgemessen; geraten wird sie nicht.
