@@ -1099,9 +1099,14 @@ const ruhtUm = id => {
     `mineOf` statt `echteVon`: ein eben gekauftes, noch vorgemerktes Fahrzeug
     trägt keinen Punkt und soll die Wache auch nicht fertig aussehen lassen.
     Eine Wache ganz ohne Fahrzeuge ist nicht fertig, sondern leer — sonst wäre
-    die Aussage leer wahr. */
+    die Aussage leer wahr.
+
+    Anhänger zählen nicht mit (Sasha, 12.10.): ihr Punkt erbt nur den Stand
+    des Zugfahrzeugs, das ohnehin geprüft wird — neu wäre allein „nicht
+    gekoppelt", und das soll die Wache nicht aufhalten. Ihr eigener Punkt
+    bleibt und sagt es weiter. */
 function stationsPunkt(b, frisch = null) {
-  const fz = mineOf(b);
+  const fz = mineOf(b).filter(v => T.veh(v.vehicle_type)?.max !== 0);
   if (!fz.length) return false;
   return fz.every(v => (frisch && frisch.has(v.id)) ? frisch.get(v.id) : hatHaken(v.caption));
 }

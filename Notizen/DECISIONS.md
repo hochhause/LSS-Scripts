@@ -1242,6 +1242,13 @@ Zwei Feinheiten, absichtlich so:
 - Eine Wache **ohne** Fahrzeuge ist nicht fertig, sondern leer. Ohne diese
   Ausnahme wäre die Aussage „alle Fahrzeuge tragen den Punkt" leer wahr.
 
+**Nachtrag 12.10.2026 (ohne Versionssprung, Sashas Wunsch):** Anhänger und
+Abrollbehälter zählen für den Wachenpunkt nicht mehr (`stationsPunkt`). Ihr
+Punkt erbt nur den Stand des Zugfahrzeugs, das selbst geprüft wird; neu brachte
+er allein „kein Zugfahrzeug" — und eine fehlende Kopplung soll die Wache nicht
+mehr rot halten. Am Anhänger selbst bleibt der Punkt und meldet sie weiter.
+Eine Wache, die nur Anhänger hat, gilt wie eine leere als nicht fertig.
+
 `offen` in `fortschritt()` bleibt unverändert und zählt weiter alles auf — davon
 leben die Listen, die Übersicht und der Hinweis auf der Wachenseite.
 
