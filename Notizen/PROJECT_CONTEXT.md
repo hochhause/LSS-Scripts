@@ -47,9 +47,14 @@ nächsten Lauf ersetzt.
 | ⚫ | Wache | Mensch | Wache komplett ausgeschlossen, `ausgeschlossen()` / `planWachen()` |
 | 🔴 | Wache | Mensch | **Altlast**: bis v0.65.1 der Ausschluß, gilt dort weiter (D-98) |
 
-Gerechnet wird der Punkt in `fahrzeugStand()` (`lss-planer.user.js:2232`),
-Anhänger erben ihn in `punkteFuerWache()` (`:1541`). Eine Quelle für
-Namenslauf **und** Personallauf — zwei wären zwei Urteile über dieselbe Sache.
+Gerechnet wird der Punkt in `fahrzeugStand()` (`lss-planer.user.js:2371`).
+Anhänger und AB bekommen in `punkteFuerWache()` (`:1655`) nur 🟢 oder 🔴:
+grün, sobald ein zugelassenes, ausrückfähiges Zugfahrzeug der Wache genug
+Leute mit ihrem Lehrgang hat (`anhaengerLuecke()`, `:1688`), gekoppelt oder
+nicht (D-108). Der Wachenpunkt `stationsPunkt()` (`:1108`) zählt Anhänger
+nicht mit. Eine Quelle für Namenslauf **und** Personallauf — zwei wären zwei
+Urteile über dieselbe Sache. Der Personallauf darf den Punkt eines grünen
+Fahrzeugs ändern, wenn er dessen Besatzung selbst verändert hat (D-108).
 
 Offen laut Plan: rund 1.133 Fahrzeuge und 58,7 Mio. Credits an Ausbauten.
 Zwei Drittel der Käufe hängen an fehlenden Stellplatz-Ausbauten.

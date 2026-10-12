@@ -2840,3 +2840,36 @@ mitgeschickt (so tut es das Spiel). Verbandsschulen werden vor jedem Start neu
 gelesen statt einmal je Lauf, weil die Auswahl nach dem vorletzten Raum
 verschwindet und andere Mitglieder zwischendurch belegen (SPIELSEITEN.md,
 Lehrgang starten).
+
+## D-108 Punkte nach dem Personallauf, Anhänger nur grün oder rot (v0.66.3)
+
+**Lage.** Sasha, 12.10.2026: Der Personallauf mit „Fahrzeuge anschließend
+umbenennen" ließ einen grünen Namen stehen, obwohl er dem Fahrzeug eben selbst
+eine Fachkraft weggenommen hatte (Leihen, D-94). `fahrzeugNameSetzen` sperrte
+jedes 🟢-Fahrzeug — „den Punkt wegzunehmen ist auch ein Eingriff". Die Regel
+stammt aus der Zeit, als 🟢 „fertig, Finger weg" hieß; seit D-97 heißt es nur
+noch „voll besetzt", und dann widerspricht sich der Lauf selbst.
+
+**Entscheidung.**
+- Der Personallauf setzt den Punkt eines Fahrzeugs, dessen Besatzung er
+  verändert hat, auch über einen grünen Namen hinweg
+  (`fahrzeugNameSetzen(…, besatzungGeaendert)`). Verändert heißt: die Leute
+  vorher (Zuweisungsseite) und nachher (`plan.zuweisung`) unterscheiden sich —
+  nicht „kam in den Schritten vor", denn ein Umsetzen ist eine Anfrage am
+  Zielfahrzeug, das Quellfahrzeug taucht dort nicht auf. Unberührte grüne
+  Fahrzeuge bleiben unberührt; der Namenslauf schützt weiter wie bisher.
+- Anhänger und Abrollbehälter kennen nur noch 🟢 oder 🔴
+  (`punkteFuerWache`, `anhaengerLuecke`): grün, sobald an der Wache **ein**
+  zugelassenes Zugfahrzeug (`zug` in `PB`) mindestens die Mindestbesetzung hat
+  und je Lehrgang des Anhängers genug Leute an Bord — so viele, wie die
+  Einsatzstelle verlangt, höchstens so viele, wie das Zugfahrzeug Sitze hat
+  (dieselbe Zählung wie `anforderung`). Gekoppelt oder nicht ist egal. Vorher
+  erbten sie den Stand des gekoppelten Zugfahrzeugs; ungekoppelt waren sie rot.
+
+**Bewusst so:** Das Zugfahrzeug muss selbst ausrücken können (nicht rot) —
+ein leeres WLF fährt keinen Abrollbehälter, auch wenn er keinen Lehrgang
+verlangt. Ein gekoppelter Anhänger stellt seine Forderung weiterhin an sein
+Zugfahrzeug (`anforderung`); dessen eigener Punkt ändert sich dadurch nicht.
+
+**Proben:** Abschnitt 34 neu (gekoppelt, ungekoppelt, zu wenige mit Lehrgang,
+Anhänger ohne Lehrgang, kein Zugfahrzeug).

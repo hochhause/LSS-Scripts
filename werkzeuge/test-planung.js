@@ -1358,8 +1358,12 @@ console.log('\n33. Punkt je Fahrzeug');
   pruefe('Anhaenger hat keinen eigenen Stand', fahrzeugStand(mzb, []), null);
 }
 
-/* ── 34. Anhaenger erben den Stand ihres Zugfahrzeugs ─────────────────── */
-console.log('\n34. Anhaenger erben den Punkt');
+/* ── 34. Anhaenger: gruen, wenn ein passendes Zugfahrzeug da ist ───────
+   Seit dem 12.10. (Sasha) kennen Anhaenger und AB nur gruen oder rot:
+   gruen, sobald an der Wache ein zugelassenes Zugfahrzeug ausruecken kann
+   und genug Leute mit dem Lehrgang des Anhaengers an Bord hat — gekoppelt
+   oder nicht. Vorher erbten sie den Stand des gekoppelten Zugfahrzeugs. */
+console.log('\n34. Anhaenger: gruen bei passendem Zugfahrzeug');
 {
   const wasser = () => new Set(['gw_wasserrettung']);
   const zug = fz(64);                      // GW-Wasserrettung, max 6
@@ -1375,16 +1379,49 @@ console.log('\n34. Anhaenger erben den Punkt');
   const vier = punkteFuerWache(b, new Map([[zug.id, [wasser(), wasser(), wasser(), wasser()]]]));
   pruefe('vier reichen zum Ausruecken, aber nicht fuer alle Sitze',
          vier.get(zug.id).art, 'teil');
-  pruefe('der Anhaenger erbt das Gelb', vier.get(mzb.id).art, 'teil');
-  pruefe('und erbt auch die Begruendung', vier.get(mzb.id).grund,
-         'GW-Wasserrettung: 4 von 6 Sitzen besetzt');
+  pruefe('der Anhaenger ist trotzdem gruen — vier Wasserretter fahren ihn',
+         vier.get(mzb.id).art, 'voll');
 
   const drei = punkteFuerWache(b, new Map([[zug.id, [wasser(), wasser(), wasser()]]]));
   pruefe('drei reichen nicht: rot', drei.get(zug.id).art, 'leer');
   pruefe('der Anhaenger wird mit rot', drei.get(mzb.id).art, 'leer');
+  pruefe('und nennt das Zugfahrzeug als Grund', drei.get(mzb.id).grund.startsWith('GW-Wasserrettung'), true);
 }
 {
-  // Ohne Zugfahrzeug rueckt der Anhaenger gar nicht aus — rot, mit Grund.
+  // Nicht gekoppelt, aber ein passendes Zugfahrzeug steht da: gruen.
+  const wasser = () => new Set(['gw_wasserrettung']);
+  const zug = fz(64);
+  const mzb = fz(70, { zugfahrzeug: null });
+  const b = wache([zug, mzb]);
+  const stand = punkteFuerWache(b, new Map([[zug.id, [wasser(), wasser(), wasser(), wasser()]]]));
+  pruefe('ungekoppelter Anhaenger mit passendem Zugfahrzeug: gruen', stand.get(mzb.id).art, 'voll');
+}
+{
+  /* Zugfahrzeug kann ausruecken, hat aber zu wenige mit dem Lehrgang des
+     Anhaengers: der Anhaenger bleibt rot. Ungekoppelt fordert der MZB nichts
+     vom GW — der GW ist mit drei Wasserrettern selbst gelb. */
+  const wasser = () => new Set(['gw_wasserrettung']);
+  const zug = fz(64);
+  const mzb = fz(70, { zugfahrzeug: null });
+  const b = wache([zug, mzb]);
+  const stand = punkteFuerWache(b, new Map([[zug.id, [wasser(), wasser(), wasser()]]]));
+  pruefe('Zugfahrzeug mit drei Wasserrettern ist gelb', stand.get(zug.id).art, 'teil');
+  pruefe('fuer den MZB reichen drei nicht: rot', stand.get(mzb.id).art, 'leer');
+  pruefe('mit Zahl im Grund', stand.get(mzb.id).grund.includes('3 von 4'), true);
+}
+{
+  // Anhaenger ohne eigenen Lehrgang: jedes ausrueckfaehige Zugfahrzeug genuegt.
+  const gwa = fz(5);                       // GW-A, min 1, max 3
+  const luefter = fz(115, { zugfahrzeug: null });
+  const b = wache([gwa, luefter]);
+  const ein = punkteFuerWache(b, new Map([[gwa.id, [new Set()]]]));
+  pruefe('GW-A mit einem Mann: gelb', ein.get(gwa.id).art, 'teil');
+  pruefe('Anh Luefter dahinter: gruen', ein.get(luefter.id).art, 'voll');
+  const leer = punkteFuerWache(b, new Map());
+  pruefe('leerer GW-A: Anh Luefter rot', leer.get(luefter.id).art, 'leer');
+}
+{
+  // Ohne zugelassenes Zugfahrzeug rueckt der Anhaenger gar nicht aus — rot, mit Grund.
   const mzb = fz(70, { zugfahrzeug: null });
   const b = wache([mzb]);
   const stand = punkteFuerWache(b, new Map());

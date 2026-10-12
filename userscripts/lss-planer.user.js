@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.66.2
+// @version      0.66.3
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.66.2';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.66.3';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -1606,8 +1606,12 @@ function vorlagenPruefen() {
     davon zu vergessen; die wichtigste ist der Schutz.
 
     Zurück kommt der Grund, nicht nur „ja/nein" — der Aufrufer zählt damit und
-    kann melden, warum nichts geschah. */
-async function fahrzeugNameSetzen(b, v, zeichen, vorlage, marken, dry) {
+    kann melden, warum nichts geschah.
+
+    `besatzungGeaendert`: der Personallauf hat die Leute auf diesem Fahrzeug
+    eben selbst umgesetzt. Dann schützt der grüne Punkt nichts mehr — er
+    beschriebe eine Besatzung, die es nicht mehr gibt (Sasha, 12.10.). */
+async function fahrzeugNameSetzen(b, v, zeichen, vorlage, marken, dry, besatzungGeaendert = false) {
   const soll = nameAus(vorlage, marken, kontextFahrzeug(b, v, zeichen));
   /* Steht der Name schon so im Spiel, geht dafür keine Anfrage hinaus —
      weder Formular noch Schreibvorgang. Gezählt wird es trotzdem: sonst
@@ -1618,7 +1622,7 @@ async function fahrzeugNameSetzen(b, v, zeichen, vorlage, marken, dry) {
      und es soll nicht als „zu lang" in einer Zählung auftauchen, die
      nach einem Namensproblem klingt.
      Den Punkt wegzunehmen ist auch ein Eingriff — gerade der, der zählt. */
-  if (geschuetzt(v)) { schutzZaehlen(); return 'geschuetzt'; }
+  if (geschuetzt(v) && !besatzungGeaendert) { schutzZaehlen(); return 'geschuetzt'; }
   /* Nie stillschweigend kürzen: ein halber Name ist schlimmer als ein alter. */
   const grenze = Number(S.opts.nameMax ?? NAME_MAX_STANDARD);
   if (soll.length > grenze) {
@@ -1636,12 +1640,18 @@ async function fahrzeugNameSetzen(b, v, zeichen, vorlage, marken, dry) {
 }
 
 /** Trägt jedem Fahrzeug einer Wache seinen Punkt ein: 🟢 voll, 🟡 ab
-    Mindestbesetzung, 🔴 darunter. Anhänger erben den Stand ihres
-    Zugfahrzeugs — sie haben keine eigenen Sitze.
+    Mindestbesetzung, 🔴 darunter.
+
+    Anhänger und Abrollbehälter haben keine eigenen Sitze und kennen darum
+    nur 🟢 oder 🔴 (Sasha, 12.10.): grün, sobald an der Wache **ein**
+    zugelassenes Zugfahrzeug ausrücken kann und genug Leute mit dem Lehrgang
+    des Anhängers an Bord hat — gekoppelt oder nicht. Bis dahin erbte der
+    Anhänger den Stand seines gekoppelten Zugfahrzeugs; ein ungekoppelter war
+    rot, obwohl er mit jedem passenden Zugfahrzeug der Wache hätte fahren
+    können.
 
     `besatzung` ist je Fahrzeug-Id die Liste der Lehrgangsmengen seiner Leute.
-    Zurück kommt je Fahrzeug-Id `{art, grund}`; gerechnet wird ausschließlich
-    in `fahrzeugStand`. */
+    Zurück kommt je Fahrzeug-Id `{art, grund}`. */
 function punkteFuerWache(b, besatzung) {
   const stand = new Map();
   for (const v of echteVon(b)) {
@@ -1649,18 +1659,40 @@ function punkteFuerWache(b, besatzung) {
     if (s) stand.set(v.id, s);
   }
   for (const v of echteVon(b)) {
-    if (stand.has(v.id) || !T.veh(v.vehicle_type)) continue;   // nur Anhänger bleiben übrig
-    if (!v.zugfahrzeug) { stand.set(v.id, { art: 'leer', grund: 'kein Zugfahrzeug' }); continue; }
-    const zug = stand.get(v.zugfahrzeug);
-    /* Ein vorgemerktes Zugfahrzeug steht nicht in `echteVon` und hat deshalb
-       keinen Stand. Dann ist der Anhänger nicht beurteilbar — und das gehört
-       so gesagt, nicht als „kein Zugfahrzeug" ausgegeben: er hat ja eines. */
-    if (!zug) { stand.set(v.id, { art: 'leer', grund: 'Zugfahrzeug nicht beurteilbar' }); continue; }
-    const zugFz = mineOf(b).find(x => x.id === v.zugfahrzeug);
-    stand.set(v.id, { art: zug.art, grund: zug.art === 'voll' ? ''
-      : `${zugFz ? ohneHaken(zugFz.caption) : 'Zugfahrzeug'}: ${zug.grund}` });
+    const meta = T.veh(v.vehicle_type);
+    if (stand.has(v.id) || !meta) continue;   // nur Anhänger bleiben übrig
+    const zulaessig = echteVon(b).filter(z => (meta.zug || []).includes(Number(z.vehicle_type)));
+    if (!zulaessig.length) { stand.set(v.id, { art: 'leer', grund: 'kein Zugfahrzeug' }); continue; }
+    const passt = zulaessig.find(z => {
+      const zs = stand.get(z.id);
+      if (!zs || zs.art === 'leer') return false;          // kann selbst nicht ausrücken
+      return !anhaengerLuecke(meta, T.veh(z.vehicle_type), besatzung.get(z.id) || []);
+    });
+    if (passt) { stand.set(v.id, { art: 'voll', grund: '' }); continue; }
+    /* Den Grund vom nächstbesten Zugfahrzeug nehmen: bevorzugt das gekoppelte,
+       sonst das erste — „kein passendes" allein ließe offen, woran es liegt. */
+    const z = zulaessig.find(x => x.id === v.zugfahrzeug) || zulaessig[0];
+    const zs = stand.get(z.id);
+    const grund = !zs ? 'nicht beurteilbar'
+      : zs.art === 'leer' ? zs.grund
+      : anhaengerLuecke(meta, T.veh(z.vehicle_type), besatzung.get(z.id) || []);
+    stand.set(v.id, { art: 'leer', grund: `${ohneHaken(z.caption)}: ${grund}` });
   }
   return stand;
+}
+
+/** Was einem Zugfahrzeug fehlt, um diesen Anhänger zu fahren: je Lehrgang
+    des Anhängers so viele Leute, wie die Einsatzstelle verlangt — höchstens
+    so viele, wie das Zugfahrzeug Sitze hat. Dieselbe Zählung wie in
+    `anforderung` für gekoppelte Anhänger. Leer heißt: es passt. */
+function anhaengerLuecke(meta, zugMeta, leute) {
+  for (const k of meta.kurse || []) {
+    let n = k.art === 'alle' ? (meta.est || 0) : (k.n || meta.est || 0);
+    if (zugMeta?.max) n = Math.min(n, zugMeta.max);
+    const da = leute.filter(p => p.has(k.k)).length;
+    if (da < n) return `${da} von ${n} mit ${kursNamen(k.k)[0] || k.k}`;
+  }
+  return '';
 }
 
 /** Setzt oder entfernt das Häkchen je nach Fortschritt. */
@@ -3040,10 +3072,14 @@ async function assignStaff(sel, dry) {
        Lauf eben daraufgesetzt hat. Ein lahmes Fahrzeug steht nicht darin und
        bekommt damit seinen roten Punkt. */
     if (taufen) {
-      const besatzung = new Map();
+      const besatzung = new Map(), geaendert = new Set();
+      const vorher = id => roster.people.filter(p => p.assignedTo === String(id)).map(p => p.id).sort().join();
       for (const v of echteVon(b)) {
         const leute = lahmIds.has(String(v.id)) ? [] : (plan.zuweisung.get(v.id) || []);
         besatzung.set(v.id, leute.map(p => p.kann));
+        // Vorher gegen nachher, nicht die Schritte: ein Umsetzen ist eine
+        // Anfrage am Zielfahrzeug, das Quellfahrzeug taucht darin nicht auf.
+        if (leute.map(p => p.id).sort().join() !== vorher(v.id)) geaendert.add(v.id);
       }
       const stand = punkteFuerWache(b, besatzung);
       for (const v of echteVon(b)) {
@@ -3051,7 +3087,7 @@ async function assignStaff(sel, dry) {
         const s = stand.get(v.id);
         if (!s) continue;                    // Typ steht nicht in den Stammdaten
         const was = await fahrzeugNameSetzen(b, v, PUNKT_VON[s.art],
-                                             vorlagen.vorlageFz, markenFzLauf, dry);
+                                             vorlagen.vorlageFz, markenFzLauf, dry, geaendert.has(v.id));
         if (was === 'getan') n++;
       }
     }
