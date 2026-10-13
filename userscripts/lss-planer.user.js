@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.68.1
+// @version      0.68.2
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.68.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.68.2';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2779,11 +2779,17 @@ async function optimumFuer(v) {
   if (!opt) return null;
   const w = JSON.parse(await getText(`/vehicle_fitting_templates/${opt.value}/fitting_values`));
   if (!w?.success) throw new Error(`Vorlage „Optimum" (${opt.value}) nicht lesbar`);
-  return { id: opt.value, werte: [w.cabin_size, w.water_tank_capacity, w.pump_capacity, w.foam_capacity].map(Number) };
+  /* `null` heißt: der Typ hat dafür keinen Regler (SLF und ULF kennen weder
+     Sitze noch Pumpe). Bis v0.68.1 wurde daraus 0 — der Vergleich mit der API
+     schlug fehl, gelungene Umbauten galten als abgelehnt, ihr Preis fiel aus
+     der Rechnung, und ein späterer Lauf hätte sie erneut bezahlt. */
+  return { id: opt.value, werte: [w.cabin_size, w.water_tank_capacity, w.pump_capacity, w.foam_capacity]
+    .map(x => x == null ? null : Number(x)) };
 }
+const aufOptimum = (werte, ist) => werte.every((w, i) => w == null || Number(ist?.[i]) === w);
 
 async function umruesten(sel, dry) {
-  let n = 0, schon = 0, zuTeuer = 0, ausgegeben = 0;
+  let n = 0, schon = 0, zuTeuer = 0, ausgegeben = 0, nichtBereit = 0;
   const kasse = await guthabenLesen();
   log(`Guthaben ${kasse.toLocaleString('de-CH')} Credits — umgerüstet wird höchstens bis dahin.`);
   const vorlagen = new Map();                       // Fahrzeugtyp → Optimum oder null
@@ -2795,7 +2801,16 @@ async function umruesten(sel, dry) {
       if (!vorlagen.has(v.vehicle_type)) vorlagen.set(v.vehicle_type, await optimumFuer(v));
       const vl = vorlagen.get(v.vehicle_type);
       if (!vl) continue;
-      if (vl.werte.every((w, i) => Number(v.umbau?.[i]) === w)) { schon++; continue; }
+      if (aufOptimum(vl.werte, v.umbau)) { schon++; continue; }
+      /* Das Spiel nimmt den Umbau nur von einem Fahrzeug auf Status 2 an
+         (13.10.2026: drei unbesetzte ULF auf 6 abgelehnt und nicht berechnet,
+         alle auf 2 angenommen). Ein unbesetztes Fahrzeug kommt also erst dran,
+         wenn der Personallauf es besetzt hat. */
+      if (v.fms_real !== 2) {
+        nichtBereit++;
+        log(`${b.caption}: ${v.caption} — steht auf Status ${v.fms_real ?? '?'}, umgerüstet wird nur auf 2`);
+        continue;
+      }
       const doc = new DOMParser().parseFromString(await getText(`/vehicles/${v.id}/refit`), 'text/html');
       if (doc.querySelector('.refit-timer')) { schon++; continue; }     // wird schon umgerüstet
       const form = doc.querySelector('#refit_form');
@@ -2813,13 +2828,17 @@ async function umruesten(sel, dry) {
       log(`${b.caption}: ${v.caption} → Optimum (${preis.toLocaleString('de-CH')} Credits, 48 h Status 6)`);
       ausgegeben += preis; n++;
       if (dry) continue;
-      const [sitze, wasser, pumpe, schaum] = vl.werte;
+      /* Was die Vorlage offen läßt, geht mit dem Wert, den das Formular
+         ohnehin trägt — so wie die Seite es selbst täte. */
+      const felder = ['cabin_size_new_value', 'water_tank_capacity_new_value',
+                      'pump_capacity_new_value', 'foam_capacity_new_value'];
+      const wert = (i) => vl.werte[i] ?? form.querySelector(`input[name="${felder[i]}"]`)?.value ?? '';
+      const sitze = vl.werte[0];
       await postForm(form.getAttribute('action'), {
         utf8: '✓',
         'vehicle_fitting_template[id]': vl.id,
         'vehicle_fitting_template[template_caption]': '',
-        cabin_size_new_value: sitze, water_tank_capacity_new_value: wasser,
-        pump_capacity_new_value: pumpe, foam_capacity_new_value: schaum,
+        [felder[0]]: wert(0), [felder[1]]: wert(1), [felder[2]]: wert(2), [felder[3]]: wert(3),
         // Leer heißt Credits; nur der Coins-Knopf setzt es per Skript auf 1.
         refit_with_coins: '',
         commit: knopf.value               // der Credits-Knopf, nicht der mit Coins
@@ -2828,16 +2847,17 @@ async function umruesten(sel, dry) {
          schon: sie zeigt die Zielwerte, sobald der Umbau läuft. */
       const neu = JSON.parse(await getText(`/api/v2/vehicles/${v.id}`))?.result || {};
       const umbau = [neu.custom_personal_max, neu.custom_water_amount, neu.custom_pump_amount, neu.custom_foam_amount];
-      if (!vl.werte.every((w, i) => Number(umbau[i]) === w)) {
+      if (!aufOptimum(vl.werte, umbau)) {
         log(`   nicht übernommen — die API zeigt ${umbau.join(' / ')}`, 'err');
         ausgegeben -= preis; n--;
         continue;
       }
-      v.sitze = sitze; v.umbau = umbau; merkeAenderung();
+      if (sitze != null) v.sitze = sitze;
+      v.umbau = umbau; merkeAenderung();
       /* Mehr Sitze, gleiche Besatzung: ein bisher grünes Fahrzeug ist jetzt
          nur noch gelb (Sasha, 13.10.). Der Grün-Schutz hielte das 🟢 fest,
          obwohl dieser Lauf die Sitze eben selbst verändert hat. */
-      if (!pruefung.fehler && hatHaken(v.caption) && v.besatzung != null && v.besatzung < sitze)
+      if (sitze != null && !pruefung.fehler && hatHaken(v.caption) && v.besatzung != null && v.besatzung < sitze)
         await fahrzeugNameSetzen(b, v, PUNKT_TEIL, pruefung.vorlageFz, marken, dry, true);
     }
   }
@@ -2846,6 +2866,7 @@ async function umruesten(sel, dry) {
     + `${schon ? `, ${schon} stehen schon auf Optimum oder werden gerade umgerüstet` : ''}`
     + `${ohne ? `, ${ohne} Fahrzeugtypen ohne Vorlage „Optimum" unberührt` : ''}.`, n ? 'good' : '');
   if (zuTeuer) log(`${zuTeuer} Fahrzeuge nicht umgerüstet — das Guthaben vom Laufbeginn ist aufgebraucht.`, 'warn');
+  if (nichtBereit) log(`${nichtBereit} Fahrzeuge nicht auf Status 2 — erst besetzen (Personallauf), dann erneut umrüsten.`, 'warn');
   return n;
 }
 

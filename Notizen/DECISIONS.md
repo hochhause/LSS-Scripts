@@ -2972,3 +2972,17 @@ da.
 
 **Noch nicht im Spiel gelaufen.** Formular und Felder sind gemessen, ein echter
 Umbau über den Planer noch nicht. Erster Lauf mit „Nur Vorschau".
+
+**Nachtrag v0.68.2 — erster echter Lauf (Sasha, 13.10.2026).** Umgerüstet
+wurden 4× HLF Schiene, 4× SLF, 1× ULF für 180.000 Credits (Guthaben 589.705 →
+410.510). Zwei Fehler kamen dabei zutage:
+- **Leere Vorlagenwerte.** Die Vorlagen für SLF und ULF nennen Sitze und
+  Pumpe als `null` (keine Regler dafür). Daraus wurde 0; der Vergleich mit der
+  API schlug fehl, sechs gelungene Umbauten galten als „nicht übernommen", ihr
+  Preis fiel aus der Rechnung — die Geldbremse zählte also zu wenig —, und
+  jeder spätere Lauf hätte sie erneut bezahlt. Jetzt zählt `null` als „egal"
+  (`aufOptimum`), gesendet wird dafür der Wert, den das Formular trägt.
+- **Nur Status 2.** Drei unbesetzte ULF auf Status 6 lehnte das Spiel ab und
+  berechnete nichts; alles auf Status 2 ging durch. Gemessen ist das an diesen
+  neun Fällen, eine Meldung des Spiels gab es nicht. Der Lauf überspringt nun,
+  was nicht auf 2 steht, und sagt es.
