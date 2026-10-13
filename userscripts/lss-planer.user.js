@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.68.2
+// @version      0.68.3
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.68.2';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.68.3';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2825,6 +2825,17 @@ async function umruesten(sel, dry) {
         continue;
       }
       if (ausgegeben + preis > kasse) { zuTeuer++; continue; }
+      /* Der Status im Bestand ist so alt wie der letzte Abruf. Ein HLF wird in
+         der Zwischenzeit alarmiert — und das Spiel lehnt den Umbau dann still
+         ab (13.10.2026: sechs HLF 10 auf Status 4). Also frisch fragen. */
+      if (!dry) {
+        const jetzt = JSON.parse(await getText(`/api/v2/vehicles/${v.id}`))?.result?.fms_real;
+        if (jetzt !== 2) {
+          nichtBereit++;
+          log(`${b.caption}: ${v.caption} — inzwischen auf Status ${jetzt ?? '?'}, umgerüstet wird nur auf 2`);
+          continue;
+        }
+      }
       log(`${b.caption}: ${v.caption} → Optimum (${preis.toLocaleString('de-CH')} Credits, 48 h Status 6)`);
       ausgegeben += preis; n++;
       if (dry) continue;

@@ -2986,3 +2986,11 @@ wurden 4× HLF Schiene, 4× SLF, 1× ULF für 180.000 Credits (Guthaben 589.705 
   berechnete nichts; alles auf Status 2 ging durch. Gemessen ist das an diesen
   neun Fällen, eine Meldung des Spiels gab es nicht. Der Lauf überspringt nun,
   was nicht auf 2 steht, und sagt es.
+
+**Nachtrag v0.68.3 — Status frisch vor dem Absenden.** Zweiter Lauf: sechs
+HLF 10 (Feuer 03, 07) „nicht übernommen". Sie standen beim Absenden schon
+auf Status 4 — der Bestand nannte noch 2, er war so alt wie der letzte
+Abruf. HLF Schiene und SLF stehen meist, darum fiel es dort nicht auf. Jetzt
+wird `/api/v2/vehicles/<id>` unmittelbar vor dem POST gelesen; nur Status 2
+geht raus. Ein Fahrzeug, das zwischen dieser Abfrage und dem Absenden
+alarmiert wird, fängt weiterhin die Nachprüfung an der API.
