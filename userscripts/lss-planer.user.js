@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.66.3
+// @version      0.67.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.66.3';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.67.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2748,8 +2748,58 @@ async function hire(sel, dry) {
   return n;
 }
 
+/* Abrollbehälter fahren mit einem zufälligen WLF, auch von anderen Wachen,
+   und schicken das WLF danach heim (Sasha, 13.10.2026, D-110). Erkannt am
+   Katalog: kein eigener Sitz, und das einzige zugelassene Zugfahrzeug ist das
+   WLF (46). Der NEA50 (111) darf auch ans WLF, aber nicht nur — er ist ein
+   Anhänger und bleibt fest gekoppelt. */
+const istAbrollbehaelter = meta => meta?.max === 0 && meta.zug?.length === 1 && meta.zug[0] === 46;
+
+/* Was schon stimmt, wird gemerkt — sonst kostete jeder Personallauf einen
+   Abruf je AB, an einer vollen Feuerwache ein Dutzend. Geprüft wird neu,
+   sobald der Bestand „kein Zufallsträger" meldet: dann hat jemand von Hand
+   umgestellt. Modus und „andere Wache" nennt die API nicht. */
+const KEY_ABFERTIG = 'lssplaner.abEingestellt';
+const abFertig = new Set(store.get(KEY_ABFERTIG, []));
+
+/** Die drei AB-Einstellungen einer Wache setzen, wo sie abweichen. */
+async function abEinstellen(b, dry) {
+  let n = 0;
+  for (const v of echteVon(b)) {
+    if (abgebrochen()) break;
+    if (!istAbrollbehaelter(T.veh(v.vehicle_type))) continue;
+    if (abFertig.has(v.id) && v.zufallszug) continue;
+    const doc = new DOMParser().parseFromString(await getText(`/vehicles/${v.id}/edit`), 'text/html');
+    const haken = name => !!doc.querySelector(`input[type="checkbox"][name="${name}"]`)?.checked;
+    const modus = doc.querySelector('select[name="vehicle[vehicle_mode]"]');
+    if (!modus) { log(`${b.caption}: ${v.caption} — kein Modus-Feld, AB-Einstellung übersprungen`, 'warn'); continue; }
+    const falsch = [
+      !haken('vehicle[tractive_random]') && 'zufälliges WLF',
+      !haken('vehicle[tractive_building_random]') && 'WLF anderer Wachen',
+      modus.value !== '3' && 'WLF heimschicken'
+    ].filter(Boolean);
+    if (!falsch.length) { abFertig.add(v.id); continue; }
+    log(`${b.caption}: ${v.caption} — ${falsch.join(', ')} eingestellt`);
+    if (!dry) {
+      await postForm(`/vehicles/${v.id}`, {
+        _method: 'patch',
+        'vehicle[caption]': doc.querySelector('#vehicle_caption')?.value || v.caption,
+        'vehicle[tractive_random]': '1',
+        'vehicle[tractive_building_random]': '1',
+        'vehicle[vehicle_mode]': '3'
+      });
+      v.zufallszug = true; v.zugfahrzeug = null; merkeAenderung();
+      abFertig.add(v.id);
+    }
+    n++;
+  }
+  store.set(KEY_ABFERTIG, [...abFertig]);
+  return n;
+}
+
 /* Anhänger fest an ein Zugfahrzeug binden. Nutzt die Auswahl aus dem
-   Bearbeiten-Formular, damit nur zulässige Zugfahrzeuge verwendet werden. */
+   Bearbeiten-Formular, damit nur zulässige Zugfahrzeuge verwendet werden.
+   Abrollbehälter nicht: sie fahren mit zufälligem WLF (D-110). */
 async function linkTrailers(sel, dry) {
   let n = 0, gespart = 0, fortI = 0;
   for (const b of sel) {
@@ -2765,6 +2815,7 @@ async function linkTrailers(sel, dry) {
        Wache, deren Antwort fast immer „kein Anhänger“ lautete. */
     const anh = mine.filter(v => !istPlatzhalter(v))
       .filter(v => (T.veh(v.vehicle_type)?.max ?? 1) === 0)
+      .filter(v => !istAbrollbehaelter(T.veh(v.vehicle_type)))
       // Ein grüner Anhänger hängt richtig; umhängen wäre genau das Gegenteil
       .filter(v => { if (geschuetzt(v)) { schutzZaehlen(); return false; } return true; });
     gespart += mine.length - anh.length;
@@ -3093,6 +3144,8 @@ async function assignStaff(sel, dry) {
     }
 
     n += await pflegeAusbauten(b, dry);
+    // Sasha, 13.10.: „im Personallauf, warum nicht" — ein Abruf je AB, solange nicht gemerkt (D-110)
+    n += await abEinstellen(b, dry);
 
     // Fahrzeuge, die der Plan nicht vorsieht und die stillstehen
     const tgt = T.target(b);

@@ -273,6 +273,11 @@ GET  /schoolings                                    Übersicht, data-education-k
   Spiel (D-87). `linkTrailers` liest die echte Auswahl aus
   `/vehicles/<id>/edit` und beschneidet sie danach mit `PB` — was in `PB`
   fehlt, ist im Planer nicht kuppelbar, obwohl das Spiel es erlaubt.
+- **Abrollbehälter koppelt der Planer nicht fest** (D-110). Der Personallauf
+  stellt sie mit `abEinstellen()` (`lss-planer.user.js:2766`) auf zufälliges
+  WLF, auch von anderen Wachen, Modus „WLF zur Wache schicken";
+  `linkTrailers()` (`:2803`) läßt sie aus. Erkannt mit `istAbrollbehaelter`:
+  `max 0` und `zug` genau `[46]`.
 - Anhänger haben `max 0`; ihre Ausbildung muss auf dem **Zugfahrzeug** sitzen,
   Zahl steht in `trainingAtScene` (`est`). Sie hebt dort auch die
   Mindestbesetzung — aber nicht zusätzlich: die vier Plätze der MZB *sind* die

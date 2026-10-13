@@ -582,3 +582,24 @@ Gemessen für `lss-klassenzimmer.user.js`, rein lesend, im Verband
 - Verbandsschulen bieten `alliance[duration]` 3600 · 43200 · 86400 · 172800
   und `alliance[cost]` 0–500 an. Angebot je Schulart: Feuerwehr 20,
   Rettung 16, Polizei 15, THW 14, Seenotrettung 4 Lehrgänge.
+
+## Fahrzeug bearbeiten — Abrollbehälter (13.10.2026)
+
+`/vehicles/<id>/edit`, Formular `PATCH /vehicles/<id>` (POST mit
+`_method=patch`). Gemessen am AB-Atemschutz 125852022 und einmal echt
+gespeichert:
+
+| Beschriftung | Feld | Werte |
+|---|---|---|
+| Zufälliges Trägerfahrzeug | `vehicle[tractive_random]` | Ankreuzfeld 1, verstecktes 0 davor |
+| Trägerfahrzeug | `vehicle[tractive_vehicle_id]` | Auswahl der WLF der Wache |
+| Trägerfahrzeug auch von einer anderen Wache zulassen. | `vehicle[tractive_building_random]` | Ankreuzfeld 1 / 0 |
+| Modus | `vehicle[vehicle_mode]` | 2 „WLF an der Einsatzstelle behalten", 3 „WLF zur Wache schicken" |
+
+Daneben: `vehicle[caption]`, `vehicle[personal_max]`, `vehicle[start_delay]`,
+`vehicle[ignore_aao]`, `vehicle[working_hour_start|end]`,
+`vehicle[vehicle_type_caption]`, `vehicle[vehicle_type_ignore_default_aao]`.
+
+**Geschickt nur Name plus die drei Felder** — alle übrigen blieben nach dem
+Speichern unverändert (vorher/nachher gelesen). Das Spiel übernimmt also nur,
+was mitkommt.

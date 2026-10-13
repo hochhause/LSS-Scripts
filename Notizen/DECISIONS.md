@@ -2901,3 +2901,32 @@ Lehrgang, der im Verband gerade nirgends offen ist, einen öffnen — kostenlos,
 **Noch nicht im Spiel gelaufen.** Der Plan wurde lesend gerechnet (13.10.:
 Feuerwehr 18 fehlen bei 12 freien Räumen → 12 auf, je 1; Polizei und
 Seenotrettung je 2). Der erste echte Klick ist Sashas.
+
+## D-110 Abrollbehälter: zufälliges WLF, auch fremder Wachen, WLF heimschicken (v0.67.0)
+
+**Auftrag (Sasha, 13.10.2026).** An allen Abrollbehältern: zufälliges
+Trägerfahrzeug ja, Trägerfahrzeug anderer Wachen ja, Modus „WLF zur Wache
+schicken". Erledigt im Personallauf („warum nicht"), `abEinstellen(b, dry)`.
+
+**Folge für den Kopplungslauf.** `linkTrailers` wählte bei jedem Anhänger
+„zufällig" ab und koppelte fest (D-85) — genau das Gegenteil. Beide Läufe
+hätten sich bei jedem Durchgang gegenseitig umgestellt. Darum nimmt
+`linkTrailers` Abrollbehälter jetzt aus; normale Anhänger koppelt es weiter
+fest. Für die Punkte ändert das nichts: seit D-108 hängt der Punkt eines AB an
+irgendeinem passenden WLF der Wache, nicht an der Kopplung, und `anforderung`
+rechnet Zufalls-Anhänger jedem zulässigen Zugfahrzeug zu (D-88).
+
+**Erkennung** am Katalog, nicht am Namen: kein eigener Sitz und `zug` genau
+`[46]` (WLF). Trifft alle 19 `AB-*`-Typen und sonst nichts; der NEA50 (111)
+darf auch ans WLF, aber nicht nur, und bleibt fest gekoppelt.
+
+**Bewusst so:**
+- Auch **grüne** ABs werden umgestellt. Der Grün-Schutz gilt Besatzung und
+  Kopplung, die hier gewollt aufgegeben wird; Sasha sagte „alle".
+- Was stimmt, wird in `lssplaner.abEingestellt` gemerkt, sonst kostete jeder
+  Personallauf einen Abruf je AB. Neu geprüft wird, sobald der Bestand für das
+  AB „kein Zufallsträger" meldet. Wer Modus oder „andere Wache" von Hand
+  zurückstellt, wird nicht bemerkt — die API nennt beides nicht.
+
+Der Speichervorgang ist einmal echt geprüft (SPIELSEITEN.md, „Fahrzeug
+bearbeiten — Abrollbehälter").
