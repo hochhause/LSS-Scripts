@@ -619,7 +619,12 @@ Fahrzeug der Typen 28, 30, 46, 188, 189, 190.
 - **Zwei Knöpfe** `commit`: „Fahrzeug umrüsten (10 Coins)" und
   „Fahrzeug umrüsten (N Credits)". Der Coins-Knopf setzt per Skript
   `#refit_with_coins` — das Feld steht nicht im Formular, gesendet wird es nur
-  über den Coins-Klick. Der Credits-Preis war bei allen Proben der Kaufpreis
+  über den Coins-Klick. **Die Knöpfe stehen im Rohtext vor `</form>`, aber in einer
+  Leiste am unteren Rand (`navbar-fixed-bottom`); ein HTML-Parser hängt sie
+  aus dem Formular aus.** Darum über die Seite suchen: Credits-Knopf hat die Id
+  `#refit_with_credits_button`, daneben das versteckte `refit_with_coins`
+  (leer = Credits). Bis v0.68.0 suchte der Planer nur im Formular und meldete
+  jedes Fahrzeug als „Umrüstformular nicht lesbar" (Sasha, 13.10.). Der Credits-Preis war bei allen Proben der Kaufpreis
   (GTLF 10.000, TLF 5000 W 5.000, HLF 20 20.000, GW-Waldbrand 20.000,
   RTW 5.000, WLF 5.000). Ob er mit den Änderungen steigt, ist ungemessen.
 - **Vorlagen gelten je Fahrzeugtyp.** „Optimum" (230321) stand nur beim

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.68.0
+// @version      0.68.1
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.68.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.68.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2799,7 +2799,11 @@ async function umruesten(sel, dry) {
       const doc = new DOMParser().parseFromString(await getText(`/vehicles/${v.id}/refit`), 'text/html');
       if (doc.querySelector('.refit-timer')) { schon++; continue; }     // wird schon umgerüstet
       const form = doc.querySelector('#refit_form');
-      const knopf = [...(form?.querySelectorAll('input[name="commit"]') || [])].find(k => /Credits/.test(k.value));
+      /* Die Knöpfe stehen im Rohtext vor `</form>`, aber in einer Leiste am
+         unteren Rand — der Parser hängt sie aus dem Formular aus. Also über
+         die Seite suchen, über die Id des Credits-Knopfs (13.10.2026). */
+      const knopf = doc.querySelector('#refit_with_credits_button')
+        || [...doc.querySelectorAll('input[name="commit"]')].find(k => /Credits/.test(k.value));
       const preis = Number(((knopf?.value || '').match(/([\d.']+)\s*Credits/) || [])[1]?.replace(/[.']/g, ''));
       if (!form || !knopf || !Number.isFinite(preis)) {
         log(`${b.caption}: ${v.caption} — Umrüstformular nicht lesbar, übersprungen`, 'warn');
@@ -2816,6 +2820,8 @@ async function umruesten(sel, dry) {
         'vehicle_fitting_template[template_caption]': '',
         cabin_size_new_value: sitze, water_tank_capacity_new_value: wasser,
         pump_capacity_new_value: pumpe, foam_capacity_new_value: schaum,
+        // Leer heißt Credits; nur der Coins-Knopf setzt es per Skript auf 1.
+        refit_with_coins: '',
         commit: knopf.value               // der Credits-Knopf, nicht der mit Coins
       });
       /* Ob es angenommen wurde, sagt die Antwort nicht verläßlich — die API
