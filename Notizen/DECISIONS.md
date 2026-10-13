@@ -2873,3 +2873,31 @@ Zugfahrzeug (`anforderung`); dessen eigener Punkt ändert sich dadurch nicht.
 
 **Proben:** Abschnitt 34 neu (gekoppelt, ungekoppelt, zu wenige mit Lehrgang,
 Anhänger ohne Lehrgang, kein Zugfahrzeug).
+
+## D-109 Klassenzimmer: fehlende Lehrgänge auf Knopfdruck öffnen (lss-klassenzimmer v0.1.0)
+
+**Auftrag (Sasha, 13.10.2026).** Ein eigenes, kleines Skript ohne Oberfläche,
+nur ein Knopf rechts neben „Gebäude" auf der Verbands-Gebäudeseite: Für jeden
+Lehrgang, der im Verband gerade nirgends offen ist, einen öffnen — kostenlos,
+2 Tage Freigabe, 1 Raum, 2 wenn genug Räume für alle da sind, nie mehr.
+
+**Festlegungen, ohne ausdrückliche Vorgabe:**
+- **„Genug für alle" je Schulart**, nicht über den ganzen Verband: eine
+  Feuerwehrschule bietet keinen Polizeilehrgang an, ihre freien Räume helfen
+  der Polizei nicht.
+- **Zwei Räume = ein Lehrgang mit zwei Räumen** (ein Start mit
+  `building_rooms_use` 2), nicht zwei Lehrgänge. Gleich viele Plätze, halb so
+  viele Anfragen; wer beitritt, sieht einen Eintrag statt zwei.
+- **Offen** kommt aus `education_start_time` der API, nicht aus `/schoolings`:
+  dort steht die Schulart nur im Klartext vor dem Namen, die API nennt
+  Schlüssel und Schule. Offene Lehrgänge an **eigenen** Schulen zählen mit —
+  auch sie sind für den Verband freigegeben.
+- **Vor dem Abschicken eine Rückfrage** mit der Übersicht je Schulart. Das
+  Skript startet Lehrgänge an fremden Gebäuden; ein Fehlklick soll nichts tun.
+- Gestartet wird an der Schule mit den meisten freien Räumen, die Seite wird
+  vor jedem Start frisch gelesen (D-107, Nachtrag v0.66.2: die Raumauswahl
+  verschwindet beim letzten Raum).
+
+**Noch nicht im Spiel gelaufen.** Der Plan wurde lesend gerechnet (13.10.:
+Feuerwehr 18 fehlen bei 12 freien Räumen → 12 auf, je 1; Polizei und
+Seenotrettung je 2). Der erste echte Klick ist Sashas.

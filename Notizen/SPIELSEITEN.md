@@ -562,3 +562,23 @@ Nur Personen mit Status **„Verfügbar"**. Gemessen an Feuer 03: 234 von 276
 angeboten, alle 42 fehlenden „Im Fahrzeug: …", also gerade unterwegs — auch
 solche, die keinem Fahrzeug fest zugewiesen sind. Der Status steht auf der
 Zuweisungsseite in der dritten Spalte.
+
+## Klassenzimmer — offene Lehrgänge und Verbandsschulen (13.10.2026)
+
+Gemessen für `lss-klassenzimmer.user.js`, rein lesend, im Verband
+„Sachsen,Dresden und Osterz." (38 Schulen).
+
+- Die Verbands-Gebäudeseite heißt **`/verband/gebauede`** (so geschrieben).
+  `/verband/buildings` und `/verband/gebaeude` geben 404. Überschrift:
+  `.panel-heading > h4` mit Text „Gebäude", daneben ein Suchfeld `pull-right`.
+- `/api/alliance_buildings` und `/api/buildings` tragen an Schulen
+  `schoolings: [{ education, education_id, education_start_time,
+  education_end_time, id }]`. Ein Verbandslehrgang beginnt erst nach seiner
+  Freigabe; **liegt `education_start_time` in der Zukunft, ist er offen.**
+  Bestätigt im alten Verband nur indirekt (Lehrgänge mit Freigabe tauchten
+  in `/schoolings` als offen auf); im neuen war beim Messen keiner offen.
+- `/schoolings` zeigt bei keinem offenen Lehrgang **keine Tabelle**, nur
+  „Derzeit ist kein Lehrgang offen."
+- Verbandsschulen bieten `alliance[duration]` 3600 · 43200 · 86400 · 172800
+  und `alliance[cost]` 0–500 an. Angebot je Schulart: Feuerwehr 20,
+  Rettung 16, Polizei 15, THW 14, Seenotrettung 4 Lehrgänge.

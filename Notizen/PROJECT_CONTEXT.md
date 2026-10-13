@@ -12,6 +12,7 @@ unten oder wird aus dem Spiel gelesen.
 | `lss-planer.user.js` | Userscript v0.66.1: setzt das Wunschbild im Spiel um |
 | `lss-farben.user.js` | v0.2.0: reine Anzeige — blendet 🟢🟡🔴 aus und färbt den Namen entsprechend, Status 6 rot. ⚫ bleibt stehen |
 | `lss-sprechwunsch.user.js` | v0.3.0: FMS 5 von selbst erledigen — Patient ins nächste passende Krankenhaus, Gefangener in die nächste freie Zelle (D-102); Zellen- und Krankenhausauswahl der Fahrzeugseite stehen in einer Reihe nach Entfernung (D-104) |
+| `lss-klassenzimmer.user.js` | v0.1.0: Knopf auf `/verband/gebauede` — öffnet je Lehrgang, der im Verband nirgends offen ist, einen an einer Verbandsschule (kostenlos, 2 Tage; 1 Raum, 2 wenn die Räume der Schulart für alle reichen). „Offen" = `education_start_time` in der Zukunft (D-109) |
 | `lss-einruecken.user.js` | v0.3.0: Fahrzeuge zurück zur Wache rufen — **über den Einsatz**, mit dem Verweis „Alle eigenen Fahrzeuge rückalarmieren" (D-90) |
 | `lss-einsatz-flott.user.js` | v0.3.0: nächsten Einsatz vorwärmen — *nicht in dieser Ablage* |
 | `CLAUDE.md` | Arbeitsanweisung: Sprache, Prüfungen, Gefahren |
