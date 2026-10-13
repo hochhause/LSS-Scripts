@@ -56,6 +56,10 @@ nicht (D-108). Der Wachenpunkt `stationsPunkt()` (`:1108`) zählt Anhänger
 nicht mit. Eine Quelle für Namenslauf **und** Personallauf — zwei wären zwei
 Urteile über dieselbe Sache. Der Personallauf darf den Punkt eines grünen
 Fahrzeugs ändern, wenn er dessen Besatzung selbst verändert hat (D-108).
+Sitze zählt `sitzeVon()` (`:1944`): `custom_personal_max` aus dem Bestand,
+sonst der Katalog — ein umgerüsteter GTLF hat 9 statt 3 (D-111). Der Lauf
+`umruesten()` (`:2785`) bringt Fahrzeuge auf die Vorlage „Optimum" ihres Typs;
+Kauf- und Umrüstlauf lesen beim Start das Guthaben (`guthabenLesen()`, `:2683`).
 
 Offen laut Plan: rund 1.133 Fahrzeuge und 58,7 Mio. Credits an Ausbauten.
 Zwei Drittel der Käufe hängen an fehlenden Stellplatz-Ausbauten.

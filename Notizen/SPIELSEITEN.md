@@ -603,3 +603,36 @@ Daneben: `vehicle[caption]`, `vehicle[personal_max]`, `vehicle[start_delay]`,
 **Geschickt nur Name plus die drei Felder** — alle übrigen blieben nach dem
 Speichern unverändert (vorher/nachher gelesen). Das Spiel übernimmt also nur,
 was mitkommt.
+
+## Fahrzeug umrüsten (13.10.2026)
+
+Gemessen am GTLF 10000 W 127665490 (Feuer 16), rein lesend; dazu je ein
+Fahrzeug der Typen 28, 30, 46, 188, 189, 190.
+
+- **Seite** `/vehicles/<id>/refit`, Formular `#refit_form`, POST an
+  **`/refit_vehicle/<id>`**. Felder: utf8, authenticity_token,
+  `vehicle_fitting_template[id]` (leer = „Neue Umrüstung", sonst eine
+  Vorlagen-Id), `vehicle_fitting_template[template_caption]` (nur bei neuer
+  Vorlage, mind. 2 Zeichen), `cabin_size_new_value`,
+  `water_tank_capacity_new_value`, `pump_capacity_new_value`,
+  `foam_capacity_new_value`, `commit`.
+- **Zwei Knöpfe** `commit`: „Fahrzeug umrüsten (10 Coins)" und
+  „Fahrzeug umrüsten (N Credits)". Der Coins-Knopf setzt per Skript
+  `#refit_with_coins` — das Feld steht nicht im Formular, gesendet wird es nur
+  über den Coins-Klick. Der Credits-Preis war bei allen Proben der Kaufpreis
+  (GTLF 10.000, TLF 5000 W 5.000, HLF 20 20.000, GW-Waldbrand 20.000,
+  RTW 5.000, WLF 5.000). Ob er mit den Änderungen steigt, ist ungemessen.
+- **Vorlagen gelten je Fahrzeugtyp.** „Optimum" (230321) stand nur beim
+  GTLF 10000 W in der Auswahl. Werte:
+  `/vehicle_fitting_templates/<id>/fitting_values` →
+  `{success, cabin_size, water_tank_capacity, pump_capacity, foam_capacity}`.
+- **Regler** je Typ verschieden, z. B. GTLF 10000 W: Sitze 1–9, Wasser
+  0–20000, Pumpe 500–6000, SLM 0–5000; HLF 20: Wasser 0–5000, Pumpe 0–4000,
+  SLM 0–1500. RTW und WLF haben keine Regler, nur Knopf.
+- **Während des Umbaus** (48 h): `.refit-timer` auf der Seite, „wird
+  umgerüstet: Direkt fertigstellen (6 Coins) Abbrechen", FMS 6, kein
+  Credits-Knopf. **Die API zeigt die Zielwerte schon jetzt.**
+- **API** `/api/v2/vehicles`: `custom_personal_max`, `custom_water_amount`,
+  `custom_pump_amount`, `custom_foam_amount` je Fahrzeug (bei 2093 Fahrzeugen
+  gesetzt, Wasser/Pumpe/Schaum bei 210 ungleich 0). `/api/vehicles` nennt
+  nur `max_personnel_override`.

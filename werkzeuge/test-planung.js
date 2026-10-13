@@ -66,14 +66,14 @@ const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, bes
            bedarfKeys, doppelKombis, zaehleAus, quals, S,
            courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
            verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
-           anhaengerAn, fahrzeugStand, punkteFuerWache, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN: PB,
+           anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN: PB,
            MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
            nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, quals, S,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
         verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
-        anhaengerAn, fahrzeugStand, punkteFuerWache, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN,
+        anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN,
         MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
         nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken } = kern;
 
@@ -1356,6 +1356,23 @@ console.log('\n33. Punkt je Fahrzeug');
   const mzb = fz(70, { zugfahrzeug: null });
   wache([zug, mzb]);
   pruefe('Anhaenger hat keinen eigenen Stand', fahrzeugStand(mzb, []), null);
+}
+
+{
+  /* Umgeruestet (D-111): ein GTLF 10000 W mit 9 statt 3 Sitzen. Drei Leute
+     mit Waldbrand-Lehrgang machten ihn frueher gruen — jetzt nur gelb. */
+  const wald = () => new Set(['wildfire']);
+  const v = fz(189, { sitze: 9 });
+  wache([v]);
+  pruefe('umgeruesteter GTLF zaehlt 9 Sitze', sitzeVon(v), 9);
+  pruefe('anforderung sieht sie auch', anforderung(v).max, 9);
+  pruefe('drei Leute: nur gelb', fahrzeugStand(v, [wald(), wald(), wald()]).art, 'teil');
+  pruefe('neun Leute: gruen',
+         fahrzeugStand(v, Array.from({ length: 9 }, wald)).art, 'voll');
+  const alt = fz(189);
+  wache([alt]);
+  pruefe('ohne Umruestung gilt der Katalog', sitzeVon(alt), 3);
+  pruefe('Anhaenger bleiben ohne Sitze, auch mit Eintrag', sitzeVon(fz(70, { sitze: 4 })), 0);
 }
 
 /* ── 34. Anhaenger: gruen, wenn ein passendes Zugfahrzeug da ist ───────

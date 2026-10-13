@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.67.0
+// @version      0.68.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.67.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.68.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -817,7 +817,12 @@ const slimVehicle = v => ({
      Fahrzeug der Wache. Ohne dieses Feld fiel die Lehrgangsforderung des
      Anhängers still unter den Tisch — niemand beanspruchte ihn, also verlangte
      ihn auch niemand (D-88). */
-  zufallszug: v.tractive_random === true
+  zufallszug: v.tractive_random === true,
+  /* Umrüstung (D-111): eigene Sitzzahl, Wasser, Pumpe, Sonderlöschmittel.
+     Ein umgerüsteter GTLF hat 9 statt 3 Sitze — wer weiter mit dem Katalog
+     rechnet, besetzt drei und nennt ihn voll. */
+  sitze: v.custom_personal_max ?? null,
+  umbau: [v.custom_personal_max, v.custom_water_amount, v.custom_pump_amount, v.custom_foam_amount]
 });
 
 function indexVehicles() {
@@ -1666,7 +1671,7 @@ function punkteFuerWache(b, besatzung) {
     const passt = zulaessig.find(z => {
       const zs = stand.get(z.id);
       if (!zs || zs.art === 'leer') return false;          // kann selbst nicht ausrücken
-      return !anhaengerLuecke(meta, T.veh(z.vehicle_type), besatzung.get(z.id) || []);
+      return !anhaengerLuecke(meta, z, besatzung.get(z.id) || []);
     });
     if (passt) { stand.set(v.id, { art: 'voll', grund: '' }); continue; }
     /* Den Grund vom nächstbesten Zugfahrzeug nehmen: bevorzugt das gekoppelte,
@@ -1675,7 +1680,7 @@ function punkteFuerWache(b, besatzung) {
     const zs = stand.get(z.id);
     const grund = !zs ? 'nicht beurteilbar'
       : zs.art === 'leer' ? zs.grund
-      : anhaengerLuecke(meta, T.veh(z.vehicle_type), besatzung.get(z.id) || []);
+      : anhaengerLuecke(meta, z, besatzung.get(z.id) || []);
     stand.set(v.id, { art: 'leer', grund: `${ohneHaken(z.caption)}: ${grund}` });
   }
   return stand;
@@ -1685,10 +1690,10 @@ function punkteFuerWache(b, besatzung) {
     des Anhängers so viele Leute, wie die Einsatzstelle verlangt — höchstens
     so viele, wie das Zugfahrzeug Sitze hat. Dieselbe Zählung wie in
     `anforderung` für gekoppelte Anhänger. Leer heißt: es passt. */
-function anhaengerLuecke(meta, zugMeta, leute) {
+function anhaengerLuecke(meta, zug, leute) {
   for (const k of meta.kurse || []) {
     let n = k.art === 'alle' ? (meta.est || 0) : (k.n || meta.est || 0);
-    if (zugMeta?.max) n = Math.min(n, zugMeta.max);
+    if (sitzeVon(zug)) n = Math.min(n, sitzeVon(zug));
     const da = leute.filter(p => p.has(k.k)).length;
     if (da < n) return `${da} von ${n} mit ${kursNamen(k.k)[0] || k.k}`;
   }
@@ -1934,9 +1939,21 @@ function verkaufsKandidaten(b, typId, anzahl) {
 const verkaufsNamen = (b, s) =>
   verkaufsKandidaten(b, s.id, s.n).fallen.map(v => v.caption).join(', ');
 
+/** Sitze eines Fahrzeugs: die umgerüstete Zahl aus dem Bestand, sonst der
+    Katalog (D-111). Anhänger bleiben bei 0 — umrüsten gibt ihnen keine. */
+function sitzeVon(v) {
+  const max = T.veh(v?.vehicle_type)?.max || 0;
+  const eigen = Number(v?.sitze);
+  return max > 0 && eigen > 0 ? eigen : max;
+}
+
 /** Was ein Fahrzeug samt Anhängern an Personal und Kursen verlangt. */
 function anforderung(v) {
-  const meta = T.veh(v.vehicle_type) || {};
+  /* Der Katalog mit der echten Sitzzahl: alles darunter rechnet mit `meta.max`
+     und soll die umgerüstete sehen. Die Mindestbesetzung bleibt — nur kann sie
+     nie über den Sitzen liegen. */
+  const kat = T.veh(v.vehicle_type) || {};
+  const meta = kat.max ? { ...kat, max: sitzeVon(v), min: Math.min(kat.min ?? 0, sitzeVon(v)) } : kat;
   const alle = new Set(), mind = new Map();
   /* amZug = die Anforderung stammt von einem Anhänger. Dann gilt sie nur für
      so viele Plätze, wie der Anhänger an der Einsatzstelle verlangt — der
@@ -2373,8 +2390,9 @@ function fahrzeugStand(v, besatzung) {
   if (!meta || !meta.max) return null;
   const fehlt = fehltAn(v, besatzung);
   if (fehlt) return { art: 'leer', grund: fehlt };
-  if (besatzung.length < meta.max)
-    return { art: 'teil', grund: `${besatzung.length} von ${meta.max} Sitzen besetzt` };
+  const sitze = sitzeVon(v);
+  if (besatzung.length < sitze)
+    return { art: 'teil', grund: `${besatzung.length} von ${sitze} Sitzen besetzt` };
   return { art: 'voll', grund: '' };
 }
 
@@ -2657,9 +2675,41 @@ async function buildExtensions(sel, dry) {
   return n;
 }
 
+/* ── Geld (D-111) ─────────────────────────────────────────────────────
+   Sasha, 13.10.: Läufe, die Credits kosten, lesen beim Start das Guthaben
+   und hören auf, bevor sie mehr ausgeben würden, als da ist. Gerechnet wird
+   mit dem eigenen Zähler, nicht mit einem zweiten Abruf: das Spiel bucht
+   teils verzögert ab, die Anzeige hinkt dann hinterher. */
+async function guthabenLesen() {
+  const j = JSON.parse(await getText('/api/credits'));
+  const n = Number(j?.credits_user_current);
+  if (!Number.isFinite(n)) throw new Error('Guthaben nicht lesbar (/api/credits)');
+  return n;
+}
+
+/* Kaufpreise je Gebäudeart — die Kaufseite nennt sie auf dem Knopf
+   („5.000 Credits"). Gelesen wird je Art einmal pro Lauf. */
+const preisCache = new Map();
+async function kaufpreise(b) {
+  const art = b.building_type;
+  if (preisCache.has(art)) return preisCache.get(art);
+  const doc = new DOMParser().parseFromString(await getText(`/buildings/${b.id}/vehicles/new`), 'text/html');
+  const preise = new Map();
+  for (const a of doc.querySelectorAll('a[href*="/credits"]')) {
+    const typ = (a.getAttribute('href').match(/\/vehicle\/\d+\/(\d+)\/credits/) || [])[1];
+    const c = (a.textContent.match(/([\d.']+)\s*Credits/) || [])[1];
+    if (typ && c) preise.set(typ, Number(c.replace(/[.']/g, '')));
+  }
+  preisCache.set(art, preise);
+  return preise;
+}
+
 async function buyVehicles(sel, dry) {
   const streng = S.opts.strict !== false;   // Voreinstellung: nur bei fertigen Stellplätzen
-  let n = 0, uebersprungen = 0, vertagt = 0;
+  let n = 0, uebersprungen = 0, vertagt = 0, zuTeuer = 0, ausgegeben = 0;
+  preisCache.clear();
+  const kasse = await guthabenLesen();
+  log(`Guthaben ${kasse.toLocaleString('de-CH')} Credits — gekauft wird höchstens bis dahin.`);
 
   for (const b of sel) {
     const missing = analyse(b).vehMissing;
@@ -2683,9 +2733,17 @@ async function buyVehicles(sel, dry) {
           + `${topf ? topf.label : 'Stellplätze'} ${topf ? topf.belegt : '?'}/${topf ? topf.cap : '?'} belegt`, 'warn');
         vertagt += v.n - kaufen;
       }
+      const preis = kaufen ? (await kaufpreise(b)).get(String(v.id)) : null;
+      if (kaufen && preis == null) {
+        // Ohne Preis keine Rechnung — lieber nicht kaufen als blind überziehen.
+        log(`${b.caption}: ${v.name} — kein Preis auf der Kaufseite, nicht gekauft`, 'warn');
+        continue;
+      }
       for (let i = 0; i < kaufen; i++) {
-        log(`${b.caption}: kaufe ${v.name}`);
+        if (ausgegeben + preis > kasse) { zuTeuer += kaufen - i; break; }
+        log(`${b.caption}: kaufe ${v.name} (${preis.toLocaleString('de-CH')})`);
         if (!dry) { await getAction(`/buildings/${b.id}/vehicle/${b.id}/${v.id}/credits?building=${b.id}`); fahrzeugDazu(b, v.id, v.name); }
+        ausgegeben += preis;
         if (topf) topf.belegt++;
         n++;
       }
@@ -2693,14 +2751,95 @@ async function buyVehicles(sel, dry) {
   }
   if (uebersprungen) log(`${uebersprungen} Wachen übersprungen — dort erst Ausbauten bauen oder Überzählige zerstören.`, 'warn');
   if (vertagt) log(`${vertagt} Fahrzeuge nicht gekauft, weil kein Stellplatz frei ist.`, 'warn');
-  /* Das Guthaben prüft der Planer nicht: `PB` kennt Personal, nicht Preise,
-     und ein abgelehnter Kauf antwortet mit demselben HTTP 200 wie ein
-     erfolgreicher. Gezählt wird deshalb der **Versuch**. Das gehört gesagt —
-     sonst liest man „+12" und hat sechs (D-88). */
+  if (zuTeuer) log(`${zuTeuer} Fahrzeuge nicht gekauft — das Guthaben vom Laufbeginn ist aufgebraucht.`, 'warn');
+  if (n) log(`${dry ? 'Würde' : 'Hat'} ${ausgegeben.toLocaleString('de-CH')} von ${kasse.toLocaleString('de-CH')} Credits ${dry ? 'ausgeben' : 'ausgegeben'}.`);
+  /* Ein abgelehnter Kauf antwortet mit demselben HTTP 200 wie ein
+     erfolgreicher. Gezählt wird deshalb der **Versuch** (D-88). Seit D-111
+     rechnet der Lauf das Guthaben mit, still abgelehnt wird also nur noch,
+     wenn zwischendurch anderswo Geld ausgegeben wurde. */
   if (n && !dry)
-    log(`${n} Käufe abgeschickt — ob alle durchgingen, weiß der Planer nicht: `
-      + `reicht das Guthaben nicht, lehnt das Spiel still ab. `
-      + `„Bestand neu laden" zeigt den wahren Stand.`, 'warn');
+    log(`${n} Käufe abgeschickt — „Bestand neu laden" zeigt den wahren Stand.`);
+  return n;
+}
+
+/* ── Umrüsten auf „Optimum" (D-111) ───────────────────────────────────
+   Gemessen am 13.10.2026 (SPIELSEITEN.md, „Fahrzeug umrüsten"):
+   `/vehicles/<id>/refit` bietet die eigenen Vorlagen **des Fahrzeugtyps** an;
+   `/vehicle_fitting_templates/<id>/fitting_values` nennt ihre Werte;
+   gespeichert wird per POST an `/refit_vehicle/<id>`. Der Knopf nennt den
+   Preis (bisher stets der Kaufpreis), der Umbau dauert 48 Stunden auf
+   Status 6. Die API zeigt schon während des Umbaus die Zielwerte.
+
+   Welche Vorlage gilt, legt Sasha je Typ von Hand an — sie muß „Optimum"
+   heißen. Ein Typ ohne sie bleibt unberührt. */
+async function optimumFuer(v) {
+  const doc = new DOMParser().parseFromString(await getText(`/vehicles/${v.id}/refit`), 'text/html');
+  const opt = [...doc.querySelectorAll('select[name="vehicle_fitting_template[id]"] option')]
+    .find(o => o.value && o.textContent.trim() === 'Optimum');
+  if (!opt) return null;
+  const w = JSON.parse(await getText(`/vehicle_fitting_templates/${opt.value}/fitting_values`));
+  if (!w?.success) throw new Error(`Vorlage „Optimum" (${opt.value}) nicht lesbar`);
+  return { id: opt.value, werte: [w.cabin_size, w.water_tank_capacity, w.pump_capacity, w.foam_capacity].map(Number) };
+}
+
+async function umruesten(sel, dry) {
+  let n = 0, schon = 0, zuTeuer = 0, ausgegeben = 0;
+  const kasse = await guthabenLesen();
+  log(`Guthaben ${kasse.toLocaleString('de-CH')} Credits — umgerüstet wird höchstens bis dahin.`);
+  const vorlagen = new Map();                       // Fahrzeugtyp → Optimum oder null
+  const pruefung = vorlagenPruefen();
+  const marken = markenFuer(MARKEN_FZ);
+  for (const b of sel) {
+    for (const v of echteVon(b)) {
+      if (abgebrochen()) { log('Abgebrochen.', 'warn'); return n; }
+      if (!vorlagen.has(v.vehicle_type)) vorlagen.set(v.vehicle_type, await optimumFuer(v));
+      const vl = vorlagen.get(v.vehicle_type);
+      if (!vl) continue;
+      if (vl.werte.every((w, i) => Number(v.umbau?.[i]) === w)) { schon++; continue; }
+      const doc = new DOMParser().parseFromString(await getText(`/vehicles/${v.id}/refit`), 'text/html');
+      if (doc.querySelector('.refit-timer')) { schon++; continue; }     // wird schon umgerüstet
+      const form = doc.querySelector('#refit_form');
+      const knopf = [...(form?.querySelectorAll('input[name="commit"]') || [])].find(k => /Credits/.test(k.value));
+      const preis = Number(((knopf?.value || '').match(/([\d.']+)\s*Credits/) || [])[1]?.replace(/[.']/g, ''));
+      if (!form || !knopf || !Number.isFinite(preis)) {
+        log(`${b.caption}: ${v.caption} — Umrüstformular nicht lesbar, übersprungen`, 'warn');
+        continue;
+      }
+      if (ausgegeben + preis > kasse) { zuTeuer++; continue; }
+      log(`${b.caption}: ${v.caption} → Optimum (${preis.toLocaleString('de-CH')} Credits, 48 h Status 6)`);
+      ausgegeben += preis; n++;
+      if (dry) continue;
+      const [sitze, wasser, pumpe, schaum] = vl.werte;
+      await postForm(form.getAttribute('action'), {
+        utf8: '✓',
+        'vehicle_fitting_template[id]': vl.id,
+        'vehicle_fitting_template[template_caption]': '',
+        cabin_size_new_value: sitze, water_tank_capacity_new_value: wasser,
+        pump_capacity_new_value: pumpe, foam_capacity_new_value: schaum,
+        commit: knopf.value               // der Credits-Knopf, nicht der mit Coins
+      });
+      /* Ob es angenommen wurde, sagt die Antwort nicht verläßlich — die API
+         schon: sie zeigt die Zielwerte, sobald der Umbau läuft. */
+      const neu = JSON.parse(await getText(`/api/v2/vehicles/${v.id}`))?.result || {};
+      const umbau = [neu.custom_personal_max, neu.custom_water_amount, neu.custom_pump_amount, neu.custom_foam_amount];
+      if (!vl.werte.every((w, i) => Number(umbau[i]) === w)) {
+        log(`   nicht übernommen — die API zeigt ${umbau.join(' / ')}`, 'err');
+        ausgegeben -= preis; n--;
+        continue;
+      }
+      v.sitze = sitze; v.umbau = umbau; merkeAenderung();
+      /* Mehr Sitze, gleiche Besatzung: ein bisher grünes Fahrzeug ist jetzt
+         nur noch gelb (Sasha, 13.10.). Der Grün-Schutz hielte das 🟢 fest,
+         obwohl dieser Lauf die Sitze eben selbst verändert hat. */
+      if (!pruefung.fehler && hatHaken(v.caption) && v.besatzung != null && v.besatzung < sitze)
+        await fahrzeugNameSetzen(b, v, PUNKT_TEIL, pruefung.vorlageFz, marken, dry, true);
+    }
+  }
+  const ohne = [...vorlagen].filter(([, x]) => !x).length;
+  log(`${n} Fahrzeuge ${dry ? 'würden umgerüstet' : 'umgerüstet'} für ${ausgegeben.toLocaleString('de-CH')} Credits`
+    + `${schon ? `, ${schon} stehen schon auf Optimum oder werden gerade umgerüstet` : ''}`
+    + `${ohne ? `, ${ohne} Fahrzeugtypen ohne Vorlage „Optimum" unberührt` : ''}.`, n ? 'good' : '');
+  if (zuTeuer) log(`${zuTeuer} Fahrzeuge nicht umgerüstet — das Guthaben vom Laufbeginn ist aufgebraucht.`, 'warn');
   return n;
 }
 
@@ -3075,7 +3214,7 @@ async function assignStaff(sel, dry) {
        Typ nicht, und das gehört gesagt statt still korrigiert. */
     for (const v of bemannbar) {
       const drauf = roster.people.filter(p => p.assignedTo === String(v.id)).length;
-      const sitze = T.veh(v.vehicle_type)?.max || 0;
+      const sitze = sitzeVon(v);
       if (drauf > sitze)
         log(`${b.caption}: ${v.caption} — ${drauf} Personen auf ${sitze} Sitzen `
           + `laut Stammdaten (Typ ${v.vehicle_type})`, 'warn');
@@ -3813,13 +3952,13 @@ const saveUi = () => store.set(KEY_UI, ui);
 const GRUPPEN = [
   { id: 'ueber',      name: 'Übersicht',  tabs: ['ueber'] },
   { id: 'plan',       name: 'Plan',       tabs: ['plan'] },
-  { id: 'bestand',    name: 'Bestand',    tabs: ['ausbau', 'kaufen', 'verkauf'] },
+  { id: 'bestand',    name: 'Bestand',    tabs: ['ausbau', 'kaufen', 'umbau', 'verkauf'] },
   { id: 'personal',   name: 'Personal',   tabs: ['personal', 'werben', 'anhaenger', 'leeren'] },
   { id: 'ausbildung', name: 'Ausbildung', tabs: ['lehrgang'] },
   { id: 'haken',      name: 'Namen',      tabs: ['haken'] }
 ];
 const TABNAME = {
-  ausbau: 'Ausbauten', kaufen: 'Kaufen', verkauf: 'Zerstören',
+  ausbau: 'Ausbauten', kaufen: 'Kaufen', umbau: 'Umrüsten', verkauf: 'Zerstören',
   personal: 'Zuweisen', werben: 'Werben', anhaenger: 'Anhänger koppeln', leeren: 'Alles lösen'
 };
 const gruppeVon = t => GRUPPEN.find(g => g.tabs.includes(t)) || GRUPPEN[0];
@@ -4322,6 +4461,12 @@ function render() {
       + 'nennt es nicht. Nicht rückgängig zu machen. Fahrzeuge im Einsatz werden übersprungen.'],
     werben:   ['3 Tage werben',        hire,
       'Startet an unterbesetzten Wachen eine dreitägige Bewerbungsphase. Kostet nichts.'],
+    umbau:    ['Umrüsten (Optimum)',   umruesten,
+      'Rüstet jedes Fahrzeug, für dessen Typ eine eigene Vorlage „Optimum" angelegt ist, '
+      + 'auf diese Vorlage um — Typen ohne sie bleiben unberührt. Kostet Credits (etwa den '
+      + 'Kaufpreis) und legt das Fahrzeug 48 Stunden auf Status 6, alle auf einmal. Liest '
+      + 'beim Start das Guthaben und hört auf, bevor es aufgebraucht ist. Wer mehr Sitze '
+      + 'bekommt, wird von Grün auf Gelb umbenannt; den Rest besetzt der nächste Personallauf.'],
     anhaenger:['Anhänger koppeln',     linkTrailers,
       'Ordnet jedem Anhänger ein festes Zugfahrzeug zu. Braucht einen Abruf je Fahrzeug und dauert entsprechend.'],
     leeren:   ['Zuweisungen lösen',    zuweisungenLoeschen,
@@ -4982,7 +5127,8 @@ function render() {
       <span style="color:var(--lp-dim2)">— jedes Fahrzeug bekommt gleich hier seinen Punkt,
       nach der Vorlage aus dem Reiter „Namen": ${HAKEN} jeder Sitz belegt, ${PUNKT_TEIL} ab
       Mindestbesetzung, ${PUNKT_LEER} darunter. Spart den zweiten Durchgang samt zweitem Abruf
-      je Wache. Grüne Fahrzeuge bleiben unberührt, solange sie nicht freigegeben sind.</span></label>
+      je Wache. Grüne Fahrzeuge bleiben unberührt, es sei denn, dieser Lauf hat ihre
+      Besatzung selbst verändert — dann bekommen sie den Punkt, der jetzt stimmt.</span></label>
     <label style="display:block;margin:0 0 10px;color:${S.opts.ausbautenSchalten ? 'var(--lp-akzent)' : 'var(--lp-dim)'}">
       <input type="checkbox" id="lssp-ausbschalt" ${S.opts.ausbautenSchalten ? 'checked' : ''}>
       <b>Ausbauten und Wache mitschalten</b>

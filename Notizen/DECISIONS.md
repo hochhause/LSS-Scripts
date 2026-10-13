@@ -2930,3 +2930,45 @@ darf auch ans WLF, aber nicht nur, und bleibt fest gekoppelt.
 
 Der Speichervorgang ist einmal echt geprüft (SPIELSEITEN.md, „Fahrzeug
 bearbeiten — Abrollbehälter").
+
+## D-111 Umrüsten auf „Optimum", echte Sitzzahl, Geldbremse (v0.68.0)
+
+**Auftrag (Sasha, 13.10.2026).** Ein eigener Lauf, der jedes Fahrzeug auf die
+von Hand angelegte Umrüst-Vorlage „Optimum" bringt; Typen ohne Vorlage
+bleiben unberührt. Dazu drei Antworten auf Rückfrage:
+- **Geld:** beim Start das Guthaben lesen und aufhören, bevor es aufgebraucht
+  wäre — **auch im Kauflauf**.
+- **Ausfall:** alle auf einmal, obwohl jedes Fahrzeug 48 h auf Status 6 steht.
+- **Sitze:** der Planer rechnet mit der umgerüsteten Sitzzahl.
+Und nachgereicht: wer mehr Sitze bekommt, muß von Grün auf Gelb umbenannt
+werden.
+
+**Umgesetzt.**
+- `umruesten(sel, dry)`, Reiter Bestand → „Umrüsten". Vorlage je Typ aus der
+  Auswahl der Umrüstseite (Name genau „Optimum"), Werte aus
+  `fitting_values`. Abweichung erkannt an `custom_*` der API, ohne Seitenabruf;
+  läuft der Umbau schon, zeigt die API die Zielwerte — dann nichts zu tun.
+  Erfolg wird an der API nachgelesen, nicht an der Antwort. Gesendet wird der
+  **Credits**-Knopf; ein Coins-Umbau ist ausgeschlossen.
+- `sitzeVon(v)`: `custom_personal_max` aus dem Bestand, sonst Katalog;
+  Anhänger bleiben 0. Benutzt in `anforderung` (dort auch `min` höchstens die
+  Sitze), `fahrzeugStand`, `anhaengerLuecke` und der Sitzprüfung im
+  Personallauf. **Nicht** in den Plan-Rechnungen je Typ (`courseNeed`,
+  Sitzsummen der Übersicht): das Wunschbild kennt Typen, keine einzelnen
+  Fahrzeuge.
+- Grün → Gelb: nach einem angenommenen Umbau benennt der Lauf das Fahrzeug
+  selbst um, wenn es 🟢 trug und die Besatzung die neuen Sitze nicht füllt —
+  über den Grün-Schutz hinweg wie in D-108, weil dieser Lauf die Sitze
+  verändert hat. Den Rest besetzt der nächste Personallauf.
+- Geldbremse `guthabenLesen()`: gerechnet wird mit dem eigenen Zähler ab
+  Laufbeginn (die Anzeige des Spiels hinkt beim Abbuchen nach, D-107/Lehrgänge
+  12.10.). Kaufpreise liest `kaufpreise(b)` vom Kaufknopf, je Gebäudeart einmal
+  pro Lauf. **Ohne Preis wird nicht gekauft** — lieber eine Meldung als ein
+  blinder Kauf.
+
+**Verworfen:** den Preis aus der LSS-Manager-API zu nehmen. Sie weicht bei
+sieben Fahrzeugen vom Spiel ab (Planblatt 09.10.), und der Kaufknopf ist ohnehin
+da.
+
+**Noch nicht im Spiel gelaufen.** Formular und Felder sind gemessen, ein echter
+Umbau über den Planer noch nicht. Erster Lauf mit „Nur Vorschau".
