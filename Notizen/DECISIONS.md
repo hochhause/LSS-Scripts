@@ -2994,3 +2994,23 @@ Abruf. HLF Schiene und SLF stehen meist, darum fiel es dort nicht auf. Jetzt
 wird `/api/v2/vehicles/<id>` unmittelbar vor dem POST gelesen; nur Status 2
 geht raus. Ein Fahrzeug, das zwischen dieser Abfrage und dem Absenden
 alarmiert wird, fängt weiterhin die Nachprüfung an der API.
+
+## D-112 Sprechwunsch: Abrollbehälter vom nächsten WLF abholen (lss-sprechwunsch v0.4.0)
+
+**Lage (Sasha, 15.10.2026).** Seit D-110 schicken Abrollbehälter ihr WLF heim
+und melden sich danach mit Sprechwunsch zur Abholung — eine dritte Sorte
+neben Patient und Gefangenem (`trailer`, SPIELSEITEN.md). Das Skript meldete
+sie als „unbekannte Art".
+
+**Entscheidung (Sasha, 15.10.).** Zuerst das WLF, das die Seite mit „Gleiches
+Gebäude" markiert — das der eigenen Wache des Behälters; fehlt es, das
+nächste. Kein Platz, keine Fachabteilung, keine Abgabe — mehr gibt es nicht
+abzuwägen. Sortiert wird selbst, nicht nach der Reihenfolge der Seite.
+
+**Verworfen:** immer das nächste WLF. So holte ein fremdes WLF den Behälter,
+während das eigene daheim stand — und band ein Fahrzeug einer anderen Wache.
+
+**Beobachtet:** Das gewählte WLF stand danach auf FMS 6, nicht 3, und fehlte in der
+Liste des nächsten wartenden AB — es ist also unterwegs. Ob das Spiel es
+so führt, solange es den Behälter holt, ist nicht geklärt — Sasha sieht es im
+Spiel.

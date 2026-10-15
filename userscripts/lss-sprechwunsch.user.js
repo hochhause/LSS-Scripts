@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Sprechwunsch — Ziel von selbst wählen
 // @namespace    https://leitstellenspiel.de/
-// @version      0.3.0
+// @version      0.4.0
 // @description  Ein Knopf neben dem FMS-Zeichen erledigt den Sprechwunsch: Patient ins nächste passende Krankenhaus, Gefangener in die nächste freie Zelle
 // @match        https://www.leitstellenspiel.de/*
 // @grant        none
@@ -14,7 +14,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.3.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.4.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 
 /* Zwei Teile mit verschiedenen Bühnen, seit v0.3.0.
 
@@ -36,7 +36,8 @@ const imRahmen = window.top !== window.self;
    kommen vor — ein Patient will ins Krankenhaus, ein Gefangener in eine
    Zelle. **Welche von beiden es ist, wird nicht am Fahrzeugtyp geraten**:
    `/vehicles/<id>` sagt es selbst, im Attribut `data-transport-request-type`
-   („patient" oder „prisoner", SPIELSEITEN.md 04.10.2026).
+   („patient" oder „prisoner", SPIELSEITEN.md 04.10.2026; seit v0.4.0 auch
+   „trailer" — ein Abrollbehälter will abgeholt werden).
 
    Die beiden Sorten liefern ihre Ziele auf **verschiedenen Wegen**, und das
    ist keine Schönheitsfrage: die Krankenhäuser stehen fertig als Tabellen im
@@ -169,6 +170,28 @@ async function zellen(fzId, missionId) {
   }));
 }
 
+/** Abrollbehälter, die an der Einsatzstelle stehen und abgeholt werden
+    wollen (seit dem Modus „WLF zur Wache schicken", Planer D-110). Die
+    Fahrzeugseite fragt „Welches Zugfahrzeug soll zum Transport genutzt
+    werden?" und listet in `#vehicle_show_table` die WLF mit Entfernung und
+    einem Verweis `/vehicles/<AB>/alarm?vehicle_ids[]=<WLF>` — ein schlichter
+    GET, gemessen und einmal echt ausgelöst am 15.10.2026. */
+function zugfahrzeuge(doc) {
+  return [...doc.querySelectorAll('#vehicle_show_table tbody tr')].map(tr => {
+    const a = tr.querySelector('a[href*="/alarm?vehicle_ids"]');
+    if (!a) return null;
+    const wache = tr.children[3]?.textContent.trim().replace(/\s+/g, ' ') || '';
+    return {
+      name: tr.children[1]?.textContent.trim().replace(/\s+/g, ' ') || 'WLF',
+      km: km(tr.children[2]?.textContent || ''),
+      // Die Seite markiert das WLF der eigenen Wache des Behälters mit „Gleiches Gebäude".
+      gleich: /Gleiches Gebäude/.test(wache),
+      wache: wache.replace(/\s*Gleiches Gebäude\s*/, ''),
+      href: a.getAttribute('href')
+    };
+  }).filter(Boolean);
+}
+
 /** Aus den Angeboten das Ziel wählen. Gibt Ziel **oder** Grund zurück. */
 function zielWaehlen(liste, braucht) {
   if (!liste.length) return { grund: 'die Seite bietet kein einziges Ziel an' };
@@ -202,7 +225,7 @@ async function erledige(fzId, name) {
      erkennt die Sorte nicht wieder. Gesucht wird deshalb der genaue Wert. */
   const sorten = [...doc.querySelectorAll('[data-transport-request-type]')]
     .map(e => e.getAttribute('data-transport-request-type'));
-  const sorte = sorten.find(v => v === 'prisoner' || v === 'patient') || sorten[0];
+  const sorte = sorten.find(v => v === 'prisoner' || v === 'patient' || v === 'trailer') || sorten[0];
 
   let art, wahl;
   if (sorte === 'prisoner') {
@@ -217,6 +240,18 @@ async function erledige(fzId, name) {
   } else if (sorte === 'patient') {
     art = 'Krankenhaus';
     wahl = zielWaehlen(krankenhaeuser(doc), 'fach');
+  } else if (sorte === 'trailer') {
+    /* Zuerst das WLF der eigenen Wache („Gleiches Gebäude"), sonst das
+       nächste (Sasha, 15.10.) — so kommt der Behälter mit dem Fahrzeug heim,
+       zu dem er gehört, statt ein fremdes WLF quer durchs Gebiet zu binden. */
+    art = 'Zugfahrzeug';
+    const liste = zugfahrzeuge(doc).sort((a, b) => (b.gleich - a.gleich) || (a.km ?? 1e9) - (b.km ?? 1e9));
+    if (!liste.length) return { art, fehler: 'die Seite bietet kein Zugfahrzeug an' };
+    const z = liste[0];
+    await getAction(z.href);
+    log(`${name}: abholen mit ${z.name} (${z.wache}${z.gleich ? ', eigene Wache' : ''}) — `
+      + `${z.km != null ? z.km.toFixed(2) + ' km' : 'Entfernung unbekannt'}`, 'good');
+    return { art, ziel: z };
   } else {
     /* Eine dritte Sorte hat hier niemand gemessen — und ein erledigter
        Sprechwunsch sieht genauso aus. Beides gehört gemeldet, nicht geraten. */
@@ -515,7 +550,7 @@ function zeichne() {
   b.innerHTML = `
     <p class="hint">Erledigt Sprechwünsche: der Patient kommt ins <b>nächste</b> Krankenhaus mit
       freier Kapazität <b>und</b> passender Fachabteilung, der Gefangene in die nächste Wache mit
-      freier Zelle. Eigene und Verbandsziele stehen dabei in einem Topf — das Spiel führt sie
+      freier Zelle, ein wartender Abrollbehälter wird vom nächsten WLF abgeholt. Eigene und Verbandsziele stehen dabei in einem Topf — das Spiel führt sie
       getrennt auf, dieses Skript sortiert sie zusammen.
       <b>Der Knopf in der Zeile schickt sofort</b> — es gibt keine Zwischenstufe. Findet sich
       kein passendes Ziel, passiert nichts und der Grund steht im Titel des Knopfes.</p>

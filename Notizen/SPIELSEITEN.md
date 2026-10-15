@@ -641,3 +641,22 @@ Fahrzeug der Typen 28, 30, 46, 188, 189, 190.
   `custom_pump_amount`, `custom_foam_amount` je Fahrzeug (bei 2093 Fahrzeugen
   gesetzt, Wasser/Pumpe/Schaum bei 210 ungleich 0). `/api/vehicles` nennt
   nur `max_personnel_override`.
+
+## Sprechwunsch eines Abrollbehälters (15.10.2026)
+
+Seit dem Modus „WLF zur Wache schicken" (D-110) bleibt der AB an der
+Einsatzstelle stehen und geht auf **FMS 5**. Gemessen an AB-Atemschutz
+126185131 (Feuer 18), einmal echt ausgelöst:
+
+- `/vehicles/<AB>` trägt `data-transport-request-type="trailer"` und fragt
+  „Welches Zugfahrzeug soll zum Transport genutzt werden?".
+- Tabelle `#vehicle_show_table`, Spalten: Knopf · Fahrzeug · Entfernung ·
+  Wache (`hidden-xs`). Die Entfernungszelle trägt `sortvalue`; die Seite
+  liefert die Zeilen schon nach Entfernung sortiert. Das WLF der Wache des
+  Behälters trägt in der Wachenspalte zusätzlich „Gleiches Gebäude". 46 WLF angeboten, alle
+  eigene.
+- Knopf: `<a class="btn btn-success" href="/vehicles/<AB>/alarm?vehicle_ids[]=<WLF>">Alarmieren</a>`
+  — ein schlichter **GET**, kein `data-method`.
+- Danach: die Seite des AB zeigt FMS 6 und keine Auswahl mehr; das gewählte
+  WLF stand ebenfalls auf FMS 6 (nicht 3). `/api/v2/vehicles` zeigte beides
+  erst verzögert — eine Sekunden später gelesene Liste sah unverändert aus.
