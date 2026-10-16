@@ -104,8 +104,13 @@ async function apiGet(path, { fresh = false } = {}) {
   cache.set(path, data);
   return data;
 }
-const getText = path => queued(async sig => {
-  const r = await fetch(path, { credentials: 'same-origin', signal: sig });
+/* `frisch`: am Zwischenspeicher des Browsers vorbei. Die API erlaubt 60 s
+   (SPIELSEITEN.md) — wer dieselbe Adresse vor und nach einer Änderung liest,
+   bekäme sonst zweimal den Stand von davor (16.10.: Umrüsten meldete
+   „nicht übernommen", obwohl umgerüstet war). */
+const getText = (path, frisch = false) => queued(async sig => {
+  const r = await fetch(path, { credentials: 'same-origin', signal: sig,
+                                cache: frisch ? 'no-store' : 'default' });
   if (!r.ok) throw new Error(`${path} → HTTP ${r.status}`);
   return r.text();
 }, READ_DELAY);
@@ -2714,7 +2719,8 @@ async function buildExtensions(sel, dry) {
    mit dem eigenen Zähler, nicht mit einem zweiten Abruf: das Spiel bucht
    teils verzögert ab, die Anzeige hinkt dann hinterher. */
 async function guthabenLesen() {
-  const j = JSON.parse(await getText('/api/credits'));
+  // Frisch: ein zweiter Lauf binnen einer Minute sähe sonst das Guthaben von davor
+  const j = JSON.parse(await getText('/api/credits', true));
   const n = Number(j?.credits_user_current);
   if (!Number.isFinite(n)) throw new Error('Guthaben nicht lesbar (/api/credits)');
   return n;
@@ -2828,7 +2834,7 @@ async function umruesten(sel, dry) {
   const vorlagen = new Map();                       // Fahrzeugtyp → Optimum oder null
   const pruefung = vorlagenPruefen();
   const marken = markenFuer(MARKEN_FZ);
-  for (const b of sel) {
+  laeufe: for (const b of sel) {
     for (const v of echteVon(b)) {
       if (abgebrochen()) { log('Abgebrochen.', 'warn'); return n; }
       if (!vorlagen.has(v.vehicle_type)) vorlagen.set(v.vehicle_type, await optimumFuer(v));
@@ -2862,7 +2868,7 @@ async function umruesten(sel, dry) {
          der Zwischenzeit alarmiert — und das Spiel lehnt den Umbau dann still
          ab (13.10.2026: sechs HLF 10 auf Status 4). Also frisch fragen. */
       if (!dry) {
-        const jetzt = JSON.parse(await getText(`/api/v2/vehicles/${v.id}`))?.result?.fms_real;
+        const jetzt = JSON.parse(await getText(`/api/v2/vehicles/${v.id}`, true))?.result?.fms_real;
         if (jetzt !== 2) {
           nichtBereit++;
           log(`${b.caption}: ${v.caption} — inzwischen auf Status ${jetzt ?? '?'}, umgerüstet wird nur auf 2`);
@@ -2888,12 +2894,23 @@ async function umruesten(sel, dry) {
         commit: knopf.value               // der Credits-Knopf, nicht der mit Coins
       });
       /* Ob es angenommen wurde, sagt die Antwort nicht verläßlich — die API
-         schon: sie zeigt die Zielwerte, sobald der Umbau läuft. */
-      const neu = JSON.parse(await getText(`/api/v2/vehicles/${v.id}`))?.result || {};
+         schon: sie zeigt die Zielwerte, sobald der Umbau läuft. Frisch gelesen,
+         sonst liefert der Browser die Antwort der Statusabfrage von eben. */
+      const neu = JSON.parse(await getText(`/api/v2/vehicles/${v.id}`, true))?.result || {};
       const umbau = [neu.custom_personal_max, neu.custom_water_amount, neu.custom_pump_amount, neu.custom_foam_amount];
       if (!aufOptimum(vl.werte, umbau)) {
-        log(`   nicht übernommen — die API zeigt ${umbau.join(' / ')}`, 'err');
-        ausgegeben -= preis; n--;
+        /* Der Preis bleibt als ausgegeben stehen. Bis v0.68.3 wurde er
+           zurückgebucht — und weil die Prüfung falsch „nicht übernommen" sagte,
+           lief die Geldbremse nie an, bis das Konto leer war (16.10.). Lieber
+           zu früh aufhören als zu spät. Ob es am Geld lag, sagt der Kontostand. */
+        n--;
+        const rest = await guthabenLesen().catch(() => null);
+        log(`   nicht übernommen — die API zeigt ${umbau.join(' / ')}`
+          + (rest != null && rest < preis ? ` · Kontostand ${rest.toLocaleString('de-CH')} Credits reicht nicht` : ''), 'err');
+        if (rest != null && rest < preis) {
+          log('Abbruch: kein Guthaben mehr für weitere Umrüstungen.', 'warn');
+          break laeufe;
+        }
         continue;
       }
       if (sitze != null) v.sitze = sitze;

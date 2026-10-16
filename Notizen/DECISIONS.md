@@ -3118,3 +3118,15 @@ Das Wunschbild rechts gilt je Art; faßt ein Reiter mehrere mit Wunschbild,
 wählt man die Art darüber. Beim Nachmessen aufgefallen: `GEBAEUDE_NAMEN` hatte
 vier Arten falsch (SPIELSEITEN.md) — ohne Folgen für die Rechnung, weil
 Wunschbild und Stellplätze an den Nummern hängen, nicht an den Namen.
+
+**Nachtrag 5 (16.10.): Umrüsten meldete „nicht übernommen", obwohl umgerüstet war.**
+Der Lauf las `/api/v2/vehicles/<id>` vor dem Absenden (Status) und danach
+(Prüfung). Die API erlaubt 60 s Zwischenspeicher; der Browser lieferte beim
+zweiten Mal die erste Antwort. Gemessen nach dem Lauf: Feuer 21, die beiden
+#-14/#-15-Wachen und zwei Fahrzeuge von Feuer 22 standen auf Optimum, FMS 6.
+Folgefehler: jede vermeintliche Ablehnung buchte den Preis zurück, die
+Geldbremse griff nie, das Konto lief auf 6.847 Credits leer, der Rest wurde
+vom Spiel abgelehnt (ohne Abbuchung). Jetzt: `getText(path, true)` liest mit
+`cache: 'no-store'` (Statusabfrage, Prüfung, Guthaben); der Preis bleibt
+auch bei Ablehnung gebucht; bei einer Ablehnung wird der Kontostand gelesen
+und der Lauf endet, wenn er den nächsten Preis nicht mehr deckt.
