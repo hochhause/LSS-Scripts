@@ -48,7 +48,7 @@ Der Planer vergleicht, wie deine Wachen **aussehen sollen**, mit dem, was **wirk
 
 **Fortschrittsbalken:** Während eines Laufs steht oben, wie weit er ist und wie lange es ungefähr noch dauert.
 
-**Protokoll:** Ganz unten steht immer, was der Planer getan hat oder tun würde, und warum. Mit den Knöpfen darüber zeigst du nur Warnungen oder nur Fehler an. **„leeren“** löscht das Protokoll.
+**Protokoll:** Ganz unten steht immer, was der Planer getan hat oder tun würde, und warum. Mit den Knöpfen darüber zeigst du nur Informationen, nur Warnungen oder nur Fehler an. **„leeren“** löscht das Protokoll. Die Höhe ziehst du am Griff unten rechts; sie bleibt gemerkt.
 
 **Beim Wechsel des Reiters** wird die Auswahl geleert, „Nur Vorschau“ wieder angehakt und „Grüne freigeben“ abgehakt. So passiert nichts aus Versehen.
 
@@ -102,11 +102,12 @@ Rechts steht alles zu der angeklickten Wache:
 - **Fahrzeuge:** jeder Typ mit „da von geplant“. Rot heißt: es fehlt eins. Ein Klick auf den Typ zeigt alle Wachen, an denen er fehlt.
 - **Überzählig:** was der Plan nicht vorsieht, und welches Fahrzeug beim Zerstören fallen würde.
 - **Ausbauten fehlen**, **Personal** und **Lehrgänge**.
+- **Fahrzeuge**, **Ausbauten** und **Lehrgänge** klappst du mit einem Klick auf die Überschrift zu oder auf. Ausbauten sind von Haus aus zu, weil viele sie mit dem Erweiterungsmanager pflegen. Der Planer merkt sich, was offen ist.
 - **Aktionen:** die Knöpfe aus [Kapitel 5](#5-die-knöpfe-einer-wache), nur für diese Wache.
 
 ### 4.4 Mehrere Wachen auf einmal
 
-Hake links Wachen an und schließ die Karte (oder öffne keine). Rechts stehen dann die **Sammelaktionen**: dieselben Knöpfe, aber für alle angehakten Wachen. Die Zahl am Knopf sagt, an wie vielen davon etwas zu tun ist, zum Beispiel „3/8“. **„↻ Gewählte aktualisieren“** liest alle angehakten Wachen neu.
+Hake links Wachen an und schließ die Karte (oder öffne keine). Rechts stehen dann die **Sammelaktionen**: dieselben Knöpfe, aber für alle angehakten Wachen. Die Zahl am Knopf sagt, an wie vielen davon etwas zu tun ist, zum Beispiel „3/8“: an 3 der 8 angehakten Wachen ist dort noch etwas zu tun, die übrigen 5 sind in diesem Punkt fertig. **„↻ Gewählte aktualisieren“** liest alle angehakten Wachen neu.
 
 ### 4.5 Wunschbild im Reiter einer Wachenart
 
@@ -169,7 +170,7 @@ Beides kostet nichts.
 
 Zusätzlich stellt dieser Lauf alle **Abrollbehälter** ein: zufälliges WLF, auch von anderen Wachen, und das WLF fährt danach heim.
 
-**„Personal ausbilden“** startet für jeden Lehrgang, der an der Wache laut Plan fehlt, einen Lehrgang — erst in deinen Schulen, dann auf Wunsch in Schulen des Verbands. Einstellungen: **„1 Stunde für den Verband freigeben“** und **„auch Schulen des Verbands“**. Eigene Schulen kosten Credits. Geschickt werden nur Leute ohne Lehrgang, die verfügbar sind und auf keinem Fahrzeug sitzen.
+**„Personal ausbilden“** zeigt beim Wählen zuerst eine **Übersicht**: je Lehrgang, wie viele ausgebildet sind, wie viele gerade lernen und wie viele fehlen. Erst „▶ ausführen“ startet für jeden fehlenden Lehrgang einen — erst in deinen Schulen, dann auf Wunsch in Schulen des Verbands. Einstellungen: **Freigabe für den Verband** (nicht, 1 Stunde, 12 Stunden, 1 Tag oder 2 Tage) und **„auch Schulen des Verbands“**. Eigene Schulen kosten Credits. Geschickt werden nur Leute ohne Lehrgang, die verfügbar sind und auf keinem Fahrzeug sitzen.
 
 **„Anhänger koppeln“** gibt jedem Anhänger ein festes Zugfahrzeug. Abrollbehälter sind ausgenommen, die fahren mit zufälligem WLF.
 
@@ -242,7 +243,7 @@ Hier siehst du, welche Lehrgänge laut Plan fehlen, und kannst Lehrgänge starte
 
 1. Lehrgang auswählen.
 2. **„je Wache“** angeben, wie viele Leute geschickt werden sollen. Leer lassen heißt: so viele, wie laut Plan fehlen.
-3. **„1 Stunde für den Verband freigeben“:** Freie Plätze stehen dann eine Stunde lang kostenlos anderen im Verband offen.
+3. **Freigabe:** nicht, 1 Stunde, 12 Stunden, 1 Tag oder 2 Tage. So lange stehen freie Plätze kostenlos anderen im Verband offen.
 4. **„auch Schulen des Verbands“:** Reichen die eigenen Schulen nicht, nutzt der Planer auch die Schulen deines Verbands.
 5. Mit **„Nur Vorschau“** prüfen, dann **„Lehrgang starten“**.
 

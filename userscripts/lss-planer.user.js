@@ -3965,6 +3965,7 @@ html.lssp-hell #lssp nav button.on{color:#333}
 #lssp .logkopf button.on{border-color:var(--lp-akzent);color:var(--lp-akzent)}
 #lssp pre.nurwarn span:not(.warn):not(.err){display:none}
 #lssp pre.nurerr span:not(.err){display:none}
+#lssp pre.nurinfo span.warn,#lssp pre.nurinfo span.err{display:none}
 #lssp .body{padding:12px 14px;overflow-y:auto;flex:1}
 #lssp .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 /* Die Aktionsleiste klebt am unteren Rand: bei 102 Wachen war der
@@ -4020,11 +4021,16 @@ html.lssp-hell #lssp nav button.on{color:#333}
 #lssp .knoepfe{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 6px}
 #lssp .knoepfe .zahl{font-weight:400;opacity:.75;margin-left:4px}
 #lssp .knoepfe button.on{outline:2px solid var(--lp-akzent);outline-offset:1px}
+#lssp details.kteil>summary{list-style:none}
+#lssp details.kteil>summary::-webkit-details-marker{display:none}
+#lssp details.kteil>summary::before{content:'▸';color:var(--lp-dim);width:10px}
+#lssp details.kteil[open]>summary::before{content:'▾'}
 #lssp .lauftafel{border:1px solid var(--lp-rand);border-radius:4px;padding:4px 10px 0;margin-top:8px}
 #lssp .karte .tun{bottom:0;margin:10px 0 0;padding:8px 0}
 #lssp .fuss{border-top:1px solid var(--lp-rand);padding:0 14px 10px}
 #lssp .fuss .logkopf{margin:6px 0 -4px}
-#lssp .fuss pre{max-height:130px;overflow-y:auto;margin-top:8px}
+/* Die Höhe zieht man am Griff unten rechts; sie bleibt gemerkt. */
+#lssp .fuss pre{height:130px;min-height:40px;max-height:70vh;overflow-y:auto;margin-top:8px;resize:vertical}
 @media (max-width:820px){#lssp .gitter{grid-template-columns:1fr}#lssp .body.raster{overflow-y:auto}}
 `;
 
@@ -4304,10 +4310,12 @@ const escA = esc;
 let logFilter = '';
 function logKopf() {
   const zahl = art => S.log.filter(l => art === 'err' ? l.kind === 'err'
-    : art === 'warn' ? (l.kind === 'warn' || l.kind === 'err') : true).length;
+    : art === 'warn' ? (l.kind === 'warn' || l.kind === 'err')
+    : art === 'info' ? (l.kind !== 'warn' && l.kind !== 'err') : true).length;
   const knopf = (id, text) => `<button data-f="${id}"${logFilter === id ? ' class="on"' : ''}>${text}</button>`;
   return `<div class="logkopf">
     ${knopf('', `alles (${zahl('')})`)}
+    ${knopf('nurinfo', `Informationen (${zahl('info')})`)}
     ${knopf('nurwarn', `Warnungen (${zahl('warn')})`)}
     ${knopf('nurerr', `Fehler (${zahl('err')})`)}
     <span style="flex:1"></span>
@@ -4630,8 +4638,7 @@ function render() {
           <label title="Leer: so viele, wie laut Plan noch fehlen">je Wache
             <input type="number" id="lssp-ks-anzahl" min="0" max="50" style="width:60px"
                    placeholder="Plan" value="${S.opts.ksAnzahl || ''}"></label>
-          <label><input type="checkbox" id="lssp-ks-frei" ${S.opts.ksFreigabe !== false ? 'checked' : ''}>
-            1 Stunde für den Verband freigeben (kostenlos)</label>
+          ${freigabeWahl('lssp-ks-frei')}
           <label><input type="checkbox" id="lssp-ks-verband" ${S.opts.ksVerband !== false ? 'checked' : ''}>
             auch Schulen des Verbands</label>
           <label style="color:var(--lp-dim)"><input type="checkbox" id="lssp-ks-vorschau" checked> Nur Vorschau</label>
@@ -4662,7 +4669,7 @@ function render() {
     const ksMerk = () => {
       S.opts.ksKurs = b.querySelector('#lssp-ks-kurs').value;
       S.opts.ksAnzahl = Math.max(0, Math.min(50, parseInt(b.querySelector('#lssp-ks-anzahl').value, 10) || 0));
-      S.opts.ksFreigabe = b.querySelector('#lssp-ks-frei').checked;
+      S.opts.ksDauer = Number(b.querySelector('#lssp-ks-frei').value);
       S.opts.ksVerband = b.querySelector('#lssp-ks-verband').checked;
       store.set(KEY_OPTS, S.opts);
     };
@@ -4680,12 +4687,12 @@ function render() {
       if (!dry && !await frage(`${name} für ${sel.length} Wachen starten — `
         + (S.opts.ksVerband !== false ? 'erst eigene Schulen, dann Schulen des Verbands' : 'nur eigene Schulen') + '?\n\n'
         + (S.opts.ksAnzahl ? `${S.opts.ksAnzahl} Personen je Wache` : 'So viele je Wache, wie laut Plan fehlen')
-        + (S.opts.ksFreigabe !== false ? ', eine Stunde für den Verband freigegeben.' : ', ohne Freigabe.')
+        + (freigabeSek() ? `, ${freigabeName(freigabeSek())} für den Verband freigegeben.` : ', ohne Freigabe.')
         + '\n\nDer Lehrgang startet wirklich.')) return;
       S.busy = true; ev.target.disabled = true; laufStarten();
       logLeeren(); log(dry ? '── Vorschau ──' : '── Ausführung ──', 'good');
       try {
-        const n = await lehrgangStarten(key, sel, S.opts.ksAnzahl, S.opts.ksFreigabe !== false,
+        const n = await lehrgangStarten(key, sel, S.opts.ksAnzahl, freigabeSek(),
                                         S.opts.ksVerband !== false, dry);
         log(dry ? `Vorschau: ${n} Personen würden in ${name} geschickt.`
                 : `Fertig: ${n} Personen in ${name} geschickt.`, 'good');
@@ -5085,7 +5092,7 @@ async function ausbildungenStarten(sel, dry) {
   for (const [key, wachen] of offen) {
     if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
     log(`── ${kursNamen(key)[0] || key}: ${wachen.length} Wachen ──`);
-    n += await lehrgangStarten(key, wachen, 0, S.opts.ksFreigabe !== false, S.opts.ksVerband !== false, dry);
+    n += await lehrgangStarten(key, wachen, 0, freigabeSek(), S.opts.ksVerband !== false, dry);
   }
   return n;
 }
@@ -5164,7 +5171,7 @@ function laufLeisteBinden(w) {
 
 /* Was ein Lauf sonst noch wissen will — nur die Einstellungen des gewählten,
    die übrigen bleiben verborgen (Sasha, 16.10.). */
-function laufOptionen(key) {
+function laufOptionen(key, sel = []) {
   const haken = (id, an, titel, text, farbe = 'var(--lp-dim)') => `
       <label style="display:block;margin:0 0 6px;color:${farbe}">
         <input type="checkbox" id="${id}" ${an ? 'checked' : ''}> <b>${titel}</b>
@@ -5198,8 +5205,9 @@ function laufOptionen(key) {
       + haken('lssp-ausbschalt', S.opts.ausbautenSchalten, 'Ausbauten und Wache mitschalten',
           '<b>eine abgeschaltete Wache nimmt an keinem Einsatz mehr teil.</b> Darum von Haus aus aus.',
           S.opts.ausbautenSchalten ? 'var(--lp-akzent)' : 'var(--lp-dim)'),
-    ausbildung: haken('lssp-afrei', S.opts.ksFreigabe !== false, '1 Stunde für den Verband freigeben',
-          'kostenlos; freie Plätze stehen dann anderen offen.')
+    ausbildung: kursUebersicht(sel)
+      + `<div class="row" style="margin:8px 0 6px">${freigabeWahl('lssp-afrei')}
+          <span style="color:var(--lp-dim2);font-size:11px">kostenlos; freie Plätze stehen dann anderen offen</span></div>`
       + haken('lssp-averband', S.opts.ksVerband !== false, 'auch Schulen des Verbands',
           'wenn die eigenen Schulen nicht reichen.'),
     verkauf: warn('<b>Nicht rückgängig zu machen.</b> Vor dem Zerstören fragt der Planer immer noch einmal.'),
@@ -5218,7 +5226,9 @@ function laufOptionenBinden(w) {
   merk('#lssp-leihen', 'gruenLeihen');
   merk('#lssp-fzname', 'fzUmbenennen');
   merk('#lssp-ausbschalt', 'ausbautenSchalten', true);   // die Beschriftung färbt sich mit
-  merk('#lssp-afrei', 'ksFreigabe');
+  w.querySelector('#lssp-afrei')?.addEventListener('change', e => {
+    S.opts.ksDauer = Number(e.target.value); store.set(KEY_OPTS, S.opts);
+  });
   merk('#lssp-averband', 'ksVerband');
   w.querySelectorAll('input[name=lsspmode]').forEach(r => r.onchange = e => {
     S.opts.strict = e.target.value === 'strict'; store.set(KEY_OPTS, S.opts);
@@ -5261,8 +5271,9 @@ function aktionsKnoepfe(sel) {
       const n = !gezaehlt(k) ? null : sel.length === 1 ? zaehle(k) : fs.filter(f => z(f)[0]).length;
       // Ausbildungsstand nicht erfaßt: „?" statt einer grauen 0, die „nichts fehlt" behauptete
       const unklar = k === 'ausbildung' && sel.length === 1 && fs[0].lehrgangUnklar;
-      const zahl = unklar ? '<span class="zahl">?</span>'
-        : n === null ? '' : `<span class="zahl">${sel.length === 1 ? n : `${n}/${sel.length}`}</span>`;
+      const zahl = unklar ? '<span class="zahl" title="Ausbildungsstand nicht erfaßt">?</span>'
+        : n === null ? '' : sel.length === 1 ? `<span class="zahl">${n}</span>`
+        : `<span class="zahl" title="an ${n} der ${sel.length} gewählten Wachen ist hier noch etwas zu tun">${n}/${sel.length}</span>`;
       return `<button class="act lauf${gewaehlt === k ? ' on' : ''}" data-aktion="${k}" title="${escA(hilfe)}"${
         n === 0 && k !== 'werben' && !unklar ? ' disabled' : ''}>${esc(label)}${zahl}</button>`;
     });
@@ -5276,10 +5287,46 @@ function aktionsKnoepfe(sel) {
   return gruppen + `<div class="lauftafel">
       <div class="abschnitt" style="margin-top:4px"><b>${esc(label)}</b></div>
       <p class="hint">${esc(hilfe)}</p>
-      ${laufOptionen(gewaehlt)}
+      ${laufOptionen(gewaehlt, sel)}
       ${laufLeiste(`<button class="act ${gefahr ? 'danger' : 'go'}" id="lssp-los">▶ ${esc(label)} ausführen</button>`)}
     </div>`;
 }
+
+/** Vor „Personal ausbilden": was da ist und was fehlt, je Lehrgang über die
+    gewählten Wachen — erst ansehen, dann starten (Sasha, 16.10.). */
+function kursUebersicht(sel) {
+  const summe = new Map();
+  let unerfasst = 0;
+  for (const b of sel) {
+    if (!quals.by[b.id]) { unerfasst++; continue; }
+    for (const key of Object.keys(courseNeed(b))) {
+      const p = kursPosten(b, key);
+      const z = summe.get(key) || { soll: 0, ist: 0, lauf: 0, fehlt: 0 };
+      z.soll += p.soll; z.ist += p.ist; z.lauf += p.lauf; z.fehlt += p.fehlt;
+      summe.set(key, z);
+    }
+  }
+  const zeilen = [...summe].sort((x, y) => y[1].fehlt - x[1].fehlt)
+    .map(([key, z]) => dZeile(kursNamen(key)[0] || key,
+      `${z.ist} von ${z.soll}${z.lauf ? ` · ${z.lauf} in Ausbildung` : ''}${z.fehlt ? ` — ${z.fehlt} fehlen` : ''}`,
+      z.fehlt ? 'gap' : 'ok', `data-kurs="${escA(key)}"`));
+  const fehlt = [...summe.values()].reduce((n, z) => n + z.fehlt, 0);
+  return `<div style="margin-bottom:6px"><b style="font-size:12px">Übersicht</b>
+      <span style="color:var(--lp-dim2);font-size:11px">${fehlt} Plätze fehlen${
+        unerfasst ? ` · ${unerfasst} Wachen unerfaßt, erst „Aktualisieren"` : ''}</span></div>`
+    + dListe(zeilen, unerfasst ? 'Ausbildungsstand nicht erfaßt.' : 'Kein Fahrzeug verlangt einen Lehrgang.');
+}
+
+/* Fahrzeuge, Ausbauten und Lehrgänge lassen sich zuklappen (Sasha, 16.10.).
+   Ausbauten von Haus aus zu: viele pflegen sie mit dem Erweiterungsmanager
+   von caddy12. Der Zustand gilt für alle Karten und bleibt gemerkt. */
+const TEIL_OFFEN = { fz: true, ausbau: false, kurs: true };
+const teilOffen = id => (ui.teile || {})[id] ?? TEIL_OFFEN[id];
+const kTeilZu = (id, titel, zeilen, leer) =>
+  `<details class="kteil" data-teil="${id}"${teilOffen(id) ? ' open' : ''}>
+    <summary class="abschnitt" style="cursor:pointer"><b>${titel}</b>
+      <span style="color:var(--lp-dim2);font-size:11px">${zeilen.length || ''}</span></summary>
+    ${dListe(zeilen, leer)}</details>`;
 
 /** Teil der Karte: Überschrift mit Zähler und darunter eine Liste. */
 const kTeil = (titel, zeilen, leer, rechts = '') =>
@@ -5360,18 +5407,18 @@ function wachenKarte(b) {
       <button class="act" id="lssp-zu">×</button>
     </div>
     ${blk.length ? `<div class="warnkasten"><b>Kauf blockiert:</b> ${blk.map(esc).join(' · ')}</div>` : ''}
-    ${kTeil('Fahrzeuge', fzZeilen, 'Weder geplant noch vorhanden.')}
+    ${kTeilZu('fz', 'Fahrzeuge', fzZeilen, 'Weder geplant noch vorhanden.')}
     ${a.vehSurplus.length ? kTeil('Überzählig', a.vehSurplus.map(v => {
         /* Welches Fahrzeug fällt, muß vor dem Klick dastehen — der Verkauf
            ist die einzige Aktion, die sich nicht zurücknehmen läßt. */
         const wer = verkaufsNamen(b, v);
         return dZeile(v.name, `${v.n}× ${wer ? `→ ${wer}` : '→ nichts verkäuflich'}`, 'warn', `data-fahrzeug="${escA(v.id)}"`);
       }), '') : ''}
-    ${kTeil('Ausbauten fehlen', a.extMissing.map(e =>
+    ${kTeilZu('ausbau', 'Ausbauten fehlen', a.extMissing.map(e =>
         dZeile(e.caption, e.n > 1 ? `${e.n}×` : '', 'gap', `data-ausbau="${escA(e.caption)}"`)),
         'Alle geplanten Ausbauten sind gebaut.')}
     ${kTeil('Personal', personal, '')}
-    ${kTeil('Lehrgänge', kurse, 'Kein Fahrzeug hier verlangt einen Lehrgang.')}
+    ${kTeilZu('kurs', 'Lehrgänge', kurse, 'Kein Fahrzeug hier verlangt einen Lehrgang.')}
     <div class="abschnitt" style="margin-top:16px"><b>Aktionen</b>
       <span style="color:var(--lp-dim2);font-size:11px">nur für diese Wache</span></div>
     ${aktionsKnoepfe([b])}`;
@@ -5385,8 +5432,8 @@ function sammelPanel(sel) {
     <p class="hint">${sel.slice(0, 12).map(w => esc(ohneHaken(w.caption))).join(', ')}${
       sel.length > 12 ? ` … und ${sel.length - 12} weitere` : ''}</p>
     <p class="hint"><b>Lass „Nur Vorschau“ zunächst angehakt.</b> Dann passiert nichts im Spiel, das
-      Protokoll unten zeigt nur, was getan würde. Die Zahl am Knopf: so viele der gewählten Wachen
-      haben dort etwas offen.</p>
+      Protokoll unten zeigt nur, was getan würde. Die Zahl am Knopf, etwa 3/8: an 3 der 8
+      gewählten Wachen ist dort noch etwas zu tun — die übrigen sind in diesem Punkt fertig.</p>
     <div class="knoepfe"><button class="act" id="lssp-auffr" title="Liest Bestand, Personal und Ausbildung der gewählten Wachen neu. Ändert nichts.">↻ Gewählte aktualisieren</button></div>
     ${aktionsKnoepfe(sel)}`;
 }
@@ -5520,6 +5567,9 @@ function zeigeWachen(b) {
   });
   laufLeisteBinden(karte);
   laufOptionenBinden(karte);
+  karte.querySelectorAll('details.kteil').forEach(d => d.addEventListener('toggle', () => {
+    ui.teile = { ...(ui.teile || {}), [d.dataset.teil]: d.open }; saveUi();
+  }));
 
   [b.querySelector('.seite').scrollTop, karte.scrollTop] = roll;
   log('');
@@ -5932,6 +5982,14 @@ function mount() {
     <div class="body"></div>
     <div class="fuss"><div class="logkopf-ort"></div><pre id="lssp-log"></pre></div>`;
   document.body.append(btn, el);
+  const logFeld = el.querySelector('#lssp-log');
+  if (ui.logHoehe) logFeld.style.height = ui.logHoehe + 'px';
+  /* Gemerkt wird nur, was man selbst gezogen hat — beim Schließen meldet der
+     Beobachter 0, das darf die gespeicherte Höhe nicht überschreiben. */
+  new ResizeObserver(() => {
+    const h = Math.round(logFeld.offsetHeight);
+    if (h > 0 && h !== ui.logHoehe) { ui.logHoehe = h; saveUi(); }
+  }).observe(logFeld);
   // Erst wenn der Bestand steht, hat die Wachenseite etwas zu zeigen
   if (S.loaded) wachenSeite();
   /* Beim ersten Öffnen nach jedem Seitenaufruf frisch lesen (Sasha, 16.10.) —
@@ -7000,7 +7058,19 @@ async function fuelleLehrgangHeadless(eintrag, melde) {
 const PLAETZE_JE_RAUM = 10;
 /* Sasha gibt jeden eigenen Lehrgang eine Stunde für den Verband frei,
    kostenlos: belegt er nicht alle Plätze, können andere sie füllen. */
-const FREIGABE_SEKUNDEN = 3600;
+/* Was die Schule unter alliance[duration] anbietet (SPIELSEITEN.md): 0 heißt
+   ohne Freigabe. Gewählt wird seit v0.69.0 aus genau diesen (Sasha, 16.10.). */
+const FREIGABE_DAUERN = [[0, 'nicht freigeben'], [3600, '1 Stunde'], [43200, '12 Stunden'],
+                         [86400, '1 Tag'], [172800, '2 Tage']];
+/** Gewählte Freigabe in Sekunden; der alte Haken „1 Stunde" zählt weiter. */
+function freigabeSek() {
+  const roh = S.opts.ksDauer ?? (S.opts.ksFreigabe === false ? 0 : 3600);
+  return FREIGABE_DAUERN.some(([sek]) => sek === Number(roh)) ? Number(roh) : 3600;
+}
+const freigabeName = sek => (FREIGABE_DAUERN.find(([x]) => x === sek) || [0, `${sek} s`])[1];
+const freigabeWahl = id => `<select id="${id}" title="Freie Plätze stehen so lange kostenlos dem Verband offen">${
+  FREIGABE_DAUERN.map(([sek, name]) => `<option value="${sek}"${sek === freigabeSek() ? ' selected' : ''}>${
+    sek ? `${name} für den Verband freigeben` : name}</option>`).join('')}</select>`;
 
 /** Eine Schulseite lesen: bietet sie `key` an, und wie viele Räume sind frei?
     `null`, wenn nicht. Gleich gebaut für eigene und Verbandsschulen — nur
@@ -7117,6 +7187,7 @@ function gestartetVermerken(fahrt, zaehl, key, tage) {
 /** Lehrgang `key` für die Wachen `sel` in eigenen Schulen starten.
     `jeWache` > 0: so viele je Wache. Sonst: was laut Plan noch fehlt
     (gegen den Umschalter Mindestbesatzung/alle Sitze). */
+/** `freigeben`: Sekunden aus FREIGABE_DAUERN, 0 = ohne Freigabe. */
 async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry) {
   const name = kursNamen(key)[0] || key;
   const proWache = [];
@@ -7148,7 +7219,7 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry) {
     ['utf8', '✓'], ['authenticity_token', sc.token],
     // Ohne Auswahl auf der Seite (ein Raum frei) schickt das Spiel das Feld nicht mit — wir auch nicht.
     ...(sc.mitAuswahl ? [['building_rooms_use', String(raeume)]] : []), ['education_select', sc.wert],
-    ['alliance[duration]', String(freigeben ? FREIGABE_SEKUNDEN : 0)], ['alliance[cost]', '0'],
+    ['alliance[duration]', String(Number(freigeben) || 0)], ['alliance[cost]', '0'],
     ...(mitFilter ? [['dispatch_center_filter', '']] : [])   // gibt es nur an eigenen Schulen
   ];
   let n = 0;

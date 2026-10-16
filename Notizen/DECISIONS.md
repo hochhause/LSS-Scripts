@@ -3082,3 +3082,13 @@ der Zeit des Plan-Imports (D-78) und ist ersetzt.
 - **`{stationNumber}` / `{stationNumberRoman}`** für Fahrzeuge: die Zahl, die
   `{number}` an der Wache ergibt — „{tagging} {stationNumber}/{numberRoman}"
   → „HLF 1/II". Für Wachen gab es `{number}` schon („{stationAlias}-{number}").
+
+**Nachtrag 2 (Sasha, 16.10., ebenfalls vor der Auslieferung):** Protokoll mit
+„nur Informationen" und am Griff verstellbarer Höhe (`ui.logHoehe`).
+Freigabe für den Verband wählbar aus den vier Werten, die die Schule anbietet
+(3600 · 43200 · 86400 · 172800, SPIELSEITEN.md) — `lehrgangStarten` nimmt
+jetzt Sekunden statt eines Hakens; der alte Haken `ksFreigabe` wird als
+„1 Stunde" bzw. „nicht" weitergelesen. „Personal ausbilden" zeigt beim
+Wählen zuerst die Übersicht Ist/Soll/in Ausbildung je Lehrgang. Fahrzeuge,
+Ausbauten und Lehrgänge der Karte sind zuklappbar, Ausbauten von Haus aus
+zu (viele nutzen den Erweiterungsmanager von caddy12).
