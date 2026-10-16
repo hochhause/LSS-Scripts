@@ -3091,4 +3091,4 @@ jetzt Sekunden statt eines Hakens; der alte Haken `ksFreigabe` wird als
 „1 Stunde" bzw. „nicht" weitergelesen. „Personal ausbilden" zeigt beim
 Wählen zuerst die Übersicht Ist/Soll/in Ausbildung je Lehrgang. Fahrzeuge,
 Ausbauten und Lehrgänge der Karte sind zuklappbar, Ausbauten von Haus aus
-zu (viele nutzen den Erweiterungsmanager von caddy12).
+zu (viele nutzen den Erweiterungsmanager von caddy12). Bei mehreren Wachen zählt X/Y die **fertigen**, X/X bekommt einen grünen Rand; unerfaßte Ausbildung zählt als offen.

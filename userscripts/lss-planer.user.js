@@ -4020,6 +4020,7 @@ html.lssp-hell #lssp nav button.on{color:#333}
 #lssp .warnkasten{border:1px solid var(--lp-akzent);border-radius:3px;padding:7px 10px;margin:8px 0;color:var(--lp-akzent);font-size:12px}
 #lssp .knoepfe{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 6px}
 #lssp .knoepfe .zahl{font-weight:400;opacity:.75;margin-left:4px}
+#lssp .knoepfe button.fertig{border-color:var(--lp-ok)}
 #lssp .knoepfe button.on{outline:2px solid var(--lp-akzent);outline-offset:1px}
 #lssp details.kteil>summary{list-style:none}
 #lssp details.kteil>summary::-webkit-details-marker{display:none}
@@ -5268,13 +5269,17 @@ function aktionsKnoepfe(sel) {
       if (k === 'ausbau' && !katalogDa())
         return `<button class="act" id="lssp-katalog" title="Ohne die Bauplatz-Nummern kann kein Ausbau bestellt werden. Ein Abruf, ändert nichts.">Ausbaukatalog lesen</button>`;
       const z = BEREICH[k === 'ausbildung' ? 'lehrgang' : k];
-      const n = !gezaehlt(k) ? null : sel.length === 1 ? zaehle(k) : fs.filter(f => z(f)[0]).length;
+      // Unerfaßte Ausbildung ist nicht fertig, sondern unbekannt — sie zählt als offen
+      const n = !gezaehlt(k) ? null : sel.length === 1 ? zaehle(k)
+        : fs.filter(f => z(f)[0] || (k === 'ausbildung' && f.lehrgangUnklar)).length;
       // Ausbildungsstand nicht erfaßt: „?" statt einer grauen 0, die „nichts fehlt" behauptete
       const unklar = k === 'ausbildung' && sel.length === 1 && fs[0].lehrgangUnklar;
       const zahl = unklar ? '<span class="zahl" title="Ausbildungsstand nicht erfaßt">?</span>'
         : n === null ? '' : sel.length === 1 ? `<span class="zahl">${n}</span>`
-        : `<span class="zahl" title="an ${n} der ${sel.length} gewählten Wachen ist hier noch etwas zu tun">${n}/${sel.length}</span>`;
-      return `<button class="act lauf${gewaehlt === k ? ' on' : ''}" data-aktion="${k}" title="${escA(hilfe)}"${
+        // Mehrere Wachen: wie viele in diesem Punkt FERTIG sind (Sasha, 16.10.)
+        : `<span class="zahl">${sel.length - n}/${sel.length}</span>`;
+      const alleFertig = n === 0 && sel.length > 1;
+      return `<button class="act lauf${gewaehlt === k ? ' on' : ''}${alleFertig ? ' fertig' : ''}" data-aktion="${k}" title="${escA(hilfe)}"${
         n === 0 && k !== 'werben' && !unklar ? ' disabled' : ''}>${esc(label)}${zahl}</button>`;
     });
     return `<div class="abschnitt" style="margin-top:8px"><b style="font-size:12px;color:var(--lp-dim)">${titel}</b></div>
@@ -5432,8 +5437,8 @@ function sammelPanel(sel) {
     <p class="hint">${sel.slice(0, 12).map(w => esc(ohneHaken(w.caption))).join(', ')}${
       sel.length > 12 ? ` … und ${sel.length - 12} weitere` : ''}</p>
     <p class="hint"><b>Lass „Nur Vorschau“ zunächst angehakt.</b> Dann passiert nichts im Spiel, das
-      Protokoll unten zeigt nur, was getan würde. Die Zahl am Knopf, etwa 3/8: an 3 der 8
-      gewählten Wachen ist dort noch etwas zu tun — die übrigen sind in diesem Punkt fertig.</p>
+      Protokoll unten zeigt nur, was getan würde. Die Zahl am Knopf, etwa 5/8: 5 der 8
+      gewählten Wachen sind in diesem Punkt fertig. Grüner Rand: alle.</p>
     <div class="knoepfe"><button class="act" id="lssp-auffr" title="Liest Bestand, Personal und Ausbildung der gewählten Wachen neu. Ändert nichts.">↻ Gewählte aktualisieren</button></div>
     ${aktionsKnoepfe(sel)}`;
 }

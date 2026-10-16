@@ -107,7 +107,7 @@ Rechts steht alles zu der angeklickten Wache:
 
 ### 4.4 Mehrere Wachen auf einmal
 
-Hake links Wachen an und schließ die Karte (oder öffne keine). Rechts stehen dann die **Sammelaktionen**: dieselben Knöpfe, aber für alle angehakten Wachen. Die Zahl am Knopf sagt, an wie vielen davon etwas zu tun ist, zum Beispiel „3/8“: an 3 der 8 angehakten Wachen ist dort noch etwas zu tun, die übrigen 5 sind in diesem Punkt fertig. **„↻ Gewählte aktualisieren“** liest alle angehakten Wachen neu.
+Hake links Wachen an und schließ die Karte (oder öffne keine). Rechts stehen dann die **Sammelaktionen**: dieselben Knöpfe, aber für alle angehakten Wachen. Die Zahl am Knopf sagt, wie viele davon in diesem Punkt **fertig** sind, zum Beispiel „5/8“: 5 der 8 angehakten Wachen haben dort nichts mehr zu tun. Sind alle fertig, hat der Knopf einen **grünen Rand**. **„↻ Gewählte aktualisieren“** liest alle angehakten Wachen neu.
 
 ### 4.5 Wunschbild im Reiter einer Wachenart
 
