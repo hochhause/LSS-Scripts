@@ -17,7 +17,8 @@ const schnitt = (von, bis) => {
 };
 
 const teile = [
-  schnitt('const PB = {', 'const T = {'),
+  schnitt('const PB = {', '/** Ohne Wunschbild gilt, was dasteht'),
+  schnitt('function istZiel(b) {', 'const T = {'),
   schnitt('/** Namensvorlagen', '/* Wie eine Wache umbenannt wird'),
   schnitt('/** Anhänger, die an diesem Fahrzeug hängen. */', '/* ═══════════════════════════════════════════════════════════════════\n   Einsatzbereitschaft'),
   schnitt('function mindestBedarf(v) {', '/* Umschaltungen, die gerade nicht möglich'),
@@ -52,7 +53,8 @@ const T = {
   target(b) {
     const p = this.profileOf(b);
     return p ? S.plan.model.types[b.building_type].profiles[p] : null;
-  }
+  },
+  soll(b) { return this.target(b) || istZiel(b); }
 };
 const kursNamen = k => [k];
 const stand0 = 0;
@@ -334,6 +336,18 @@ console.log('\n11. Bedarf rechnet auf Schlüsseln');
   const b = ziel(1, 2, { 9999: 1 });       // Typ, den PB nicht kennt
   S.byBuilding = new Map([[1, []]]);
   pruefe('unbekannter Typ fordert keine Ausbildung', Object.keys(courseNeed(b)).length, 0);
+}
+
+{
+  /* Ohne Wunschbild rechnet die Ausbildung gegen das Ist (Sasha, 16.10.):
+     ein ITW, der dasteht, verlangt seine Lehrgänge auch ohne Plan. */
+  const b = { id: 77, building_type: 777 };     // Gebäudeart ohne Profil
+  S.byBuilding = new Map([[77, [{ id: 1, vehicle_type: 97 }, { id: -5, vehicle_type: 97, platzhalter: true }]]]);
+  pruefe('ohne Wunschbild: Bedarf aus dem Ist', Object.keys(courseNeed(b)).sort(), ['intensive_care', 'notarzt']);
+  pruefe('vorgemerkter Kauf zählt nicht mit', courseNeed(b).notarzt, 3);
+  S.byBuilding = new Map([[77, []]]);
+  memoK.clear();
+  pruefe('ohne Wunschbild und ohne Fahrzeuge: nichts', Object.keys(courseNeed(b)).length, 0);
 }
 
 /* ── 12. Namen drehen statt Leute schieben ─────────────────────────── */

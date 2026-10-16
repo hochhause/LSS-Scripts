@@ -102,14 +102,21 @@ Rechts steht alles zu der angeklickten Wache:
 - **Fahrzeuge:** jeder Typ mit „da von geplant“. Rot heißt: es fehlt eins. Ein Klick auf den Typ zeigt alle Wachen, an denen er fehlt.
 - **Überzählig:** was der Plan nicht vorsieht, und welches Fahrzeug beim Zerstören fallen würde.
 - **Ausbauten fehlen**, **Personal** und **Lehrgänge**.
-- **Fahrzeuge**, **Ausbauten** und **Lehrgänge** klappst du mit einem Klick auf die Überschrift zu oder auf. Ausbauten sind von Haus aus zu, weil viele sie mit dem Erweiterungsmanager pflegen. Der Planer merkt sich, was offen ist.
+- **Fahrzeuge**, **Ausbauten**, **Personal** und **Lehrgänge** klappst du mit einem Klick auf die Überschrift zu oder auf. Ausbauten sind von Haus aus zu, weil viele sie mit dem Erweiterungsmanager pflegen. Der Planer merkt sich, was offen ist.
 - **Aktionen:** die Knöpfe aus [Kapitel 5](#5-die-knöpfe-einer-wache), nur für diese Wache.
 
-### 4.4 Mehrere Wachen auf einmal
+### 4.4 Wachen ohne Wunschbild
 
-Hake links Wachen an und schließ die Karte (oder öffne keine). Rechts stehen dann die **Sammelaktionen**: dieselben Knöpfe, aber für alle angehakten Wachen. Die Zahl am Knopf sagt, wie viele davon in diesem Punkt **fertig** sind, zum Beispiel „5/8“: 5 der 8 angehakten Wachen haben dort nichts mehr zu tun. Sind alle fertig, hat der Knopf einen **grünen Rand**. **„↻ Gewählte aktualisieren“** liest alle angehakten Wachen neu.
+Gibt es für eine Gebäudeart kein Wunschbild, steht die Wache trotzdem in der Liste, sobald dort Fahrzeuge stehen. Auf ihrer Karte steht **„kein Wunschbild“**:
 
-### 4.5 Wunschbild im Reiter einer Wachenart
+- **Personal zuweisen, Werben und Personal ausbilden** rechnen gegen die Fahrzeuge, die wirklich dastehen.
+- **Ausbauten, Fahrzeuge kaufen, umrüsten und zerstören** sind grau: es gibt nichts, wogegen sie rechnen könnten. **Namen** geht immer.
+
+### 4.5 Mehrere Wachen auf einmal
+
+Hake links Wachen an und schließ die Karte (oder öffne keine). Rechts stehen dann die **Sammelaktionen**: dieselben Knöpfe, aber für alle angehakten Wachen. Die Zahl am Knopf sagt, wie viele davon in diesem Punkt **fertig** sind, zum Beispiel „5/8“: 5 der 8 angehakten Wachen haben dort nichts mehr zu tun. Sind alle fertig, hat der Knopf einen **grünen Rand**; drückbar bleibt er. **„↻ Gewählte aktualisieren“** liest alle angehakten Wachen neu.
+
+### 4.6 Wunschbild im Reiter einer Wachenart
 
 Bist du in einem Reiter wie **🚒 Feuerwehr** und hast nichts angehakt, steht rechts das **Wunschbild** dieser Art (siehe [6.2](#62-wunschbild)). Oben rechts schaltest du zwischen **„Sammelaktionen“** und **„Wunschbild“** um. Um Wachen einem Profil zuzuordnen: „Wunschbild“ wählen, links die Wachen anhaken, dann **„Gewählte Wachen auf …“** drücken.
 
@@ -117,7 +124,7 @@ Bist du in einem Reiter wie **🚒 Feuerwehr** und hast nichts angehakt, steht r
 
 ## 5. Die Knöpfe einer Wache
 
-**So geht ein Lauf:** Knopf drücken — damit ist der Lauf nur **gewählt**. Darunter erscheinen seine Erklärung und nur seine Einstellungen. **„Nur Vorschau“** prüfen, dann **„▶ … ausführen“**. Ohne Vorschau fragt der Planer noch einmal nach. Die Zahl am Knopf sagt, wie viel er hier zu tun hätte. Ein **grauer Knopf** heißt: hier ist nichts zu tun. Ein **„?“** heißt: das weiß der Planer noch nicht — erst „Aktualisieren“.
+**So geht ein Lauf:** Knopf drücken — damit ist der Lauf nur **gewählt**. Darunter erscheinen seine Erklärung und nur seine Einstellungen. **„Nur Vorschau“** prüfen, dann **„▶ … ausführen“**. Ohne Vorschau fragt der Planer noch einmal nach. Die Zahl am Knopf sagt, wie viel er hier zu tun hätte. Ein **grüner Rand** heißt: hier ist nichts zu tun — drücken kannst du trotzdem. Ein **„?“** heißt: das weiß der Planer noch nicht — erst „Aktualisieren“.
 
 **Nach jedem echten Lauf** liest der Planer den Bestand selbst neu aus dem Spiel, damit die Zahlen stimmen.
 
@@ -170,7 +177,7 @@ Beides kostet nichts.
 
 Zusätzlich stellt dieser Lauf alle **Abrollbehälter** ein: zufälliges WLF, auch von anderen Wachen, und das WLF fährt danach heim.
 
-**„Personal ausbilden“** zeigt beim Wählen zuerst eine **Übersicht**: je Lehrgang, wie viele ausgebildet sind, wie viele gerade lernen und wie viele fehlen. Erst „▶ ausführen“ startet für jeden fehlenden Lehrgang einen — erst in deinen Schulen, dann auf Wunsch in Schulen des Verbands. Einstellungen: **Freigabe für den Verband** (nicht, 1 Stunde, 12 Stunden, 1 Tag oder 2 Tage) und **„auch Schulen des Verbands“**. Eigene Schulen kosten Credits. Geschickt werden nur Leute ohne Lehrgang, die verfügbar sind und auf keinem Fahrzeug sitzen.
+**„Personal ausbilden“** zeigt beim Wählen zuerst eine **Übersicht**: je Lehrgang, wie viele ausgebildet sind, wie viele gerade lernen und wie viele fehlen. Erst „▶ ausführen“ startet die Lehrgänge — **Lehrgang für Lehrgang über alle gewählten Wachen**, der mit den meisten Lücken zuerst, — erst in deinen Schulen, dann auf Wunsch in Schulen des Verbands. Einstellungen: **Freigabe für den Verband** (nicht, 1 Stunde, 12 Stunden, 1 Tag oder 2 Tage) und **„auch Schulen des Verbands“**. Eigene Schulen kosten Credits. Geschickt werden nur Leute ohne Lehrgang, die verfügbar sind und auf keinem Fahrzeug sitzen.
 
 **„Anhänger koppeln“** gibt jedem Anhänger ein festes Zugfahrzeug. Abrollbehälter sind ausgenommen, die fahren mit zufälligem WLF.
 

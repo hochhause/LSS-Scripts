@@ -3092,3 +3092,14 @@ jetzt Sekunden statt eines Hakens; der alte Haken `ksFreigabe` wird als
 Wählen zuerst die Übersicht Ist/Soll/in Ausbildung je Lehrgang. Fahrzeuge,
 Ausbauten und Lehrgänge der Karte sind zuklappbar, Ausbauten von Haus aus
 zu (viele nutzen den Erweiterungsmanager von caddy12). Bei mehreren Wachen zählt X/Y die **fertigen**, X/X bekommt einen grünen Rand; unerfaßte Ausbildung zählt als offen.
+
+**Nachtrag 3 (Sasha, 16.10.):** Wachen ohne Wunschbild stehen in der Ansicht,
+sobald Fahrzeuge dastehen. `T.soll(b)` = Wunschbild, sonst `istZiel(b)` (das
+Ist ohne vorgemerkte Käufe); dagegen rechnen `analyse`, `courseNeed`,
+`bedarfDerWache`, `doppelKombis` und der Personallauf. Gegen sich selbst fehlt
+und überzählt nichts — Kaufen, Zerstören und Ausbauten blieben also auch ohne
+Sperre untätig; gesperrt (grau) sind sie in der Oberfläche trotzdem, damit
+„nichts zu tun" nicht wie „fertig" aussieht. `T.target` bleibt reines
+Wunschbild: Stellplatztöpfe und der Hinweis auf der Wachenseite hängen daran.
+Grüner Rand sperrt nicht mehr. „Personal ausbilden" läuft je Lehrgang über alle
+Wachen, die Lücken größten zuerst. Personal auf der Karte zuklappbar.

@@ -763,6 +763,19 @@ async function kaufbareLesen(b) {
 }
 
 
+/** Ohne Wunschbild gilt, was dasteht (Sasha, 16.10.): Personal, Ausbildung
+    und Werben rechnen dann gegen die vorhandenen Fahrzeuge. Kaufen, Zerstören
+    und Ausbauten haben gegen sich selbst nichts zu tun — gesperrt werden sie
+    in der Oberfläche, nicht hier. Vorgemerkte Käufe zählen nicht mit. */
+function istZiel(b) {
+  const vehicles = {};
+  for (const v of S.byBuilding.get(b.id) || []) {
+    if (istPlatzhalter(v)) continue;
+    vehicles[v.vehicle_type] = (vehicles[v.vehicle_type] || 0) + 1;
+  }
+  return { vehicles, extensions: {}, ausIst: true };
+}
+
 const T = {
   veh: id => vehMeta(id),
   vehName: id => vehMeta(id)?.name || `Typ ${id}`,
@@ -784,7 +797,9 @@ const T = {
   target(b) {
     const p = this.profileOf(b);
     return p ? T.profiles(b.building_type)[p] : null;
-  }
+  },
+  /** Wogegen Personal und Ausbildung rechnen: das Wunschbild, sonst das Ist. */
+  soll(b) { return this.target(b) || istZiel(b); }
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1037,7 +1052,8 @@ function analyse(b) {
   return v;
 }
 function analyseIntern(b) {
-  const tgt = T.target(b);
+  // Ohne Wunschbild das Ist: dann fehlt und überzählt nichts, nur das Personal zählt
+  const tgt = T.soll(b);
   const res = { building: b, profile: T.profileOf(b), vehMissing: [], vehSurplus: [],
                 extMissing: [], staffNeed: 0 };
   if (!tgt) return res;
@@ -3352,8 +3368,8 @@ async function assignStaff(sel, dry) {
     // Sasha, 13.10.: „im Personallauf, warum nicht" — ein Abruf je AB, solange nicht gemerkt (D-110)
     n += await abEinstellen(b, dry);
 
-    // Fahrzeuge, die der Plan nicht vorsieht und die stillstehen
-    const tgt = T.target(b);
+    // Fahrzeuge, die der Plan nicht vorsieht und die stillstehen — ohne Plan keine
+    const tgt = T.soll(b);
     for (const v of mineOf(b)) {
       if (!tgt?.vehicles?.[v.vehicle_type] && [2, 6].includes(v.fms_real))
         ueberzaehlig.push({ wache: b.caption, v });
@@ -3417,7 +3433,7 @@ function saveQuals() {
 /** Soll je Kursschlüssel für eine Wache. Bewusst großzügig: jeder geforderte
     Kurs bekommt die volle Besatzung, das schafft Reserve (siehe DECISIONS D-05). */
 function bedarfKeys(b, feld = 'max') {
-  return T.target(b) ? new Map(Object.entries(courseNeed(b, feld))) : null;
+  return new Map(Object.entries(courseNeed(b, feld)));
 }
 
 /** Kombinationen, die eine Wache auf ein und demselben Sitz braucht. */
@@ -3439,7 +3455,7 @@ function doppelKombis(b) {
     if (a.alle.length) for (const [m, n] of a.mind) buche(ist, [...a.alle, m], n);
   }
   // Was geplant ist: Typen, die von sich aus zwei Lehrgänge auf jeden Sitz legen
-  const tgt = T.target(b);
+  const tgt = T.soll(b);
   for (const [id, n] of Object.entries(tgt?.vehicles || {})) {
     const meta = T.veh(id);
     const alle = (meta?.kurse || []).filter(k => k.art === 'alle').map(k => k.k);
@@ -3801,8 +3817,7 @@ function courseNeed(b, feld = kursZiel()) {
   return v;
 }
 function courseNeedIntern(b, feld) {
-  const tgt = T.target(b), out = {};
-  if (!tgt) return out;
+  const tgt = T.soll(b), out = {};
   for (const [id, n] of Object.entries(tgt.vehicles || {})) {
     const meta = T.veh(id); if (!meta?.kurse?.length) continue;
     const seats = sitzeFuerKurs(meta, feld) * (Number(n) || 0);
@@ -4208,9 +4223,16 @@ function einzelBinden(wurzel) {
   }
 }
 
-/** Gebäudearten, die einen eigenen Reiter bekommen: alle mit eigener Wache und Profil. */
+/* In die Wachenansicht gehört jede Wache mit Wunschbild — und seit v0.69.0 auch
+   jede ohne, sofern Fahrzeuge dastehen: Personal und Ausbildung rechnen dort
+   gegen das Ist (Sasha, 16.10.). Schulen, Krankenhäuser, Leitstellen nie. */
+const hatWunschbild = b => Object.keys(T.profiles(b.building_type)).length > 0;
+const inAnsicht = b => !NICHT_PLANEN.has(Number(b.building_type))
+  && (hatWunschbild(b) || (S.byBuilding.get(b.id) || []).length > 0);
+
+/** Gebäudearten, die einen eigenen Reiter bekommen. */
 function typReiter() {
-  return [...new Set(planWachen().filter(b => Object.keys(T.profiles(b.building_type)).length)
+  return [...new Set(planWachen().filter(inAnsicht)
       .map(b => String(b.building_type)))]
     .sort((x, y) => T.btName(x).localeCompare(T.btName(y), 'de'));
 }
@@ -5089,8 +5111,12 @@ async function ausbildungenStarten(sel, dry) {
   }
   if (unerfasst) log(`${unerfasst} Wachen ohne erfaßten Ausbildungsstand übergangen — erst „Aktualisieren".`, 'warn');
   if (!offen.size) { log('Kein Lehrgang fehlt laut Plan — nichts zu starten.', 'good'); return 0; }
+  /* Je Lehrgang ein Durchgang über alle Wachen, nicht je Wache alle Lehrgänge
+     (Sasha, 16.10.): so teilt sich ein Kurs die Räume aller Wachen. Der
+     Lehrgang mit den meisten Lücken zuerst — er braucht die meisten Plätze. */
+  const lueckeVon = ([key, wachen]) => wachen.reduce((s2, b) => s2 + kursPosten(b, key).fehlt, 0);
   let n = 0;
-  for (const [key, wachen] of offen) {
+  for (const [key, wachen] of [...offen].sort((x, y) => lueckeVon(y) - lueckeVon(x))) {
     if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
     log(`── ${kursNamen(key)[0] || key}: ${wachen.length} Wachen ──`);
     n += await lehrgangStarten(key, wachen, 0, freigabeSek(), S.opts.ksVerband !== false, dry);
@@ -5248,12 +5274,13 @@ function laufOptionenBinden(w) {
 /* Zwei Gruppen in Sashas Reihenfolge (16.10.). Anhänger koppeln und Lösen
    hat er nicht genannt; sie stehen hinten bei Personal, damit nichts verloren
    geht. Die Zahl am Knopf sagt, wie viel der Lauf hier zu tun hätte; ist es
-   nichts, bleibt er grau — „nichts zu tun" sieht man vor dem Druck. Werben
-   nicht: dort steht die Umstellung auf Premium, und die muß erreichbar sein. */
+   nichts, bekommt er einen grünen Rand — „nichts zu tun" sieht man vor dem Druck. */
 const AKTION_GRUPPEN = [
   ['Wache',    ['ausbau', 'kaufen', 'umbau', 'verkauf', 'haken']],
   ['Personal', ['werben', 'personal', 'ausbildung', 'anhaenger', 'leeren']]
 ];
+// Diese Läufe rechnen nur gegen ein Wunschbild; Namen gehen immer
+const WACHE_PLAN = new Set(['ausbau', 'kaufen', 'umbau', 'verkauf']);
 const gezaehlt = k => ['ausbau', 'kaufen', 'verkauf', 'anhaenger', 'ausbildung'].includes(k)
   || (k === 'werben' && S.opts.werbenModus !== 'soll');
 const werbenSoll = () => Math.max(1, Math.min(9999, parseInt(S.opts.werbenSoll, 10) || 400));
@@ -5263,6 +5290,7 @@ function aktionsKnoepfe(sel) {
   const fs = sel.map(fortschritt);
   const zaehle = k => { const z = BEREICH[k === 'ausbildung' ? 'lehrgang' : k]; return z(fs[0])[0]; };
   if (gewaehlt === 'leeren' && sel.length !== 1) gewaehlt = null;
+  if (WACHE_PLAN.has(gewaehlt) && !sel.some(hatWunschbild)) gewaehlt = null;
   const gruppen = AKTION_GRUPPEN.map(([titel, keys]) => {
     const knoepfe = keys.filter(k => k !== 'leeren' || sel.length === 1).map(k => {
       const [label, , hilfe] = akt[k];
@@ -5278,9 +5306,14 @@ function aktionsKnoepfe(sel) {
         : n === null ? '' : sel.length === 1 ? `<span class="zahl">${n}</span>`
         // Mehrere Wachen: wie viele in diesem Punkt FERTIG sind (Sasha, 16.10.)
         : `<span class="zahl">${sel.length - n}/${sel.length}</span>`;
-      const alleFertig = n === 0 && sel.length > 1;
-      return `<button class="act lauf${gewaehlt === k ? ' on' : ''}${alleFertig ? ' fertig' : ''}" data-aktion="${k}" title="${escA(hilfe)}"${
-        n === 0 && k !== 'werben' && !unklar ? ' disabled' : ''}>${esc(label)}${zahl}</button>`;
+      /* Fertig ist grün und bleibt drückbar (Sasha, 16.10.) — ein Lauf darf
+         auch nachsehen. Gesperrt ist nur, was ohne Wunschbild nichts hat,
+         wogegen es rechnen könnte. */
+      const ohnePlan = WACHE_PLAN.has(k) && !sel.some(hatWunschbild);
+      const fertig = n === 0 && !unklar && !ohnePlan;
+      return `<button class="act lauf${gewaehlt === k ? ' on' : ''}${fertig ? ' fertig' : ''}" data-aktion="${k}"
+        title="${escA(ohnePlan ? 'Kein Wunschbild für diese Gebäudeart — dieser Lauf hat nichts, wogegen er rechnen könnte.' : hilfe)}"${
+        ohnePlan ? ' disabled' : ''}>${esc(label)}${ohnePlan ? '' : zahl}</button>`;
     });
     return `<div class="abschnitt" style="margin-top:8px"><b style="font-size:12px;color:var(--lp-dim)">${titel}</b></div>
       <div class="knoepfe">${knoepfe.join('')}</div>`;
@@ -5322,10 +5355,10 @@ function kursUebersicht(sel) {
     + dListe(zeilen, unerfasst ? 'Ausbildungsstand nicht erfaßt.' : 'Kein Fahrzeug verlangt einen Lehrgang.');
 }
 
-/* Fahrzeuge, Ausbauten und Lehrgänge lassen sich zuklappen (Sasha, 16.10.).
+/* Fahrzeuge, Ausbauten, Personal und Lehrgänge lassen sich zuklappen (Sasha, 16.10.).
    Ausbauten von Haus aus zu: viele pflegen sie mit dem Erweiterungsmanager
    von caddy12. Der Zustand gilt für alle Karten und bleibt gemerkt. */
-const TEIL_OFFEN = { fz: true, ausbau: false, kurs: true };
+const TEIL_OFFEN = { fz: true, ausbau: false, personal: true, kurs: true };
 const teilOffen = id => (ui.teile || {})[id] ?? TEIL_OFFEN[id];
 const kTeilZu = (id, titel, zeilen, leer) =>
   `<details class="kteil" data-teil="${id}"${teilOffen(id) ? ' open' : ''}>
@@ -5341,7 +5374,8 @@ const kTeil = (titel, zeilen, leer, rechts = '') =>
 
 /** Anteil von Fahrzeugen und Ausbauten, die laut Wunschbild schon dastehen. */
 function sollQuote(b) {
-  const z = T.target(b) || {};
+  if (!T.target(b)) return null;              // ohne Wunschbild gibt es keinen Anteil
+  const z = T.target(b);
   const summe = o => Object.values(o || {}).reduce((s2, n) => s2 + (Number(n) || 0), 0);
   const soll = summe(z.vehicles) + summe(z.extensions);
   const f = fortschritt(b);
@@ -5369,7 +5403,7 @@ function wachenKarte(b) {
   const profile = Object.keys(T.profiles(b.building_type));
   const jetzt = T.profileOf(b);
 
-  const soll = T.target(b)?.vehicles || {};
+  const soll = T.soll(b).vehicles || {};
   const da = {};
   for (const v of S.byBuilding.get(b.id) || []) da[v.vehicle_type] = (da[v.vehicle_type] || 0) + 1;
   const fzZeilen = [...new Set([...Object.keys(soll), ...Object.keys(da)])]
@@ -5398,12 +5432,17 @@ function wachenKarte(b) {
       <div style="flex:1;min-width:0">
         <b style="font-size:15px">${esc(b.caption)}</b>${still ? ' <span class="warn">· ruht</span>' : ''}
         <div style="color:var(--lp-dim);font-size:11px;margin-top:2px">${esc(T.btName(b.building_type))}${
-          b.level != null ? ` · Stufe ${esc(b.level)}` : ''} · Profil
+          b.level != null ? ` · Stufe ${esc(b.level)}` : ''} · ${profile.length ? `Profil
           <select id="lssp-wprof" style="padding:1px 4px">${profile.map(p =>
-            `<option value="${escA(p)}"${p === jetzt ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
-        <div class="quote"><i style="width:${q}%"></i></div>
+            `<option value="${escA(p)}"${p === jetzt ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select>`
+          : '<span class="warn">kein Wunschbild</span>'}</div>
+        ${q === null
+          ? `<span style="font-size:11px;color:var(--lp-dim2)">Für diese Gebäudeart gibt es kein Wunschbild.
+              Personal und Ausbildung rechnen gegen die Fahrzeuge, die dastehen; Kaufen, Umrüsten,
+              Zerstören und Ausbauten sind gesperrt.${f.fertig ? ` · ${HAKEN} alle Fahrzeuge grün` : ''}</span>`
+          : `<div class="quote"><i style="width:${q}%"></i></div>
         <span style="font-size:11px;color:var(--lp-dim2)">Fahrzeuge und Ausbauten nach Plan: ${q} %${
-          f.fertig ? ` · ${HAKEN} alle Fahrzeuge grün` : ''}</span>
+          f.fertig ? ` · ${HAKEN} alle Fahrzeuge grün` : ''}</span>`}
       </div>
       <a href="/buildings/${Number(b.id)}" target="_blank" rel="noopener" class="act"
         style="text-decoration:none;color:var(--lp-fg);border:1px solid var(--lp-rand);border-radius:3px;padding:5px 9px;font:600 12px sans-serif">im Spiel</a>
@@ -5422,7 +5461,7 @@ function wachenKarte(b) {
     ${kTeilZu('ausbau', 'Ausbauten fehlen', a.extMissing.map(e =>
         dZeile(e.caption, e.n > 1 ? `${e.n}×` : '', 'gap', `data-ausbau="${escA(e.caption)}"`)),
         'Alle geplanten Ausbauten sind gebaut.')}
-    ${kTeil('Personal', personal, '')}
+    ${kTeilZu('personal', 'Personal', personal, '')}
     ${kTeilZu('kurs', 'Lehrgänge', kurse, 'Kein Fahrzeug hier verlangt einen Lehrgang.')}
     <div class="abschnitt" style="margin-top:16px"><b>Aktionen</b>
       <span style="color:var(--lp-dim2);font-size:11px">nur für diese Wache</span></div>
@@ -5490,10 +5529,11 @@ function wachenListe(wachen) {
       <input type="checkbox" class="bsel" value="${b.id}" ${auswahl.has(b.id) ? 'checked' : ''}>
       <span class="wtext" data-wache="${b.id}" title="${escA(offenTeile(f) || 'nichts offen')}">
         <span class="wname">${zeichen} ${esc(b.caption)}</span>
-        <span class="wmeta">${esc(kurz)} · ${esc(T.profileOf(b) || '—')} · ${esc(zustand)}</span>
-        <span class="quote"><i style="width:${q}%"></i></span>
+        <span class="wmeta">${esc(kurz)} · ${esc(T.profileOf(b) || 'kein Wunschbild')} · ${esc(zustand)}</span>
+        <span class="quote"><i style="width:${q ?? 0}%"></i></span>
       </span>
-      <span style="font-size:11px;color:var(--lp-dim2);min-width:32px;text-align:right">${q} %</span>
+      <span style="font-size:11px;color:var(--lp-dim2);min-width:32px;text-align:right"
+        title="${q === null ? 'kein Wunschbild' : 'Fahrzeuge und Ausbauten nach Plan'}">${q === null ? '—' : q + ' %'}</span>
       <button class="ruht" data-id="${b.id}" title="${still ? 'Wieder aufnehmen' : 'Wache übergehen'}"
         style="background:none;border:0;color:var(--lp-dim2);cursor:pointer;padding:0 2px">${still ? '↺' : '⏸'}</button>
     </div>`;
@@ -5532,7 +5572,7 @@ function zeigeWachen(b) {
   const jetztFuer = JSON.stringify([ansicht, fokus, rechts]);
   if (jetztFuer !== karteFuer) { roll[1] = 0; karteFuer = jetztFuer; }
   const typ = ansicht === 'alle' ? null : ansicht;
-  const wachen = planWachen().filter(w => Object.keys(T.profiles(w.building_type)).length)
+  const wachen = planWachen().filter(inAnsicht)
     .filter(w => !typ || String(w.building_type) === typ);
   const liste = wachenListe(wachen);
   const sel = liste.sichtbar.filter(w => auswahl.has(w.id));
@@ -6900,7 +6940,7 @@ function zaehleAus(buildingId, boxen) {
 
 /** Mindest- und Vollbedarf einer Wache für einen Kurs. */
 function bedarfDerWache(b, key) {
-  const tgt = T.target(b);
+  const tgt = T.soll(b);
   let min = 0, max = 0;
   for (const [id, n] of Object.entries(tgt?.vehicles || {})) {
     const meta = T.veh(id);
