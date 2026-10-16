@@ -1012,20 +1012,27 @@ const mWa = markenFuer(MARKEN_WACHE);
    eine Verwechslung zweier Marken auf, nicht erst im Spiel. */
 const kFull = {
   punkt: HAKEN, id: 42, alt: 'Altname', typName: 'RTW', typKurz: 'R',
-  wache: 'Wache Nord', wacheKurz: 'WN', nummer: 4,
+  wache: 'Wache Nord', wacheKurz: 'WN', nummer: 4, wacheNummer: 3,
   leitstelle: 'Leitstelle Mitte', leitstelleKurz: 'LM'
 };
 
 {
-  // Jede der elf Marken loest genau ihren Wert auf.
+  // Jede der dreizehn Marken loest genau ihren Wert auf.
   const erwartet = {
     punkt: HAKEN, id: '42', old: 'Altname', vehicleType: 'RTW', tagging: 'R',
     stationName: 'Wache Nord', stationAlias: 'WN', number: '4',
-    numberRoman: 'IV', dispatch: 'Leitstelle Mitte', dispatchAlias: 'LM'
+    numberRoman: 'IV', stationNumber: '3', stationNumberRoman: 'III',
+    dispatch: 'Leitstelle Mitte', dispatchAlias: 'LM'
   };
   for (const k of MARKEN_FZ)
     pruefe(`Marke {${k}}`, nameAus(`{${k}}`, mFz, kFull), erwartet[k]);
-  pruefe('alle Fahrzeugmarken sind belegt', MARKEN_FZ.length, 11);
+  pruefe('alle Fahrzeugmarken sind belegt', MARKEN_FZ.length, 13);
+  // Sashas Muster (16.10.): Typ, Wachennummer, Zaehler roemisch
+  pruefe('{tagging} {stationNumber}/{numberRoman}',
+    nameAus('{tagging} {stationNumber}/{numberRoman}', mFz,
+            { ...kFull, typKurz: 'HLF', wacheNummer: 1, nummer: 2 }), 'HLF 1/II');
+  pruefe('{stationNumber} gilt nicht in der Wachenvorlage',
+    nameAus('{stationNumber}', mWa, kFull), '{stationNumber}');
 }
 {
   // Die Vorgabe muss das Verhalten bis v0.58.0 nachbilden: Punkt vorn, Name sonst gleich.

@@ -22,10 +22,10 @@ Der Planer vergleicht, wie deine Wachen **aussehen sollen**, mit dem, was **wirk
 ## 1. Erste Schritte
 
 1. Unten rechts auf **„Planer“** klicken. Das Fenster öffnet sich.
-2. **„Bestand laden“** drücken. Der Planer liest deine Wachen und Fahrzeuge. Das dauert ein paar Sekunden.
+2. Beim ersten Öffnen nach jedem Neuladen der Seite liest der Planer deine Wachen und Fahrzeuge selbst neu. Das dauert ein paar Sekunden.
 3. Unter **Extras → Wunschbild** festlegen, wie jede Art von Wache aussehen soll. Fertige Vorschläge sind schon da.
 4. Unter **Extras → Ausbildung** einmal **„Ausbildungsstand erfassen“** drücken. Erst dann weiß der Planer, wer welchen Lehrgang hat.
-5. Links eine Wache anklicken. Rechts steht, was ihr fehlt, und darunter die Knöpfe dafür. Mit **„Nur Vorschau“** drücken und das Protokoll lesen. Passt alles: Haken bei „Nur Vorschau“ weg und noch einmal drücken.
+5. Links eine Wache anklicken. Rechts steht, was ihr fehlt, und darunter die Knöpfe dafür. Einen Lauf wählen, mit **„Nur Vorschau“** auf **„▶ … ausführen“** drücken und das Protokoll lesen. Passt alles: Haken bei „Nur Vorschau“ weg und noch einmal ausführen.
 
 ---
 
@@ -38,7 +38,7 @@ Der Planer vergleicht, wie deine Wachen **aussehen sollen**, mit dem, was **wirk
 | **Kopfzeile ziehen** | Fenster verschieben. Die Stelle wird gemerkt. |
 | **Doppelklick auf die Kopfzeile** | Vollbild an oder aus |
 | **↻** | Wachen und Fahrzeuge neu aus dem Spiel lesen. Daneben steht, wie alt der Stand ist. |
-| **◐** | helles oder dunkles Aussehen |
+| **◐** | helles oder dunkles Aussehen (dunkel ist Standard) |
 | **⏹** | laufenden Vorgang abbrechen; der aktuelle Schritt wird noch fertig |
 | **⇱** | Planer in ein eigenes Fenster lösen. Die Spielseite muss dabei offen bleiben. |
 | **⛶** | Vollbild |
@@ -97,16 +97,16 @@ Die Kacheln oben zeigen für den offenen Reiter, wie weit du bist: fehlende Fahr
 
 Rechts steht alles zu der angeklickten Wache:
 
-- **Kopf:** Art, Stufe und **Profil** der Wache. Das Profil kannst du hier direkt umstellen. **„im Spiel“** öffnet die Wache im Spiel, **⏸** übergeht sie, **×** schließt die Karte.
+- **Kopf:** Art, Stufe und **Profil** der Wache. Das Profil kannst du hier direkt umstellen. **„im Spiel“** öffnet die Wache im Spiel, **„↻ Aktualisieren“** liest alles zu ihr neu (Ausbauten, Fahrzeuge samt Umrüstung, Personal und Ausbildung), **⏸** übergeht sie, **×** schließt die Karte.
 - **Kauf blockiert:** erscheint, wenn Fahrzeuge fehlen, aber Stellplätze oder Überzählige im Weg sind.
 - **Fahrzeuge:** jeder Typ mit „da von geplant“. Rot heißt: es fehlt eins. Ein Klick auf den Typ zeigt alle Wachen, an denen er fehlt.
 - **Überzählig:** was der Plan nicht vorsieht, und welches Fahrzeug beim Zerstören fallen würde.
-- **Ausbauten fehlen**, **Personal** und **Lehrgänge**. Bei den Lehrgängen liest **„Ausbildungsstand lesen“** gleich den Stand dieser einen Wache.
+- **Ausbauten fehlen**, **Personal** und **Lehrgänge**.
 - **Aktionen:** die Knöpfe aus [Kapitel 5](#5-die-knöpfe-einer-wache), nur für diese Wache.
 
 ### 4.4 Mehrere Wachen auf einmal
 
-Hake links Wachen an und schließ die Karte (oder öffne keine). Rechts stehen dann die **Sammelaktionen**: dieselben Knöpfe, aber für alle angehakten Wachen. Die Zahl am Knopf sagt, an wie vielen davon etwas zu tun ist, zum Beispiel „3/8“.
+Hake links Wachen an und schließ die Karte (oder öffne keine). Rechts stehen dann die **Sammelaktionen**: dieselben Knöpfe, aber für alle angehakten Wachen. Die Zahl am Knopf sagt, an wie vielen davon etwas zu tun ist, zum Beispiel „3/8“. **„↻ Gewählte aktualisieren“** liest alle angehakten Wachen neu.
 
 ### 4.5 Wunschbild im Reiter einer Wachenart
 
@@ -116,22 +116,24 @@ Bist du in einem Reiter wie **🚒 Feuerwehr** und hast nichts angehakt, steht r
 
 ## 5. Die Knöpfe einer Wache
 
-Alle Knöpfe funktionieren gleich: **„Nur Vorschau“** prüfen, dann drücken. Ohne Vorschau fragt der Planer noch einmal nach. Die Zahl am Knopf sagt, wie viel er hier zu tun hätte. Ein **grauer Knopf** heißt: hier ist nichts zu tun.
+**So geht ein Lauf:** Knopf drücken — damit ist der Lauf nur **gewählt**. Darunter erscheinen seine Erklärung und nur seine Einstellungen. **„Nur Vorschau“** prüfen, dann **„▶ … ausführen“**. Ohne Vorschau fragt der Planer noch einmal nach. Die Zahl am Knopf sagt, wie viel er hier zu tun hätte. Ein **grauer Knopf** heißt: hier ist nichts zu tun. Ein **„?“** heißt: das weiß der Planer noch nicht — erst „Aktualisieren“.
 
-Unter den Knöpfen klappst du **„Einstellungen der Läufe“** auf. Dort stehen die Einstellungen für Kaufen und Personal (siehe unten).
+**Nach jedem echten Lauf** liest der Planer den Bestand selbst neu aus dem Spiel, damit die Zahlen stimmen.
 
-### 5.1 Bestand
+### 5.1 Wache
 
-**„Ausbauten bauen“** baut, was laut Plan fehlt. Zuerst kommen die Ausbauten, die Stellplätze bringen. **Kostet Credits.** Steht dort stattdessen **„Ausbaukatalog lesen“**, kennt der Planer die Ausbauten noch nicht; einmal drücken, das ändert nichts im Spiel.
+Reihenfolge: Ausbauten, Fahrzeuge kaufen, Fahrzeuge umrüsten, Fahrzeuge zerstören, Namen.
+
+**„Ausbauten“** baut, was laut Plan fehlt. Zuerst kommen die Ausbauten, die Stellplätze bringen. **Kostet Credits.** Steht dort stattdessen **„Ausbaukatalog lesen“**, kennt der Planer die Ausbauten noch nicht; einmal drücken, das ändert nichts im Spiel.
 
 **„Fahrzeuge kaufen“** kauft fehlende Fahrzeuge. **Kostet Credits.**
 
 - Beim Start liest der Planer dein Guthaben und gibt nie mehr aus, als da ist.
-- **„Wenn Stellplätze fehlen“** (in den Einstellungen der Läufe):
+- **„Wenn Stellplätze fehlen“:**
   - **„Wache ganz überspringen“**: erst Ausbauten bauen, dann kaufen (empfohlen).
   - **„So viel kaufen, wie Platz ist“**: kauft, was hineinpasst, und meldet den Rest.
 
-**„Umrüsten (Optimum)“** bringt Fahrzeuge auf deine Umrüst-Vorlage. Dafür musst du im Spiel für jeden Fahrzeugtyp, den du umrüsten willst, eine Vorlage anlegen, die **genau „Optimum“** heißt.
+**„Fahrzeuge umrüsten“** bringt Fahrzeuge auf deine Umrüst-Vorlage. Dafür musst du im Spiel für jeden Fahrzeugtyp, den du umrüsten willst, eine Vorlage anlegen, die **genau „Optimum“** heißt.
 
 - Typen ohne diese Vorlage bleiben unberührt.
 - **Kostet Credits**, etwa den Kaufpreis. Auch hier stoppt der Planer, bevor das Guthaben aufgebraucht ist.
@@ -139,15 +141,26 @@ Unter den Knöpfen klappst du **„Einstellungen der Läufe“** auf. Dort stehe
 - Umgerüstet wird nur, was gerade auf der Wache steht (Status 2).
 - Bekommt ein Fahrzeug mehr Sitze, wird es von 🟢 auf 🟡 umbenannt. Der nächste Personallauf füllt es auf.
 
-**„Überzählige zerstören“** entfernt Fahrzeuge, die der Plan nicht vorsieht. **Das lässt sich nicht rückgängig machen.** Der Planer fragt deshalb immer extra nach. Grüne Fahrzeuge, Fahrzeuge im Einsatz und Zugfahrzeuge mit Anhänger lässt er aus.
+**„Fahrzeuge zerstören“** entfernt Fahrzeuge, die der Plan nicht vorsieht. **Das lässt sich nicht rückgängig machen.** Der Planer fragt deshalb immer extra nach. Grüne Fahrzeuge, Fahrzeuge im Einsatz und Zugfahrzeuge mit Anhänger lässt er aus.
+
+**„Namen abgleichen“** benennt Fahrzeuge und Wache nach deiner Vorlage um (siehe [6.4](#64-namen)) und setzt dabei den richtigen Punkt.
 
 ### 5.2 Personal
+
+Reihenfolge: Werben, Personal zuweisen, Personal ausbilden — dahinter Anhänger koppeln und Zuweisungen lösen.
+
+**„Werben“** hat zwei Arten:
+
+- **3 Tage werben** (ohne Premium): startet an Wachen mit zu wenig Personal eine Werbephase.
+- **Automatisch (Premium):** setzt den Personal-Sollwert der Wache (Voreinstellung 400). Danach wirbt das Spiel selbst.
+
+Beides kostet nichts.
 
 > **Vorher alle Fahrzeuge einrücken lassen.** Den Status ändern kann der Planer nur bei Fahrzeugen, die auf der Wache stehen. Alles andere holt er beim nächsten Lauf nach.
 
 **„Personal zuweisen“** verteilt die Leute auf die Fahrzeuge: zuerst die Ausgebildeten auf die Fahrzeuge, die ihren Lehrgang brauchen, dann den Rest. Danach gehen Fahrzeuge ohne genug Leute auf Status 6 und besetzte zurück auf Status 2.
 
-| Einstellung (in den Einstellungen der Läufe) | Was sie tut |
+| Einstellung (erscheint, wenn der Lauf gewählt ist) | Was sie tut |
 |---|---|
 | **Fahrzeuge voll besetzen** | füllt nach der Mindestbesatzung auch die freien Sitze |
 | **Fachkräfte von grünen Fahrzeugen umsetzen** | holt eine Fachkraft von einem grünen Fahrzeug, wenn ein anderes sonst nicht ausrücken könnte. Das grüne behält genug Leute. |
@@ -156,15 +169,11 @@ Unter den Knöpfen klappst du **„Einstellungen der Läufe“** auf. Dort stehe
 
 Zusätzlich stellt dieser Lauf alle **Abrollbehälter** ein: zufälliges WLF, auch von anderen Wachen, und das WLF fährt danach heim.
 
-**„3 Tage werben“** startet an Wachen mit zu wenig Personal eine Werbephase. Kostet nichts.
+**„Personal ausbilden“** startet für jeden Lehrgang, der an der Wache laut Plan fehlt, einen Lehrgang — erst in deinen Schulen, dann auf Wunsch in Schulen des Verbands. Einstellungen: **„1 Stunde für den Verband freigeben“** und **„auch Schulen des Verbands“**. Eigene Schulen kosten Credits. Geschickt werden nur Leute ohne Lehrgang, die verfügbar sind und auf keinem Fahrzeug sitzen.
 
 **„Anhänger koppeln“** gibt jedem Anhänger ein festes Zugfahrzeug. Abrollbehälter sind ausgenommen, die fahren mit zufälligem WLF.
 
 **„Zuweisungen lösen“** nimmt alle Leute von den Fahrzeugen einer Wache, für einen sauberen Neuanfang vor „Personal zuweisen“. Den Knopf gibt es nur auf der Karte einer einzelnen Wache, und der Planer fragt extra nach. Grüne Fahrzeuge bleiben besetzt.
-
-### 5.3 Namen
-
-**„Namen abgleichen“** benennt Fahrzeuge und Wache nach deiner Vorlage um (siehe [6.4](#64-namen)) und setzt dabei den richtigen Punkt.
 
 ---
 
@@ -260,10 +269,14 @@ Es gibt je eine Vorlage für **Fahrzeuge** und eine für **Wachen**. Die Baustei
 | `{stationAlias}` | deinem eigenen Namen für die Wachenart (siehe unten) |
 | `{number}` | einer laufenden Nummer, z. B. 2 |
 | `{numberRoman}` | derselben Nummer in römischen Zahlen, z. B. II |
+| `{stationNumber}` | nur bei Fahrzeugen: der Nummer der Wache, also dasselbe, was `{number}` an der Wache ergibt |
+| `{stationNumberRoman}` | derselben Wachennummer in römischen Zahlen |
 | `{dispatch}` / `{dispatchAlias}` | der Leitstelle bzw. deinem eigenen Namen dafür |
 | `{id}` | der Nummer des Fahrzeugs im Spiel |
 
-Die **Voreinstellung** ist `{punkt} {old}`: Punkt vorne, alter Name dahinter. Unter den Feldern zeigt ein **Beispiel**, wie der Name aussehen wird; Fehler in der Vorlage stehen gleich daneben.
+Die **Voreinstellung** ist `{punkt} {old}`: Punkt vorne, alter Name dahinter.
+
+**Beispiele:** Wachen `{punkt} {stationAlias}-{number}` ergibt „🟢 Feuer-1“, „🟢 Feuer-2“. Fahrzeuge `{punkt} {tagging} {stationNumber}/{numberRoman}` ergibt an Feuer-1 „🟢 HLF 1/I“, „🟢 HLF 1/II“. Unter den Feldern zeigt ein **Beispiel**, wie der Name aussehen wird; Fehler in der Vorlage stehen gleich daneben.
 
 **Weitere Einstellungen**
 
@@ -309,6 +322,6 @@ Auf der Seite **„Lehrgänge“** des Verbands zeigt ein Kasten alle offenen Le
 - **Zuweisungen lösen** geht nur für eine Wache auf einmal.
 - **⚫ an einer Wache** nimmt sie ganz aus dem Planer heraus.
 - **⏹** bricht jeden Lauf ab.
-- **Nach großen Läufen** **↻** drücken, dann stimmen alle Zahlen wieder.
+- **Nach jedem echten Lauf** liest der Planer den Bestand selbst neu; **↻** tut das jederzeit von Hand.
 
 Wenn etwas komisch aussieht: zuerst ins **Protokoll** schauen. Dort steht fast immer der Grund.

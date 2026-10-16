@@ -93,7 +93,11 @@ const cache = new Map();
 async function apiGet(path, { fresh = false } = {}) {
   if (!fresh && cache.has(path)) return cache.get(path);
   const data = await queued(async sig => {
-    const r = await fetch(path, { credentials: 'same-origin', signal: sig });
+    /* `fresh` muß auch am Browser vorbei: die API erlaubt 60 s Zwischenspeicher
+       (SPIELSEITEN.md), und ein Neulesen direkt nach einem Lauf bekäme sonst
+       den Stand von davor. `no-cache` fragt nach, ob er noch gilt. */
+    const r = await fetch(path, { credentials: 'same-origin', signal: sig,
+                                  cache: fresh ? 'no-cache' : 'default' });
     if (!r.ok) throw new Error(`${path} → HTTP ${r.status}`);
     return r.json();
   }, READ_DELAY);
@@ -1281,6 +1285,13 @@ const MARKEN = {
                    wert: k => k.nummer },
   numberRoman:   { hilfe: 'derselbe Zähler in römischen Zahlen',
                    wert: k => roemisch(k.nummer) },
+  /* Die Nummer der Wache im Fahrzeugnamen (Sasha, 16.10.): aus
+     "{tagging} {stationNumber}/{numberRoman}" wird „HLF 1/II". Dieselbe Zahl, die
+     {number} der Wache selbst gibt — sonst hieße Feuer 1 im Fahrzeug „3". */
+  stationNumber: { hilfe: 'Nummer der Wache in ihrer Gebäudeart, wie {number} an der Wache',
+                   wert: k => k.wacheNummer },
+  stationNumberRoman: { hilfe: 'dieselbe Wachennummer in römischen Zahlen',
+                   wert: k => roemisch(k.wacheNummer) },
   dispatch:      { hilfe: 'Name der Leitstelle',         wert: k => k.leitstelle },
   dispatchAlias: { hilfe: 'eigener Leitstellenname (sonst wie {dispatch})',
                    wert: k => k.leitstelleKurz || k.leitstelle }
@@ -1294,7 +1305,8 @@ const MARKEN = {
    10.09.). Gezählt wird nur etwas anderes: beim Fahrzeug der Typ auf seiner
    Wache, bei der Wache die Gebäudeart im ganzen Bestand. */
 const MARKEN_FZ = ['punkt', 'id', 'old', 'vehicleType', 'tagging', 'stationName',
-                   'stationAlias', 'number', 'numberRoman', 'dispatch', 'dispatchAlias'];
+                   'stationAlias', 'number', 'numberRoman', 'stationNumber', 'stationNumberRoman',
+                   'dispatch', 'dispatchAlias'];
 const MARKEN_WACHE = ['punkt', 'id', 'old', 'stationName', 'stationAlias',
                       'number', 'numberRoman', 'dispatch', 'dispatchAlias'];
 const markenFuer = liste => Object.fromEntries(liste.map(k => [k, MARKEN[k]]));
@@ -1385,7 +1397,7 @@ function wachsendeVorlage(vorlage, marken, kontext) {
     ohne Spielstand, damit eine Vorlage schon beim Eintippen beurteilt wird. */
 const MUSTER_KONTEXT = {
   punkt: HAKEN, id: 4711, alt: 'Muster', typName: 'RTW', typKurz: '',
-  wache: 'Rettungswache Nord', wacheKurz: '', nummer: 2,
+  wache: 'Rettungswache Nord', wacheKurz: '', nummer: 2, wacheNummer: 1,
   leitstelle: 'Leitstelle Mitte', leitstelleKurz: ''
 };
 
@@ -1553,6 +1565,7 @@ function kontextFahrzeug(b, v, zeichen) {
     wacheKurz:      aliasArt(b.building_type),
     nummer:         typZaehler(echteVon(b), v, Number(S.opts.zaehlerStart ?? 1),
                                !!S.opts.zaehlerAbEins),
+    wacheNummer:    wachenZaehler(b, Number(S.opts.zaehlerStart ?? 1), !!S.opts.zaehlerAbEins),
     leitstelle:     ohneHaken(leitstelleName(b)),
     leitstelleKurz: aliasWache(b.leitstelle_building_id)
   };
@@ -2915,6 +2928,21 @@ async function sellSurplus(sel, dry) {
 
 async function hire(sel, dry) {
   let n = 0;
+  /* Mit Premium wirbt das Spiel selbst, solange der Personal-Sollwert über dem
+     Bestand liegt (Sasha, 16.10.). Gesetzt wird über dasselbe Formular wie in
+     konsole/personal-soll.js. Ob das Konto Premium hat, liest der Planer nicht —
+     das wählt man in den Einstellungen des Laufs. */
+  if (S.opts.werbenModus === 'soll') {
+    const ziel = werbenSoll();
+    for (const b of sel) {
+      if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
+      log(`${b.caption}: Personal-Soll auf ${ziel} — das Spiel wirbt ab jetzt selbst`);
+      if (!dry) await postForm(`/buildings/${b.id}?personal_count_target_only=1`,
+        { _method: 'patch', 'building[personal_count_target]': String(ziel) });
+      n++;
+    }
+    return n;
+  }
   for (const b of sel) {
     const a = analyse(b);
     if (!a.hire) continue;
@@ -3991,6 +4019,8 @@ html.lssp-hell #lssp nav button.on{color:#333}
 #lssp .warnkasten{border:1px solid var(--lp-akzent);border-radius:3px;padding:7px 10px;margin:8px 0;color:var(--lp-akzent);font-size:12px}
 #lssp .knoepfe{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 6px}
 #lssp .knoepfe .zahl{font-weight:400;opacity:.75;margin-left:4px}
+#lssp .knoepfe button.on{outline:2px solid var(--lp-akzent);outline-offset:1px}
+#lssp .lauftafel{border:1px solid var(--lp-rand);border-radius:4px;padding:4px 10px 0;margin-top:8px}
 #lssp .karte .tun{bottom:0;margin:10px 0 0;padding:8px 0}
 #lssp .fuss{border-top:1px solid var(--lp-rand);padding:0 14px 10px}
 #lssp .fuss .logkopf{margin:6px 0 -4px}
@@ -4026,6 +4056,10 @@ let ansicht = 'alle';                  // 'alle' | Gebäudetyp als Text | 'extra
 /* Rechts ohne gewählte Wache: Sammelaktionen für die Häkchen oder, in einem
    Typ-Reiter, das Wunschbild dieser Gebäudeart. null = von selbst wählen. */
 let rechts = null;
+/* Welcher Lauf auf der Karte gewählt ist. Ein Druck auf einen Lauf wählt ihn
+   nur — erst „▶ Ausführen" startet ihn. So stehen darunter genau die
+   Einstellungen dieses Laufs, nicht alle auf einmal (Sasha, 16.10.). */
+let gewaehlt = null;
 const EXTRAS = [['ueber', 'Einstellungen'], ['plan', 'Wunschbild'],
                 ['lehrgang', 'Ausbildung'], ['haken', 'Namen']];
 
@@ -4051,6 +4085,7 @@ function zuruecksetzen() {
   fokus = null;
   suche = '';
   rechts = null;
+  gewaehlt = null;
   S.opts.dry = true;
   S.opts.gruenFrei = false;   // Freigabe gilt für einen Handgriff, nicht für den Reiter
   store.set(KEY_OPTS, S.opts);
@@ -4457,16 +4492,7 @@ function render() {
   const b = el.querySelector('.body');
   b.classList.remove('raster');
   // Vor den Reitern: welche Gebäudearten es gibt, steht erst im Bestand
-  if (!S.loaded && loadCached()) {
-    // Höchstens einmal am Tag von selbst nachladen — sonst wartet der Planer
-    // darauf, dass du „Bestand neu laden“ drückst.
-    if (S.stamp && Date.now() - S.stamp > 24 * 3600e3 && !S.busy) {
-      S.busy = true;
-      loadAll(true).then(() => { log('Bestand war über einen Tag alt und wurde erneuert.', 'good'); })
-        .catch(e => log('Selbstabgleich fehlgeschlagen: ' + e.message, 'warn'))
-        .finally(() => { S.busy = false; fortAus(); render(); });
-    }
-  }
+  if (!S.loaded) loadCached();
   navZeichnen();
   /* Scharf heißt: der nächste Druck verändert das Spiel. Das gehört an den
      Rahmen, nicht nur an ein Häkchen weiter unten. */
@@ -4552,7 +4578,7 @@ function render() {
     b.querySelector('#lssp-buf').onchange = e => {
     S.opts.buffer = Number(e.target.value) || 0; store.set(KEY_OPTS, S.opts); standNeu(); render();
   };
-    b.querySelector('#lssp-reload').onclick = async () => { await loadAll(true); render(); };
+    b.querySelector('#lssp-reload').onclick = () => bestandAuffrischen();
     b.querySelector('#lssp-inline')?.addEventListener('change', e => {
       ui.inline = e.target.checked; saveUi();
       if (ui.inline) wachenSeite(); else document.querySelector('#lssp-wache')?.remove();
@@ -4960,7 +4986,7 @@ function render() {
    ─────────────────────────────────────────────────────────────────── */
 function aktionen() {
   return {
-    ausbau:   ['Ausbauten bauen',      buildExtensions,
+    ausbau:   ['Ausbauten',            buildExtensions,
       'Baut die im Plan vorgesehenen Erweiterungen. Reihenfolge: erst die, die Stellplätze bringen, '
       + 'dann die übrigen, zuletzt die mehrfach baubaren wie Abrollbehälter-Stellplätze. Kostet Credits.'],
     kaufen:   ['Fahrzeuge kaufen',     buyVehicles,
@@ -4971,13 +4997,19 @@ function aktionen() {
        Fahrzeug zerstören?" (D-84, nachgemessen). Wer „verkaufen" liest,
        rechnet mit Credits zurück; ob welche fließen, ist ungemessen — also
        wird auch keine versprochen. */
-    verkauf:  ['Überzählige zerstören', sellSurplus,
+    verkauf:  ['Fahrzeuge zerstören',  sellSurplus,
       'Zerstört Fahrzeuge, die der Plan nicht vorsieht — dasselbe wie der Papierkorb '
       + 'auf der Fahrzeugseite. Einen Verkauf kennt das Spiel nicht, und einen Erlös '
       + 'nennt es nicht. Nicht rückgängig zu machen. Fahrzeuge im Einsatz werden übersprungen.'],
-    werben:   ['3 Tage werben',        hire,
-      'Startet an unterbesetzten Wachen eine dreitägige Bewerbungsphase. Kostet nichts.'],
-    umbau:    ['Umrüsten (Optimum)',   umruesten,
+    werben:   ['Werben',               hire,
+      'Ohne Premium: startet an unterbesetzten Wachen eine dreitägige Bewerbungsphase. '
+      + 'Mit Premium: setzt den Personal-Sollwert, danach wirbt das Spiel selbst. Kostet nichts.'],
+    ausbildung: ['Personal ausbilden', ausbildungenStarten,
+      'Startet für jeden Lehrgang, der hier laut Plan fehlt, einen Lehrgang — erst in eigenen '
+      + 'Schulen, dann auf Wunsch in Schulen des Verbands. Genommen werden nur Leute ohne Lehrgang, '
+      + 'die verfügbar und keinem Fahrzeug zugewiesen sind. Eigene Schulen kosten Credits je Tag '
+      + 'und Person. Braucht einen erfaßten Ausbildungsstand.'],
+    umbau:    ['Fahrzeuge umrüsten',   umruesten,
       'Rüstet jedes Fahrzeug, für dessen Typ eine eigene Vorlage „Optimum" angelegt ist, '
       + 'auf diese Vorlage um — Typen ohne sie bleiben unberührt. Kostet Credits (etwa den '
       + 'Kaufpreis) und legt das Fahrzeug 48 Stunden auf Status 6, alle auf einmal. Liest '
@@ -5024,12 +5056,54 @@ async function aktionLaufen(key, sel, knopf = null) {
   if (!dry && !await frage(`${label} für ${sel.length} Wachen ausführen?`, 'ausfuehren-' + key)) return;
   S.busy = true; if (knopf) knopf.disabled = true; laufStarten();
   logLeeren(); log(dry ? '── Vorschau ──' : '── Ausführung ──', 'good');
+  let n = 0;
   try {
-    const n = await fn(sel, dry);
+    n = await fn(sel, dry);
     log(`${dry ? 'Vorschau' : 'Fertig'}: ${n} Aktionen`, 'good');
-    if (!dry && n) log(`Bestand lokal fortgeschrieben. Für gemessene Zahlen `
-      + `„Bestand neu laden“ (↻ oben) drücken.`, 'warn');
   } catch (e) { log('Abbruch: ' + e.message, 'err'); }
+  S.busy = false; fortAus();
+  /* Nach jedem scharfen Lauf den Stand aus dem Spiel, nicht die eigene
+     Fortschreibung (Sasha, 16.10.). Auch nach einem Abbruch: was bis dahin
+     geschah, ist trotzdem geschehen. */
+  if (!dry) return bestandAuffrischen(sel, key === 'ausbildung');
+  render();
+}
+
+/** Für jeden Lehrgang, der an einer der Wachen fehlt, einen Start — über
+    dieselbe Strecke wie Extras → Ausbildung. */
+async function ausbildungenStarten(sel, dry) {
+  const offen = new Map();                      // Schlüssel → Wachen, denen er fehlt
+  let unerfasst = 0;
+  for (const b of sel) {
+    if (!quals.by[b.id]) { unerfasst++; continue; }
+    for (const key of Object.keys(courseNeed(b)))
+      if (kursPosten(b, key).fehlt > 0) offen.set(key, [...(offen.get(key) || []), b]);
+  }
+  if (unerfasst) log(`${unerfasst} Wachen ohne erfaßten Ausbildungsstand übergangen — erst „Aktualisieren".`, 'warn');
+  if (!offen.size) { log('Kein Lehrgang fehlt laut Plan — nichts zu starten.', 'good'); return 0; }
+  let n = 0;
+  for (const [key, wachen] of offen) {
+    if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
+    log(`── ${kursNamen(key)[0] || key}: ${wachen.length} Wachen ──`);
+    n += await lehrgangStarten(key, wachen, 0, S.opts.ksFreigabe !== false, S.opts.ksVerband !== false, dry);
+  }
+  return n;
+}
+
+/** Bestand neu aus dem Spiel; für `wachen` mit `mitPersonal` auch die
+    Personalliste. Eine Wache einzeln gibt es nicht zu lesen — gemessen sind
+    nur die beiden Sammelabrufe, und die kosten zusammen zwei, drei Anfragen. */
+async function bestandAuffrischen(wachen = [], mitPersonal = false) {
+  if (S.busy) return log('Es läuft gerade etwas — erst danach neu lesen.', 'warn');
+  S.busy = true; laufStarten();
+  try {
+    await loadAll(true);
+    log(`Bestand neu gelesen: ${S.buildings.length} Gebäude, ${S.vehicles.length} Fahrzeuge.`, 'good');
+    if (mitPersonal && wachen.length) {
+      await scanQuals(wachen, (d, t, bb) => schritt(d, t, bb.caption || bb.id));
+      log(`Personal und Ausbildung von ${wachen.length === 1 ? ohneHaken(wachen[0].caption) : wachen.length + ' Wachen'} neu gelesen.`, 'good');
+    }
+  } catch (e) { log('Neu lesen fehlgeschlagen: ' + e.message, 'err'); }
   S.busy = false; fortAus(); render();
 }
 
@@ -5088,51 +5162,53 @@ function laufLeisteBinden(w) {
   });
 }
 
-/* Was die Läufe sonst noch wissen wollen. Früher stand es im Reiter des
-   jeweiligen Laufs; jetzt gibt es keinen Reiter je Lauf mehr, also steht es
-   gesammelt unter den Knöpfen — zugeklappt, weil es selten wechselt. */
-function laufOptionen() {
-  return `<details id="lssp-laufopt" style="margin:8px 0"${ui.laufOpt ? ' open' : ''}>
-    <summary style="cursor:pointer;color:var(--lp-dim)">Einstellungen der Läufe</summary>
-    <div style="margin:8px 0 0 4px">
-      <div style="color:var(--lp-dim);font-size:12px;margin-bottom:4px"><b>Fahrzeuge kaufen</b> — wenn Stellplätze fehlen:</div>
+/* Was ein Lauf sonst noch wissen will — nur die Einstellungen des gewählten,
+   die übrigen bleiben verborgen (Sasha, 16.10.). */
+function laufOptionen(key) {
+  const haken = (id, an, titel, text, farbe = 'var(--lp-dim)') => `
+      <label style="display:block;margin:0 0 6px;color:${farbe}">
+        <input type="checkbox" id="${id}" ${an ? 'checked' : ''}> <b>${titel}</b>
+        <span style="color:var(--lp-dim2)">— ${text}</span></label>`;
+  const warn = text => `<div class="warnkasten" style="border-color:var(--lp-err);color:var(--lp-err)">${text}</div>`;
+  const tafel = {
+    kaufen: `<div style="color:var(--lp-dim);font-size:12px;margin-bottom:4px">Wenn Stellplätze fehlen:</div>
       <label style="display:block;margin-bottom:4px">
         <input type="radio" name="lsspmode" value="strict" ${S.opts.strict !== false ? 'checked' : ''}>
         <b>Wache ganz überspringen</b> <span style="color:var(--lp-dim2)">— erst Ausbauten bauen, dann kaufen</span></label>
-      <label style="display:block;margin-bottom:10px">
+      <label style="display:block;margin-bottom:6px">
         <input type="radio" name="lsspmode" value="fit" ${S.opts.strict === false ? 'checked' : ''}>
-        <b>So viel kaufen, wie Platz ist</b> <span style="color:var(--lp-dim2)">— Rest wird gemeldet</span></label>
-      <div style="color:var(--lp-dim);font-size:12px;margin-bottom:4px"><b>Personal zuweisen</b> — vorher alle
-        Fahrzeuge einrücken lassen: der Status läßt sich nur umschalten, wenn ein Fahrzeug auf seiner
-        Wache steht. Was unterwegs ist, wird vorgemerkt und beim nächsten Lauf nachgeholt.</div>
-      <label style="display:block;margin:0 0 6px;color:var(--lp-dim)">
-        <input type="checkbox" id="lssp-voll" ${S.opts.vollBesetzen !== false ? 'checked' : ''}>
-        <b>Fahrzeuge voll besetzen</b>
-        <span style="color:var(--lp-dim2)">— sobald jedes Fahrzeug seine Mindestbesetzung hat,
-        wandern die Übrigen auf freie Sitze. Wer einen Lehrgang hat, der an dieser Wache
-        gebraucht wird, bleibt frei.</span></label>
-      <label style="display:block;margin:0 0 6px;color:var(--lp-dim)">
-        <input type="checkbox" id="lssp-leihen" ${S.opts.gruenLeihen !== false ? 'checked' : ''}>
-        <b>Fachkräfte von grünen Fahrzeugen umsetzen</b>
-        <span style="color:var(--lp-dim2)">— wenn ein Fahrzeug sonst ohne Besatzung bliebe.
-        Nur wer auf dem grünen Fahrzeug entbehrlich ist: es behält seine Mindestbesetzung
-        und damit seinen Punkt.</span></label>
-      <label style="display:block;margin:0 0 6px;color:var(--lp-dim)">
-        <input type="checkbox" id="lssp-fzname" ${S.opts.fzUmbenennen ? 'checked' : ''}>
-        <b>Fahrzeuge anschließend umbenennen</b>
-        <span style="color:var(--lp-dim2)">— jedes Fahrzeug bekommt gleich hier seinen Punkt,
-        nach der Vorlage unter Extras → Namen. Spart den zweiten Durchgang. Grüne Fahrzeuge
-        bleiben unberührt, es sei denn, dieser Lauf hat ihre Besatzung selbst verändert.</span></label>
-      <label style="display:block;margin:0;color:${S.opts.ausbautenSchalten ? 'var(--lp-akzent)' : 'var(--lp-dim)'}">
-        <input type="checkbox" id="lssp-ausbschalt" ${S.opts.ausbautenSchalten ? 'checked' : ''}>
-        <b>Ausbauten und Wache mitschalten</b>
-        <span style="color:var(--lp-dim2)">— steht hinter einem Ausbau kein einsatzbereites
-        Fahrzeug mehr, wird er abgeschaltet; die Wache selbst hängt am Grundtopf.
-        <b>Eine abgeschaltete Wache nimmt an keinem Einsatz mehr teil.</b> Darum von Haus aus aus.</span></label>
-    </div></details>`;
+        <b>So viel kaufen, wie Platz ist</b> <span style="color:var(--lp-dim2)">— Rest wird gemeldet</span></label>`,
+    werben: `<label style="display:block;margin-bottom:4px">
+        <input type="radio" name="lsspwerben" value="drei" ${S.opts.werbenModus !== 'soll' ? 'checked' : ''}>
+        <b>3 Tage werben</b> <span style="color:var(--lp-dim2)">— ohne Premium; nur an unterbesetzten Wachen</span></label>
+      <label style="display:block;margin-bottom:6px">
+        <input type="radio" name="lsspwerben" value="soll" ${S.opts.werbenModus === 'soll' ? 'checked' : ''}>
+        <b>Automatisch (Premium)</b> <span style="color:var(--lp-dim2)">— Personal-Soll auf
+        <input type="number" id="lssp-wsoll" min="1" max="9999" value="${werbenSoll()}" style="width:70px">
+        setzen, danach wirbt das Spiel selbst</span></label>`,
+    personal: warn('<b>Vorher alle Fahrzeuge einrücken lassen.</b> Der Status läßt sich nur umschalten, wenn '
+        + 'ein Fahrzeug auf seiner Wache steht. Was unterwegs ist, wird beim nächsten Lauf nachgeholt.')
+        .replace('var(--lp-err);color:var(--lp-err)', 'var(--lp-akzent);color:var(--lp-akzent)')
+      + haken('lssp-voll', S.opts.vollBesetzen !== false, 'Fahrzeuge voll besetzen',
+          'sobald jedes Fahrzeug seine Mindestbesetzung hat, wandern die Übrigen auf freie Sitze.')
+      + haken('lssp-leihen', S.opts.gruenLeihen !== false, 'Fachkräfte von grünen Fahrzeugen umsetzen',
+          'wenn ein Fahrzeug sonst ohne Besatzung bliebe; das grüne behält seine Mindestbesetzung.')
+      + haken('lssp-fzname', S.opts.fzUmbenennen, 'Fahrzeuge anschließend umbenennen',
+          'nach der Vorlage unter Extras → Namen. Spart den zweiten Durchgang.')
+      + haken('lssp-ausbschalt', S.opts.ausbautenSchalten, 'Ausbauten und Wache mitschalten',
+          '<b>eine abgeschaltete Wache nimmt an keinem Einsatz mehr teil.</b> Darum von Haus aus aus.',
+          S.opts.ausbautenSchalten ? 'var(--lp-akzent)' : 'var(--lp-dim)'),
+    ausbildung: haken('lssp-afrei', S.opts.ksFreigabe !== false, '1 Stunde für den Verband freigeben',
+          'kostenlos; freie Plätze stehen dann anderen offen.')
+      + haken('lssp-averband', S.opts.ksVerband !== false, 'auch Schulen des Verbands',
+          'wenn die eigenen Schulen nicht reichen.'),
+    verkauf: warn('<b>Nicht rückgängig zu machen.</b> Vor dem Zerstören fragt der Planer immer noch einmal.'),
+    leeren: warn('<b>Nur diese eine Wache.</b> Jede Person wird von ihrem Fahrzeug gelöst — danach ist die '
+        + 'Wache leer, bis du das Personal neu zuweist.')
+  };
+  return tafel[key] || '';
 }
 function laufOptionenBinden(w) {
-  w.querySelector('#lssp-laufopt')?.addEventListener('toggle', e => { ui.laufOpt = e.target.open; saveUi(); });
   const merk = (id, schluessel, neuZeichnen = false) =>
     w.querySelector(id)?.addEventListener('change', e => {
       S.opts[schluessel] = e.target.checked; store.set(KEY_OPTS, S.opts);
@@ -5142,39 +5218,67 @@ function laufOptionenBinden(w) {
   merk('#lssp-leihen', 'gruenLeihen');
   merk('#lssp-fzname', 'fzUmbenennen');
   merk('#lssp-ausbschalt', 'ausbautenSchalten', true);   // die Beschriftung färbt sich mit
+  merk('#lssp-afrei', 'ksFreigabe');
+  merk('#lssp-averband', 'ksVerband');
   w.querySelectorAll('input[name=lsspmode]').forEach(r => r.onchange = e => {
     S.opts.strict = e.target.value === 'strict'; store.set(KEY_OPTS, S.opts);
   });
+  w.querySelectorAll('input[name=lsspwerben]').forEach(r => r.onchange = e => {
+    S.opts.werbenModus = e.target.value; store.set(KEY_OPTS, S.opts);
+    render();                       // die Zahl am Knopf zählt je Modus anders
+  });
+  w.querySelector('#lssp-wsoll')?.addEventListener('change', e => {
+    S.opts.werbenSoll = Math.max(1, Math.min(9999, parseInt(e.target.value, 10) || 400));
+    e.target.value = S.opts.werbenSoll;
+    store.set(KEY_OPTS, S.opts);
+  });
 }
 
-/* Knöpfe in drei Gruppen. Die Zahl am Knopf sagt, wie viel der Handgriff hier
-   zu tun hätte; ist es nichts, bleibt er grau — „nichts zu tun“ soll man sehen,
-   bevor man drückt. Wo sich das nicht vorab zählen läßt, bleibt er offen. */
+/* Zwei Gruppen in Sashas Reihenfolge (16.10.). Anhänger koppeln und Lösen
+   hat er nicht genannt; sie stehen hinten bei Personal, damit nichts verloren
+   geht. Die Zahl am Knopf sagt, wie viel der Lauf hier zu tun hätte; ist es
+   nichts, bleibt er grau — „nichts zu tun" sieht man vor dem Druck. Werben
+   nicht: dort steht die Umstellung auf Premium, und die muß erreichbar sein. */
 const AKTION_GRUPPEN = [
-  ['Bestand',  ['ausbau', 'kaufen', 'umbau', 'verkauf']],
-  ['Personal', ['personal', 'werben', 'anhaenger', 'leeren']],
-  ['Namen',    ['haken']]
+  ['Wache',    ['ausbau', 'kaufen', 'umbau', 'verkauf', 'haken']],
+  ['Personal', ['werben', 'personal', 'ausbildung', 'anhaenger', 'leeren']]
 ];
-const GEZAEHLT = new Set(['ausbau', 'kaufen', 'verkauf', 'werben', 'anhaenger']);
+const gezaehlt = k => ['ausbau', 'kaufen', 'verkauf', 'anhaenger', 'ausbildung'].includes(k)
+  || (k === 'werben' && S.opts.werbenModus !== 'soll');
+const werbenSoll = () => Math.max(1, Math.min(9999, parseInt(S.opts.werbenSoll, 10) || 400));
 
 function aktionsKnoepfe(sel) {
   const akt = aktionen();
   const fs = sel.map(fortschritt);
-  return AKTION_GRUPPEN.map(([titel, keys]) => {
+  const zaehle = k => { const z = BEREICH[k === 'ausbildung' ? 'lehrgang' : k]; return z(fs[0])[0]; };
+  if (gewaehlt === 'leeren' && sel.length !== 1) gewaehlt = null;
+  const gruppen = AKTION_GRUPPEN.map(([titel, keys]) => {
     const knoepfe = keys.filter(k => k !== 'leeren' || sel.length === 1).map(k => {
       const [label, , hilfe] = akt[k];
       if (k === 'ausbau' && !katalogDa())
         return `<button class="act" id="lssp-katalog" title="Ohne die Bauplatz-Nummern kann kein Ausbau bestellt werden. Ein Abruf, ändert nichts.">Ausbaukatalog lesen</button>`;
-      const n = GEZAEHLT.has(k)
-        ? (sel.length === 1 ? BEREICH[k](fs[0])[0] : fs.filter(f => BEREICH[k](f)[0]).length) : null;
-      const zahl = n === null ? '' : `<span class="zahl">${sel.length === 1 ? n : `${n}/${sel.length}`}</span>`;
-      const art = ['verkauf', 'leeren'].includes(k) ? 'danger' : n ? 'go' : '';
-      return `<button class="act lauf ${art}" data-aktion="${k}" title="${escA(hilfe)}"${
-        n === 0 ? ' disabled' : ''}>${esc(label)}${zahl}</button>`;
+      const z = BEREICH[k === 'ausbildung' ? 'lehrgang' : k];
+      const n = !gezaehlt(k) ? null : sel.length === 1 ? zaehle(k) : fs.filter(f => z(f)[0]).length;
+      // Ausbildungsstand nicht erfaßt: „?" statt einer grauen 0, die „nichts fehlt" behauptete
+      const unklar = k === 'ausbildung' && sel.length === 1 && fs[0].lehrgangUnklar;
+      const zahl = unklar ? '<span class="zahl">?</span>'
+        : n === null ? '' : `<span class="zahl">${sel.length === 1 ? n : `${n}/${sel.length}`}</span>`;
+      return `<button class="act lauf${gewaehlt === k ? ' on' : ''}" data-aktion="${k}" title="${escA(hilfe)}"${
+        n === 0 && k !== 'werben' && !unklar ? ' disabled' : ''}>${esc(label)}${zahl}</button>`;
     });
     return `<div class="abschnitt" style="margin-top:8px"><b style="font-size:12px;color:var(--lp-dim)">${titel}</b></div>
       <div class="knoepfe">${knoepfe.join('')}</div>`;
   }).join('');
+  if (!gewaehlt) return gruppen + `<p class="hint" style="margin-top:6px">Wähl oben einen Lauf — darunter
+      erscheinen seine Einstellungen und der Knopf zum Ausführen.</p>`;
+  const [label, , hilfe] = akt[gewaehlt];
+  const gefahr = ['verkauf', 'leeren'].includes(gewaehlt);
+  return gruppen + `<div class="lauftafel">
+      <div class="abschnitt" style="margin-top:4px"><b>${esc(label)}</b></div>
+      <p class="hint">${esc(hilfe)}</p>
+      ${laufOptionen(gewaehlt)}
+      ${laufLeiste(`<button class="act ${gefahr ? 'danger' : 'go'}" id="lssp-los">▶ ${esc(label)} ausführen</button>`)}
+    </div>`;
 }
 
 /** Teil der Karte: Überschrift mit Zähler und darunter eine Liste. */
@@ -5251,6 +5355,7 @@ function wachenKarte(b) {
       </div>
       <a href="/buildings/${Number(b.id)}" target="_blank" rel="noopener" class="act"
         style="text-decoration:none;color:var(--lp-fg);border:1px solid var(--lp-rand);border-radius:3px;padding:5px 9px;font:600 12px sans-serif">im Spiel</a>
+      <button class="act" id="lssp-auffr" title="Liest Ausbauten, Fahrzeuge samt Umrüstung, Personal und Ausbildung neu aus dem Spiel. Ändert nichts.">↻ Aktualisieren</button>
       <button class="act" id="lssp-wruht" title="Übergangene Wachen zählen in den Listen nicht als offen">${still ? '↺ aufnehmen' : '⏸ übergehen'}</button>
       <button class="act" id="lssp-zu">×</button>
     </div>
@@ -5266,11 +5371,10 @@ function wachenKarte(b) {
         dZeile(e.caption, e.n > 1 ? `${e.n}×` : '', 'gap', `data-ausbau="${escA(e.caption)}"`)),
         'Alle geplanten Ausbauten sind gebaut.')}
     ${kTeil('Personal', personal, '')}
-    ${kTeil('Lehrgänge', kurse, 'Kein Fahrzeug hier verlangt einen Lehrgang.',
-        `<button class="act" id="lssp-erfassen" title="Liest die Personalliste dieser Wache. Ändert nichts.">Ausbildungsstand lesen</button>`)}
+    ${kTeil('Lehrgänge', kurse, 'Kein Fahrzeug hier verlangt einen Lehrgang.')}
     <div class="abschnitt" style="margin-top:16px"><b>Aktionen</b>
       <span style="color:var(--lp-dim2);font-size:11px">nur für diese Wache</span></div>
-    ${aktionsKnoepfe([b])}${laufOptionen()}${laufLeiste()}`;
+    ${aktionsKnoepfe([b])}`;
 }
 
 /** Rechts, solange keine Wache offen ist: Handgriffe für alle Häkchen. */
@@ -5283,10 +5387,8 @@ function sammelPanel(sel) {
     <p class="hint"><b>Lass „Nur Vorschau“ zunächst angehakt.</b> Dann passiert nichts im Spiel, das
       Protokoll unten zeigt nur, was getan würde. Die Zahl am Knopf: so viele der gewählten Wachen
       haben dort etwas offen.</p>
-    ${aktionsKnoepfe(sel)}
-    <div class="abschnitt" style="margin-top:8px"><b style="font-size:12px;color:var(--lp-dim)">Ausbildung</b></div>
-    <div class="knoepfe"><button class="act" id="lssp-erfassen">Ausbildungsstand lesen</button></div>
-    ${laufOptionen()}${laufLeiste()}`;
+    <div class="knoepfe"><button class="act" id="lssp-auffr" title="Liest Bestand, Personal und Ausbildung der gewählten Wachen neu. Ändert nichts.">↻ Gewählte aktualisieren</button></div>
+    ${aktionsKnoepfe(sel)}`;
 }
 
 /** Kopfzeile der Zahlen — wie die alte Übersicht, aber für den offenen Reiter. */
@@ -5402,9 +5504,12 @@ function zeigeWachen(b) {
   einzelBinden(b);
   karte.querySelectorAll('[data-r]').forEach(x => x.onclick = () => { rechts = x.dataset.r; render(); });
   const ziel = () => fokus?.art === 'wache' ? [S.byId.get(fokus.id)] : liste.sichtbar.filter(w => auswahl.has(w.id));
-  karte.querySelectorAll('button.lauf').forEach(k => k.onclick = () => aktionLaufen(k.dataset.aktion, ziel(), k));
+  karte.querySelectorAll('button.lauf').forEach(k => k.onclick = () => {
+    gewaehlt = gewaehlt === k.dataset.aktion ? null : k.dataset.aktion; render();
+  });
+  karte.querySelector('#lssp-los')?.addEventListener('click', ev => aktionLaufen(gewaehlt, ziel(), ev.target));
   karte.querySelector('#lssp-katalog')?.addEventListener('click', ev => katalogHolen(ev.target));
-  karte.querySelector('#lssp-erfassen')?.addEventListener('click', ev => erfassen(ziel(), ev.target));
+  karte.querySelector('#lssp-auffr')?.addEventListener('click', () => bestandAuffrischen(ziel(), true));
   karte.querySelector('#lssp-wruht')?.addEventListener('click', () => { ruhtUm(fokus.id); render(); });
   karte.querySelector('#lssp-wprof')?.addEventListener('change', e => {
     const z = S.zuordnung;
@@ -5829,21 +5934,23 @@ function mount() {
   document.body.append(btn, el);
   // Erst wenn der Bestand steht, hat die Wachenseite etwas zu zeigen
   if (S.loaded) wachenSeite();
-  btn.onclick = () => { el.classList.toggle('on'); render(); };
+  /* Beim ersten Öffnen nach jedem Seitenaufruf frisch lesen (Sasha, 16.10.) —
+     der gespeicherte Bestand steht sofort da, der neue kommt ein paar Sekunden
+     später. Ersetzt das alte „höchstens einmal am Tag". */
+  let schonGeoeffnet = false;
+  btn.onclick = () => {
+    el.classList.toggle('on'); render();
+    if (schonGeoeffnet || !el.classList.contains('on')) return;
+    schonGeoeffnet = true;
+    if (S.loaded) bestandAuffrischen();
+    else el.querySelector('#lssp-load')?.click();
+  };
   el.querySelector('#lssp-stop').onclick = () => {
     if (!S.busy) return log('Es läuft gerade nichts.', 'warn');
     laufStoppen(); log('Abbruch angefordert — der laufende Schritt wird noch beendet.', 'warn');
   };
   el.querySelector('#lssp-close').onclick = () => { laufStoppen(); el.classList.remove('on'); };
-  el.querySelector('#lssp-neu').onclick = async () => {
-    if (S.busy) return log('Es läuft gerade etwas — erst danach neu laden.', 'warn');
-    S.busy = true;
-    try {
-      await loadAll(true);
-      log(`${S.buildings.length} Gebäude, ${S.vehicles.length} Fahrzeuge geladen`, 'good');
-    } catch (e) { log('Laden fehlgeschlagen: ' + e.message, 'err'); }
-    S.busy = false; fortAus(); render();
-  };
+  el.querySelector('#lssp-neu').onclick = () => bestandAuffrischen();
 
   /* Eigenes Fenster: das Panel wandert per adoptNode hinüber, es entsteht
      keine zweite Fassung. Derselbe Ursprung, dieselbe Sitzung, dieselbe
@@ -5882,10 +5989,12 @@ function mount() {
   };
   addEventListener('pagehide', laufStoppen, { once: true });
   /* ---------- Verschieben und Vollbild ---------- */
-  document.documentElement.classList.toggle('lssp-hell', !!ui.hell);
+  /* Dunkel ist Standard (Sasha, 16.10.). Neuer Schlüssel statt `ui.hell`, damit
+     auch wer früher einmal hell gewählt hat, wieder dunkel anfängt. */
+  document.documentElement.classList.toggle('lssp-hell', ui.thema === 'hell');
   el.querySelector('#lssp-thema').onclick = () => {
-    ui.hell = !ui.hell;
-    document.documentElement.classList.toggle('lssp-hell', !!ui.hell);
+    ui.thema = ui.thema === 'hell' ? 'dunkel' : 'hell';
+    document.documentElement.classList.toggle('lssp-hell', ui.thema === 'hell');
     saveUi();
   };
 

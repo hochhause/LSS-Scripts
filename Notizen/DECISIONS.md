@@ -3054,3 +3054,31 @@ keine Lizenz, und seine Läufe haben Fehler, die unsere nicht haben.
 
 **Nebenbei:** Der Ladehinweis „Schritt 2: Der Plan ist da" stammte noch aus
 der Zeit des Plan-Imports (D-78) und ist ersetzt.
+
+**Nachtrag (Sasha, 16.10., noch vor der Auslieferung):**
+
+- **Dunkel ist Standard.** Neuer Schlüssel `ui.thema`; ein früher gewähltes
+  `ui.hell` wird bewußt nicht übernommen.
+- **Bestand frisch** beim ersten Öffnen nach jedem Seitenaufruf, und nach
+  jedem scharfen Lauf (auch nach Abbruch — was geschah, geschah). Das alte
+  „höchstens einmal am Tag" entfällt. `apiGet` mit `fresh` fragt jetzt mit
+  `cache: 'no-cache'`: die API erlaubt 60 s Zwischenspeicher, und ohne das
+  bekäme das Neulesen direkt nach dem Lauf den Stand von davor.
+- **„↻ Aktualisieren" je Wache**: Bestand plus Personalliste dieser Wache.
+  **Verworfen:** einzeln je Wache aus der API lesen — dafür ist kein Abruf
+  gemessen, und die beiden gemessenen Sammelabrufe kosten zusammen nur zwei,
+  drei Anfragen. Nach „Personal ausbilden" wird die Personalliste der
+  betroffenen Wachen mitgelesen, sonst nicht: Zuweisen ändert keine Lehrgänge.
+- **Knöpfe wählen, „▶ Ausführen" startet.** So stehen unter dem Knopf nur die
+  Einstellungen dieses Laufs. Reihenfolge nach Sasha: *Wache* — Ausbauten,
+  Kaufen, Umrüsten, Zerstören, Namen; *Personal* — Werben, Zuweisen,
+  Ausbilden. Anhänger koppeln und Lösen hat er nicht genannt; sie stehen
+  hinten bei Personal, statt still zu verschwinden.
+- **Werben mit Premium** setzt den Personal-Sollwert (Voreinstellung 400,
+  Formular wie `konsole/personal-soll.js`). Ob das Konto Premium hat, liest der
+  Planer nicht — ungemessen; man wählt es in den Einstellungen des Laufs.
+- **„Personal ausbilden"** auf der Karte: je fehlendem Lehrgang ein Start über
+  `lehrgangStarten`, mit Freigabe und Verbandsschulen wie unter Extras.
+- **`{stationNumber}` / `{stationNumberRoman}`** für Fahrzeuge: die Zahl, die
+  `{number}` an der Wache ergibt — „{tagging} {stationNumber}/{numberRoman}"
+  → „HLF 1/II". Für Wachen gab es `{number}` schon („{stationAlias}-{number}").

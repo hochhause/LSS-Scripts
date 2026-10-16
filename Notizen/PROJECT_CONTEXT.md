@@ -92,6 +92,14 @@ Typ als Text | `'extras'`), in den Extras `tab` (`ueber`, `plan`, `lehrgang`,
 - `laufLeiste`/`laufOptionen` samt Bindern: Vorschau, Grüne freigeben, Kaufmodus,
   Personaloptionen — an Karte, Sammelaktionen und Namensreiter dieselben.
 - Protokoll fest unten (`.fuss`); vor einem Lauf `logLeeren()`.
+- Ein Knopf wählt den Lauf (`gewaehlt`), `#lssp-los` startet ihn; `laufOptionen(key)`
+  zeigt nur dessen Einstellungen. Nach scharfem Lauf `bestandAuffrischen(wachen,
+  mitPersonal)` — `loadAll(true)` plus `scanQuals` bei „Personal ausbilden".
+  Dasselbe hinter „↻ Aktualisieren" (Karte) und beim ersten Öffnen je Seitenaufruf.
+- `hire` kennt zwei Arten (`S.opts.werbenModus`): `drei` = `/buildings/<id>/hire_do/3`,
+  `soll` = POST `/buildings/<id>?personal_count_target_only=1` mit
+  `building[personal_count_target]` (`S.opts.werbenSoll`, Standard 400).
+- `ausbildungenStarten(sel, dry)`: je fehlendem Kursschlüssel ein `lehrgangStarten`.
 
 ## Personalzuweisung in zwei Durchgängen (seit v0.20)
 
