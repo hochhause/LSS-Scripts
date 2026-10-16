@@ -3014,3 +3014,43 @@ während das eigene daheim stand — und band ein Fahrzeug einer anderen Wache.
 Liste des nächsten wartenden AB — es ist also unterwegs. Ob das Spiel es
 so führt, solange es den Behälter holt, ist nicht geklärt — Sasha sieht es im
 Spiel.
+
+## D-113 Oberfläche je Wache statt je Aufgabe (v0.69.0)
+
+**Lage (Sasha, 16.10.2026).** Ein Spieler aus dem Verband hat einen eigenen
+Planer gebaut, abgeleitet von diesem. Sein Aufbau gefiel Sasha besser: oben
+die Gebäudearten, links die Wachen, rechts eine Karte je Wache. Bei uns
+stand jede Aufgabe in einem eigenen Reiter, mit einer eigenen Wachenliste;
+wer wissen wollte, was *einer* Wache fehlt, klickte durch sechs Reiter.
+
+**Entscheidung (Sasha, 16.10.).** Die Zahlen der Übersicht bleiben, als
+Kacheln oben. Der Rest wird je Wache:
+
+- **Reiter** „Alle", je Gebäudeart einer (Zeichen und Farbe aus `TYP_KONFIG`,
+  Zahl = Wachen mit Offenem), „Extras".
+- **Links** die Wachen dieses Reiters: Häkchen, Typfarbe am Rand, Profil,
+  was offen ist, Anteil von Fahrzeugen und Ausbauten nach Plan.
+- **Rechts** die Karte der angeklickten Wache: Fahrzeuge Soll/Ist, Überzähliges
+  samt dem, was fallen würde, Ausbauten, Personal, Lehrgänge, Profilwahl — und
+  jeder Handgriff als Knopf mit der Zahl dessen, was er hier zu tun hätte.
+- **Häkchen** (Sasha: „Häkchen in der Liste"): ohne geöffnete Karte zeigt
+  die rechte Seite dieselben Knöpfe für alle angehakten Wachen.
+- Im Typ-Reiter ohne Häkchen rechts das **Wunschbild** dieser Gebäudeart.
+- **Extras**: Einstellungen (die alte Übersicht), Wunschbild mit Sicherung,
+  Ausbildung, Namen — alles, was keiner einzelnen Wache gehört.
+- Das **Protokoll** steht fest unten und wird nicht mehr mit jedem Zeichnen
+  neu gebaut; ↻ im Kopf lädt den Bestand neu.
+
+Die Läufe selbst sind unverändert. Rückfragen, Vorschau, „Grüne freigeben",
+die Geldbremse und die Nur-eine-Wache-Regel beim Lösen bleiben. „Lösen"
+steht deshalb nur auf der Karte, nicht unter den Sammelaktionen. Ein Knopf
+ohne Arbeit ist grau — „nichts zu tun" sieht man vor dem Druck.
+
+**Verworfen:** beides nebeneinander, also Reiter je Aufgabe *und* Karten je
+Wache (Sasha: „Nur noch pro Wache"). Zwei Wege zum selben Lauf wären zwei
+Stellen, an denen Rückfragen und Optionen auseinanderlaufen. Ebenfalls
+verworfen: Sein Code wurde nicht übernommen, nur der Aufbau — er trägt
+keine Lizenz, und seine Läufe haben Fehler, die unsere nicht haben.
+
+**Nebenbei:** Der Ladehinweis „Schritt 2: Der Plan ist da" stammte noch aus
+der Zeit des Plan-Imports (D-78) und ist ersetzt.

@@ -9,7 +9,7 @@ unten oder wird aus dem Spiel gelesen.
 
 | Datei | Zweck |
 |---|---|
-| `lss-planer.user.js` | Userscript v0.66.1: setzt das Wunschbild im Spiel um |
+| `lss-planer.user.js` | Userscript v0.69.0: setzt das Wunschbild im Spiel um; Oberfläche je Wache (D-113) |
 | `lss-farben.user.js` | v0.2.0: reine Anzeige — blendet 🟢🟡🔴 aus und färbt den Namen entsprechend, Status 6 rot. ⚫ bleibt stehen |
 | `lss-sprechwunsch.user.js` | v0.4.0: FMS 5 von selbst erledigen — Patient ins nächste passende Krankenhaus, Gefangener in die nächste freie Zelle (D-102), Abrollbehälter vom nächsten WLF abholen lassen (D-112); Zellen- und Krankenhausauswahl der Fahrzeugseite stehen in einer Reihe nach Entfernung (D-104) |
 | `lss-klassenzimmer.user.js` | v0.1.0: Knopf auf `/verband/gebauede` — öffnet je Lehrgang, der im Verband nirgends offen ist, einen an einer Verbandsschule (kostenlos, 2 Tage; 1 Raum, 2 wenn die Räume der Schulart für alle reichen). „Offen" = `education_start_time` in der Zukunft (D-109) |
@@ -17,7 +17,7 @@ unten oder wird aus dem Spiel gelesen.
 | `lss-einsatz-flott.user.js` | v0.3.0: nächsten Einsatz vorwärmen — *nicht in dieser Ablage* |
 | `CLAUDE.md` | Arbeitsanweisung: Sprache, Prüfungen, Gefahren |
 | `NAECHSTER_SCHRITT.md` | was offen ist |
-| `DECISIONS.md` | 107 Entscheidungen mit Begründung, auch die verworfenen |
+| `DECISIONS.md` | 113 Entscheidungen mit Begründung, auch die verworfenen |
 | `personal-soll.js` | einmaliges Konsolenskript: Personal-Sollwert aller Wachen |
 | `lss-personalbedarf.json` | Personalanforderungen je Fahrzeugtyp — **Pflegequelle** für `PB` |
 | `lss-fahrzeugprofile.md` | Soll-Papier: Profile, Stellplatz-Formeln, Ausbauten je Gebäudeart — **Pflegequelle** für `MODELL_STANDARD` und `LAYOUTS_STANDARD` |
@@ -74,6 +74,24 @@ Zwei Drittel der Käufe hängen an fehlenden Stellplatz-Ausbauten.
 - Version in `@version` **und** `const VERSION` hochziehen, sie steht im Fensterkopf.
 - Nichts raten: Endpunkte und Feldnamen aus dem Spiel-HTML lesen lassen.
 - Dateiuploads des Nutzers kommen oft leer an; eingefügter Text funktioniert.
+
+## Oberfläche je Wache (seit v0.69.0, D-113)
+
+Reiter oben: „📋 Alle“, je Gebäudeart mit eigener Wache einer (`typReiter`,
+Zeichen/Farbe aus `TYP_KONFIG`), „🧩 Extras“. Zustand: `ansicht` (`'alle'` |
+Typ als Text | `'extras'`), in den Extras `tab` (`ueber`, `plan`, `lehrgang`,
+`haken`), rechts ohne Karte `rechts` (`'sammel'` | `'plan'`).
+
+- `zeigeWachen` zeichnet Kacheln (`kacheln`), Liste (`wachenListe`) und rechts
+  je nach Lage `wachenKarte`, `einzelAnsicht` (Fahrzeugtyp, Ausbau, Lehrgang
+  quer über alle Wachen), `sammelPanel` oder `zeigePlan(ort, typ)`.
+- Jeder Lauf geht durch `aktionLaufen(key, wachen, knopf)` — Rückfragen wie
+  bisher, Vorschau aus `S.opts.dry`. Texte und Funktionen in `aktionen()`,
+  Zählung am Knopf aus `BEREICH`. `erfassen` liest den Ausbildungsstand,
+  `katalogHolen` die Bauplatz-Nummern.
+- `laufLeiste`/`laufOptionen` samt Bindern: Vorschau, Grüne freigeben, Kaufmodus,
+  Personaloptionen — an Karte, Sammelaktionen und Namensreiter dieselben.
+- Protokoll fest unten (`.fuss`); vor einem Lauf `logLeeren()`.
 
 ## Personalzuweisung in zwei Durchgängen (seit v0.20)
 
@@ -151,7 +169,7 @@ S.modell             lssplaner.modell  — bearbeitbar, überlebt jeden Neuimpor
 S.zuordnung          lssplaner.zuordnung — Wache → Profil, kontogebunden
 ```
 
-Der Reiter **Plan** bearbeitet das: Profil je Gebäudetyp anlegen, kopieren,
+**Extras → Wunschbild** bearbeitet das (im Typ-Reiter rechts dasselbe für eine Gebäudeart, ohne Sicherung): Profil je Gebäudetyp anlegen, kopieren,
 umbenennen, löschen; Fahrzeuge und Ausbauten je Profil mit +/−; gewählte Wachen
 einem Profil zuordnen; Wunschbild samt Zuordnung als Datei sichern und laden oder über die Zwischenablage kopieren und einfügen (D-106); auf Standard zurücksetzen.
 
@@ -161,7 +179,7 @@ aus einem fremden Plan ist wertlos — sie hängt an Gebäudenummern.
 Eingebacken sind außerdem `LAYOUTS_STANDARD` (Stellplätze je Gebäudeart, als
 Formel aus Stufe und Ausbauten) und `GEBAEUDE_NAMEN`. Der Ausbaukatalog (Bauplatz-Nummer → Name) wird aus dem Spiel gelernt:
 gebaute Plätze kostenlos beim Bestandsladen aus `/api/buildings`, leere über
-den Knopf im Plan-Reiter aus `/buildings/<id>/leitstelle-extensions`. **Der
+den Knopf im Wunschbild aus `/buildings/<id>/leitstelle-extensions`. **Der
 Plan des Artefakts wird damit nicht mehr gebraucht.**
 
 ## Besetzung über Spalten (seit v0.25)

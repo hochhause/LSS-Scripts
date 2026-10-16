@@ -8,7 +8,7 @@ Alles auf Deutsch, weil das Spiel es ist.
 > **„Nur Vorschau"** laufen lassen, die Liste lesen, dann handeln. Dasselbe
 > gilt für „Einrücken": es holt Fahrzeuge aus laufenden Einsätzen zurück.
 
-**Neu hier?** Die [Anleitung zum Planer](ANLEITUNG.md) erklärt jeden Reiter
+**Neu hier?** Die [Anleitung zum Planer](ANLEITUNG.md) erklärt die Wachenansicht und jeden Knopf
 Schritt für Schritt, ohne Fachchinesisch.
 
 ## Installieren
@@ -18,7 +18,7 @@ Firefox). Auf den Namen klicken, Tampermonkey fragt nach der Installation.
 
 | Skript | Fassung | Was es tut |
 |---|---|---|
-| [**LSS Planer**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-planer.user.js) | 0.65.3 | Vergleicht das hinterlegte Wunschbild mit dem Spielstand und setzt die Unterschiede um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge, Wachennamen. |
+| [**LSS Planer**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-planer.user.js) | 0.69.0 | Vergleicht das hinterlegte Wunschbild mit dem Spielstand und setzt die Unterschiede um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge, Wachennamen. |
 | [**LSS Farben**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-farben.user.js) | 0.2.0 | Nimmt die Markierungspunkte 🟢🟡🔴 aus der Anzeige und färbt dafür den Namen — fertig, teilweise, lahm; Status 6 rot. Das ⚫ eines ausgeschlossenen Gebäudes bleibt stehen. |
 | [**LSS Sprechwunsch**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-sprechwunsch.user.js) | 0.4.0 | Ein Knopf **„Senden"** neben dem FMS-Zeichen der Funkliste erledigt den Sprechwunsch: Patient ins nächste Krankenhaus mit freier Kapazität **und** Fachabteilung, Gefangener in die nächste freie Zelle, wartender Abrollbehälter mit dem nächsten WLF — eigene und Verbandsziele in einem Topf. Der Knopf schickt **sofort**. |
 | [**LSS Klassenzimmer**](https://raw.githubusercontent.com/hochhause/LSS-Scripts/main/userscripts/lss-klassenzimmer.user.js) | 0.1.0 | Ein Knopf **„Fehlende Lehrgänge öffnen"** neben „Gebäude" auf `/verband/gebauede`: für jeden Lehrgang, der im Verband gerade nirgends offen ist, wird an einer Verbandsschule einer gestartet — kostenlos, 2 Tage Freigabe, je 1 Raum (2, wenn die freien Räume der Schulart für alle reichen). Fragt vorher mit einer Übersicht nach. |

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.68.3
+// @version      0.69.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.68.3';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.69.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -1718,7 +1718,7 @@ async function hakenAbgleichen(sel, dry) {
     !S.buildings.some(x => String(x.leitstelle_building_id) === String(id)));
   if (altAliase.length && /\{stationAlias\}/.test(pruefung.vorlageFz + pruefung.vorlageWache))
     log(`${altAliase.length} eigene Wachennamen aus früheren Fassungen wirken nicht mehr — `
-      + '{stationAlias} hängt jetzt an der Gebäudeart. Die Felder dafür stehen im Reiter „Namen".', 'warn');
+      + '{stationAlias} hängt jetzt an der Gebäudeart. Die Felder dafür stehen unter Extras → Namen.', 'warn');
 
   const markenFz = markenFuer(MARKEN_FZ), markenWa = markenFuer(MARKEN_WACHE);
   for (const b of sel) {
@@ -3180,7 +3180,7 @@ async function assignStaff(sel, dry) {
   const markenFzLauf = markenFuer(MARKEN_FZ);
   if (vorlagen?.fehler) {
     vorlagen.fehler.forEach(t => log(t, 'err'));
-    log('Es wird nichts umbenannt — erst die Vorlage im Reiter „Namen" richtigstellen. '
+    log('Es wird nichts umbenannt — erst die Vorlage unter Extras → Namen richtigstellen. '
       + 'Personal wird trotzdem zugewiesen.', 'err');
   }
   const taufen = !!vorlagen && !vorlagen.fehler;
@@ -3892,7 +3892,10 @@ html.lssp-hell #lssp{box-shadow:0 6px 24px rgba(0,0,0,.25)}
 html.lssp-hell #lssp nav button.on{color:#333}
 #lssp-btn{position:fixed;right:16px;bottom:16px;z-index:99998;background:var(--lp-akzent);color:var(--lp-akzent-fg);
  border:0;border-radius:3px;padding:9px 15px;font:600 14px/1 sans-serif;cursor:pointer;letter-spacing:.05em}
-#lssp{position:fixed;left:auto;top:auto;right:16px;bottom:60px;width:520px;max-height:78vh;z-index:99999;display:none;
+/* Breit genug für Liste und Karte nebeneinander; feste Höhe, damit beide
+   Spalten für sich rollen und das Protokoll unten stehen bleibt. */
+#lssp{position:fixed;left:auto;top:auto;right:16px;bottom:60px;width:min(1040px,calc(100vw - 32px));
+ height:80vh;z-index:99999;display:none;
  background:var(--lp-bg);color:var(--lp-fg);border:1px solid var(--lp-rand);border-radius:4px;
  font:13px/1.5 system-ui,sans-serif;box-shadow:0 12px 40px rgba(0,0,0,.6);flex-direction:column}
 #lssp.on{display:flex}
@@ -3963,6 +3966,36 @@ html.lssp-hell #lssp nav button.on{color:#333}
  font:11px/1.6 monospace;white-space:pre-wrap;color:var(--lp-log-fg)}
 #lssp .warn{color:var(--lp-akzent)}#lssp .err{color:var(--lp-err)}#lssp .good{color:var(--lp-ok)}
 #lssp .hint{color:var(--lp-dim);font-size:12px;margin:0 0 10px}
+/* ── Ansicht je Wache ── */
+#lssp nav button .zahl{font-weight:400;color:var(--lp-dim2);margin-left:3px}
+#lssp .body.raster{display:flex;flex-direction:column;overflow:hidden;padding-bottom:0}
+#lssp .kacheln{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:10px}
+#lssp .kachel{border:1px solid var(--lp-rand);border-radius:4px;padding:7px 10px;background:var(--lp-feld)}
+#lssp .kachel b{display:block;font-size:18px;line-height:1.2}
+#lssp .kachel span{color:var(--lp-dim);font-size:11px}
+#lssp .gitter{flex:1;min-height:0;display:grid;grid-template-columns:300px 1fr;gap:12px}
+#lssp .seite,#lssp .karte{overflow-y:auto;min-height:0;padding-bottom:12px}
+#lssp .wzeile{display:flex;gap:7px;align-items:flex-start;padding:6px 8px;border-bottom:1px solid var(--lp-rand);
+ border-left:4px solid var(--lp-dim2)}
+#lssp .wzeile:hover{background:var(--lp-hover)}
+#lssp .wzeile.on{background:var(--lp-hover);outline:1px solid var(--lp-akzent)}
+#lssp .wzeile .wtext{flex:1;min-width:0;cursor:pointer}
+#lssp .wzeile .wname{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#lssp .wzeile .wmeta{display:block;color:var(--lp-dim2);font-size:11px}
+#lssp .quote{height:3px;background:var(--lp-rand);border-radius:2px;margin-top:4px;overflow:hidden}
+#lssp .quote i{display:block;height:100%;background:var(--lp-ok)}
+#lssp .kkopf{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+#lssp .kkopf .gross{font-size:26px;line-height:1}
+#lssp .kkopf .quote{height:6px;margin-top:6px}
+#lssp .abschnitt{margin:12px 0 4px;display:flex;gap:8px;align-items:center}
+#lssp .warnkasten{border:1px solid var(--lp-akzent);border-radius:3px;padding:7px 10px;margin:8px 0;color:var(--lp-akzent);font-size:12px}
+#lssp .knoepfe{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 6px}
+#lssp .knoepfe .zahl{font-weight:400;opacity:.75;margin-left:4px}
+#lssp .karte .tun{bottom:0;margin:10px 0 0;padding:8px 0}
+#lssp .fuss{border-top:1px solid var(--lp-rand);padding:0 14px 10px}
+#lssp .fuss .logkopf{margin:6px 0 -4px}
+#lssp .fuss pre{max-height:130px;overflow-y:auto;margin-top:8px}
+@media (max-width:820px){#lssp .gitter{grid-template-columns:1fr}#lssp .body.raster{overflow-y:auto}}
 `;
 
 let el, tab = 'ueber', lastCourses = null;
@@ -3984,33 +4017,49 @@ let suche = '', sortierung = 'offen';
 const ui = store.get(KEY_UI, {});
 const saveUi = () => store.set(KEY_UI, ui);
 
-/* Elf Reiter nebeneinander brachen in zwei Zeilen um und mischten dabei
-   Ebenen: „Übersicht“ ist eine Ansicht, „Lösen“ ein Eingriff. Jetzt oben die
-   Sache, um die es geht, darunter der Handgriff. */
-const GRUPPEN = [
-  { id: 'ueber',      name: 'Übersicht',  tabs: ['ueber'] },
-  { id: 'plan',       name: 'Plan',       tabs: ['plan'] },
-  { id: 'bestand',    name: 'Bestand',    tabs: ['ausbau', 'kaufen', 'umbau', 'verkauf'] },
-  { id: 'personal',   name: 'Personal',   tabs: ['personal', 'werben', 'anhaenger', 'leeren'] },
-  { id: 'ausbildung', name: 'Ausbildung', tabs: ['lehrgang'] },
-  { id: 'haken',      name: 'Namen',      tabs: ['haken'] }
-];
-const TABNAME = {
-  ausbau: 'Ausbauten', kaufen: 'Kaufen', umbau: 'Umrüsten', verkauf: 'Zerstören',
-  personal: 'Zuweisen', werben: 'Werben', anhaenger: 'Anhänger koppeln', leeren: 'Alles lösen'
-};
-const gruppeVon = t => GRUPPEN.find(g => g.tabs.includes(t)) || GRUPPEN[0];
+/* Seit v0.69.0 je Wache statt je Aufgabe (Sasha, 16.10., nach dem Vorbild
+   eines Planers aus dem Verband): oben die Gebäudeart, links die Wachen,
+   rechts die Karte der gewählten Wache mit allen Handgriffen. Was keiner
+   einzelnen Wache gehört — Wunschbild, Ausbildung, Namensvorlagen,
+   Einstellungen —, steht unter „Extras“. */
+let ansicht = 'alle';                  // 'alle' | Gebäudetyp als Text | 'extras'
+/* Rechts ohne gewählte Wache: Sammelaktionen für die Häkchen oder, in einem
+   Typ-Reiter, das Wunschbild dieser Gebäudeart. null = von selbst wählen. */
+let rechts = null;
+const EXTRAS = [['ueber', 'Einstellungen'], ['plan', 'Wunschbild'],
+                ['lehrgang', 'Ausbildung'], ['haken', 'Namen']];
 
-/** Reiterwechsel: neue Absicht, also nichts gewählt und nur Vorschau. */
-function wechsleAuf(t) {
-  tab = t;
+/* Zeichen und Farbe je Gebäudeart, damit man eine Wache in der Liste am Rand
+   erkennt, ohne den Namen zu lesen. Unbekannte Arten bekommen Grau. */
+const TYP_KONFIG = {
+  0:  ['🚒', '#e8a5a5', 'Feuerwehr'],     2:  ['🚑', '#f0c9a0', 'Rettung'],
+  5:  ['🚁', '#f5d9b3', 'RTH'],           6:  ['🚓', '#a5bde0', 'Polizei'],
+  9:  ['⛑', '#a5c4cc', 'THW'],            11: ['🛡', '#a8c9a5', 'BePol'],
+  12: ['🩺', '#c4a5cc', 'SEG'],           13: ['🚁', '#a5bde0', 'PolHub'],
+  15: ['🚤', '#a5ccd4', 'Wasserrettung'], 17: ['🎯', '#c4a5cc', 'PolSonder'],
+  18: ['🩺', '#c4a5cc', 'SEG Berg'],      20: ['🏔', '#b0c9a5', 'Berg'],
+  21: ['🐕', '#b0c9a5', 'Hunde'],         24: ['🚤', '#a5ccd4', 'Seenot'],
+  25: ['🏔', '#b0c9a5', 'Berg'],          26: ['⛵', '#a5ccd4', 'Seenot'],
+  27: ['🚁', '#a5ccd4', 'Seenot-Hubschr.'], 28: ['🚁', '#a5ccd4', 'Seenot-Hubschr.'],
+  29: ['🛣', '#9ab8d8', 'Autobahn']
+};
+const typKonfig = t => TYP_KONFIG[t] || ['🏢', '#9aa5b1', T.btName(t)];
+
+/** Neue Absicht, also nichts gewählt und nur Vorschau. */
+function zuruecksetzen() {
   auswahl.clear();
   fokus = null;
   suche = '';
+  rechts = null;
   S.opts.dry = true;
   S.opts.gruenFrei = false;   // Freigabe gilt für einen Handgriff, nicht für den Reiter
   store.set(KEY_OPTS, S.opts);
-  render();
+}
+function wechsleAuf(t) { tab = t; zuruecksetzen(); render(); }
+function ansichtWechseln(a) {
+  ansicht = a;
+  if (a === 'extras' && !EXTRAS.some(([t]) => t === tab)) tab = 'ueber';
+  zuruecksetzen(); render();
 }
 
 /* ── Einzelansicht ────────────────────────────────────────────────────
@@ -4053,44 +4102,6 @@ function detailKurs(key) {
       'Keine Wache im Plan verlangt diesen Lehrgang.');
 }
 
-function detailWache(b) {
-  const a = analyse(b), f = fortschritt(b);
-  const kurse = Object.entries(courseNeed(b)).map(([key, soll]) => {
-    const erf = quals.by[b.id];
-    const ist = erf ? (erf[key] || 0) : null;
-    const lauf = laufendeAusbildung(key, b.id);
-    const fehlt = ist === null ? null : Math.max(0, soll - ist - lauf);
-    return { name: kursNamen(key)[0] || key, soll, ist, lauf, fehlt };
-  }).sort((x, y) => (y.fehlt || 0) - (x.fehlt || 0));
-
-  const teil = (titel, zeilen, leer) =>
-    `<div class="row" style="margin:10px 0 2px"><b>${titel}</b>
-      <span style="color:var(--lp-dim2);font-size:11px">${zeilen.length || ''}</span></div>`
-    + dListe(zeilen, leer);
-
-  return `<div class="row" style="margin-bottom:2px;color:var(--lp-dim);font-size:11px">
-      ${esc(T.btName(b.building_type))} · Profil „${esc(T.profileOf(b) || '—')}“
-      · ${f.fertig ? 'fertig' : 'offen'}</div>`
-    + teil('Fahrzeuge fehlen', a.vehMissing.map(v =>
-        dZeile(v.name, `${v.n}×`, 'gap', `data-fahrzeug="${v.id}"`)),
-        'Alle geplanten Fahrzeuge stehen da.')
-    + teil('Überzählig', a.vehSurplus.map(v => {
-        /* Welches Fahrzeug fällt, muß vor dem Klick dastehen — der Verkauf
-           ist die einzige Aktion, die sich nicht zurücknehmen läßt. */
-        const wer = verkaufsNamen(b, v);
-        return dZeile(v.name, `${v.n}× ${wer ? `→ ${wer}` : '→ nichts verkäuflich'}`,
-                      'warn', `data-fahrzeug="${v.id}"`);
-      }), 'Nichts überzählig.')
-    + teil('Ausbauten fehlen', a.extMissing.map(e =>
-        dZeile(e.caption, e.n > 1 ? `${e.n}×` : '', 'gap', `data-ausbau="${esc(e.caption)}"`)),
-        'Alle geplanten Ausbauten sind gebaut.')
-    + teil('Lehrgänge', kurse.map(k => dZeile(k.name,
-        k.fehlt === null ? 'nicht erfaßt'
-          : `${k.ist} von ${k.soll}${k.lauf ? ` (+${k.lauf})` : ''}${k.fehlt ? ` — ${k.fehlt} fehlen` : ''}`,
-        k.fehlt === null ? 'warn' : k.fehlt ? 'gap' : 'ok')),
-        'Kein Fahrzeug hier verlangt einen Lehrgang.');
-}
-
 function detailFahrzeug(typ) {
   const zeilen = planWachen().map(b => {
     const a = analyse(b);
@@ -4124,15 +4135,14 @@ function detailAusbau(name) {
       'Keine Wache plant diesen Ausbau.');
 }
 
-/** Der Rahmen um alle vier Achsen. Leer, solange nichts gewählt ist. */
+/** Der Rahmen um die Achsen quer über alle Wachen. Leer, solange nichts
+    gewählt ist; eine einzelne Wache hat seit v0.69.0 ihre eigene Karte. */
 function einzelAnsicht() {
-  if (!fokus) return '';
-  const titel = fokus.art === 'wache' ? ohneHaken(S.byId.get(fokus.id)?.caption || '')
-    : fokus.art === 'fahrzeug' ? T.vehName(fokus.id)
+  if (!fokus || fokus.art === 'wache') return '';
+  const titel = fokus.art === 'fahrzeug' ? T.vehName(fokus.id)
     : fokus.art === 'ausbau' ? fokus.id
     : (kursNamen(fokus.id)[0] || fokus.id);
-  const inhalt = fokus.art === 'wache' ? (S.byId.get(fokus.id) ? detailWache(S.byId.get(fokus.id)) : '')
-    : fokus.art === 'fahrzeug' ? detailFahrzeug(fokus.id)
+  const inhalt = fokus.art === 'fahrzeug' ? detailFahrzeug(fokus.id)
     : fokus.art === 'ausbau' ? detailAusbau(fokus.id)
     : detailKurs(fokus.id);
   return `<div class="einzel"><div class="row" style="align-items:center">
@@ -4140,7 +4150,8 @@ function einzelAnsicht() {
       <button class="act" id="lssp-zu">schließen</button></div>${inhalt}</div>`;
 }
 
-/** Klickbare Namen überall gleich verdrahten. */
+/** Klickbare Namen überall gleich verdrahten. Eine Wache öffnet immer ihre
+    Karte — auch aus den Extras heraus, dort gibt es keine. */
 function einzelBinden(wurzel) {
   wurzel.querySelector('#lssp-zu')?.addEventListener('click', () => { fokus = null; render(); });
   for (const [attr, art] of [['data-wache', 'wache'], ['data-fahrzeug', 'fahrzeug'],
@@ -4149,29 +4160,46 @@ function einzelBinden(wurzel) {
       ev.preventDefault(); ev.stopPropagation();   // sonst kippt das Ankreuzfeld mit
       const roh = x.getAttribute(attr);
       fokus = { art, id: art === 'wache' ? Number(roh) : roh };
+      if (ansicht === 'extras' && art !== 'kurs') ansicht = 'alle';
       render();
     }));
   }
 }
 
-/** Feld zum Einfügen eines Plans — im Übersichtsreiter und dort, wo er fehlt. */
+/** Gebäudearten, die einen eigenen Reiter bekommen: alle mit eigener Wache und Profil. */
+function typReiter() {
+  return [...new Set(planWachen().filter(b => Object.keys(T.profiles(b.building_type)).length)
+      .map(b => String(b.building_type)))]
+    .sort((x, y) => T.btName(x).localeCompare(T.btName(y), 'de'));
+}
 
-/** Zeichnet die beiden Leisten: Gruppen oben, Handgriffe darunter. */
+/** Oben die Gebäudearten, darunter — nur in den Extras — deren Unterreiter. */
 function navZeichnen() {
-  const g = gruppeVon(tab);
-  el.querySelector('nav').innerHTML = GRUPPEN.map(x =>
-    `<button data-g="${x.id}"${x.id === g.id ? ' class="on"' : ''}>${esc(x.name)}</button>`).join('');
+  const typen = S.loaded ? typReiter() : [];
+  if (ansicht !== 'alle' && ansicht !== 'extras' && !typen.includes(ansicht)) ansicht = 'alle';
+  const offenIn = t => planWachen().filter(b => String(b.building_type) === t
+    && !ruht.has(b.id) && fortschritt(b).offen).length;
+  const knopf = (a, inhalt, farbe = '') => `<button data-a="${escA(a)}"${a === ansicht ? ' class="on"' : ''}${
+    farbe && a === ansicht ? ` style="border-bottom-color:${farbe}"` : ''}>${inhalt}</button>`;
+  el.querySelector('nav').innerHTML = knopf('alle', '📋 Alle')
+    + typen.map(t => {
+        const [zeichen, farbe, kurz] = typKonfig(t);
+        const n = offenIn(t);
+        return knopf(t, `${zeichen} ${esc(kurz)}${n ? `<span class="zahl">${n}</span>` : ''}`, farbe);
+      }).join('')
+    + knopf('extras', '🧩 Extras');
   const unter = el.querySelector('.unter');
-  unter.innerHTML = g.tabs.length < 2 ? '' : g.tabs.map(t =>
-    `<button data-t="${t}"${t === tab ? ' class="on"' : ''}>${esc(TABNAME[t] || t)}</button>`).join('');
-  unter.style.display = g.tabs.length < 2 ? 'none' : 'flex';
+  unter.innerHTML = ansicht !== 'extras' ? '' : EXTRAS.map(([t, name]) =>
+    `<button data-t="${t}"${t === tab ? ' class="on"' : ''}>${esc(name)}</button>`).join('');
+  unter.style.display = ansicht === 'extras' ? 'flex' : 'none';
   el.querySelectorAll('nav button').forEach(x => x.onclick = () => {
-    const ziel = GRUPPEN.find(y => y.id === x.dataset.g);
-    if (ziel && !ziel.tabs.includes(tab)) wechsleAuf(ziel.tabs[0]);
+    if (x.dataset.a !== ansicht) ansichtWechseln(x.dataset.a);
   });
   unter.querySelectorAll('button').forEach(x => x.onclick = () => {
     if (x.dataset.t !== tab) wechsleAuf(x.dataset.t);
   });
+  const stand = el.querySelector('#lssp-stand');
+  if (stand) stand.textContent = S.loaded ? `Bestand ${since(S.stamp)}` : '';
 }
 /* ── Fortschritt ──────────────────────────────────────────────────────
    Bei 102 Wachen sagte nur das Protokoll, wie weit es ist — und das scrollt.
@@ -4209,6 +4237,14 @@ function log(msg, kind = '') {
   pre.scrollTop = pre.scrollHeight;
 }
 
+/** Vor einem neuen Lauf: Speicher und Anzeige leeren. Das Feld steht seit
+    v0.69.0 fest unten und wird nicht mehr mit jedem Zeichnen neu gebaut —
+    ohne das zweite stünden die alten Zeilen weiter da. */
+function logLeeren() {
+  S.log = [];
+  el?.querySelector('#lssp-log')?.replaceChildren();
+}
+
 /** Baut das Protokollfeld einmalig aus dem Speicher auf. */
 function malLog(pre) {
   const frag = document.createDocumentFragment();
@@ -4244,7 +4280,7 @@ function logKopf() {
 }
 function logKopfBinden(wurzel) {
   wurzel.querySelectorAll('.logkopf button').forEach(x => x.onclick = () => {
-    if (x.dataset.f === 'leeren') { S.log = []; log(''); render(); return; }
+    if (x.dataset.f === 'leeren') { logLeeren(); render(); return; }
     logFilter = x.dataset.f;
     render();
   });
@@ -4263,8 +4299,9 @@ function selectedBuildings() {
     .map(c => S.byId.get(Number(c.value))).filter(Boolean);
 }
 
-/** Ankreuzfelder mit dem Zustand verbinden. Nach jedem render() nötig. */
-function auswahlBinden(wurzel) {
+/** Ankreuzfelder mit dem Zustand verbinden. Nach jedem render() nötig.
+    `danach` läuft nach jeder Änderung — die Sammelaktionen zählen mit. */
+function auswahlBinden(wurzel, danach = () => {}) {
   /* Das Suchfeld zeichnet die Liste neu, behält aber den Fokus und die
      Schreibmarke — sonst tippt man ein Wort und landet nach dem ersten
      Buchstaben wieder außerhalb des Feldes. */
@@ -4282,14 +4319,42 @@ function auswahlBinden(wurzel) {
   wurzel.querySelectorAll('.bsel').forEach(c => c.onchange = () => {
     const id = Number(c.value);
     c.checked ? auswahl.add(id) : auswahl.delete(id);
+    danach();
   });
-  const setzeAlle = an => wurzel.querySelectorAll('.bsel').forEach(c => {
-    c.checked = an;
-    an ? auswahl.add(Number(c.value)) : auswahl.delete(Number(c.value));
-  });
+  const setzeAlle = an => {
+    wurzel.querySelectorAll('.bsel').forEach(c => {
+      c.checked = an;
+      an ? auswahl.add(Number(c.value)) : auswahl.delete(Number(c.value));
+    });
+    danach();
+  };
   wurzel.querySelector('#lssp-all')?.addEventListener('click', () => setzeAlle(true));
   wurzel.querySelector('#lssp-none')?.addEventListener('click', () => setzeAlle(false));
+  wurzel.querySelector('#lssp-type')?.addEventListener('change', render);
+  wurzel.querySelector('#lssp-nuroffen')?.addEventListener('change', e => {
+    S.opts.nurOffen = e.target.checked; store.set(KEY_OPTS, S.opts); render();
+  });
+  wurzel.querySelectorAll('button.ruht').forEach(x => x.onclick = ev => {
+    ev.preventDefault(); ev.stopPropagation(); ruhtUm(Number(x.dataset.id)); render();
+  });
 }
+
+/* Je Handgriff zählt etwas anderes. Beim Anhängerkoppeln interessiert nicht,
+   wie viele Lehrgänge fehlen — sondern wie viele Anhänger kein Zugfahrzeug
+   haben. Daraus leben die Listen und die Zahlen an den Knöpfen der Karte. */
+const BEREICH = {
+  ausbau:    f => [f.ausbau,    f.ausbau ? `${f.ausbau} Ausbauten fehlen` : ''],
+  kaufen:    f => [f.kauf,      f.kauf ? `${f.kauf} Fahrzeuge fehlen` : ''],
+  verkauf:   f => [f.weg,       f.weg ? `${f.weg} überzählig` : ''],
+  werben:    f => [f.personal,  f.personal ? `${f.personal} unterbesetzt` : ''],
+  anhaenger: f => [f.anhaenger, f.anhaenger ? `${f.anhaenger} ohne Zugfahrzeug` : ''],
+  personal:  f => [f.personal,  f.personal ? `${f.personal} unterbesetzt` : ''],
+  lehrgang:  f => [f.lehrgang,  f.lehrgangUnklar ? 'Ausbildung unerfasst'
+                              : f.lehrgang ? `${f.lehrgang} Ausbildungen fehlen` : ''],
+  leeren:    f => [f.personal, f.personal ? `${f.personal} unterbesetzt` : 'besetzt'],
+  haken:     f => [f.unklar ? 0 : f.offen,
+                   f.unklar ? 'nicht beurteilbar' : f.fertig ? 'Haken setzen' : 'Haken entfernen']
+};
 
 function buildingList(filterFn = null) {
   const types = [...new Set(planWachen().map(b => b.building_type))]
@@ -4304,38 +4369,9 @@ function buildingList(filterFn = null) {
     .filter(b => tsel === '' || String(b.building_type) === tsel)
     .map(b => ({ b, f: fortschritt(b), a: analyse(b) }));
 
-  /* Je Reiter zählt etwas anderes. Im Anhänger-Reiter interessiert nicht,
-     wie viele Lehrgänge fehlen — sondern wie viele Anhänger kein
-     Zugfahrzeug haben. */
-  const bereich = {
-    ausbau:    f => [f.ausbau,    f.ausbau ? `${f.ausbau} Ausbauten fehlen` : ''],
-    kaufen:    f => [f.kauf,      f.kauf ? `${f.kauf} Fahrzeuge fehlen` : ''],
-    verkauf:   f => [f.weg,       f.weg ? `${f.weg} überzählig` : ''],
-    werben:    f => [f.personal,  f.personal ? `${f.personal} unterbesetzt` : ''],
-    anhaenger: f => [f.anhaenger, f.anhaenger ? `${f.anhaenger} ohne Zugfahrzeug` : ''],
-    personal:  f => [f.personal,  f.personal ? `${f.personal} unterbesetzt` : ''],
-    lehrgang:  f => [f.lehrgang,  f.lehrgangUnklar ? 'Ausbildung unerfasst'
-                                : f.lehrgang ? `${f.lehrgang} Ausbildungen fehlen` : ''],
-    leeren:    f => [f.personal, f.personal ? `${f.personal} unterbesetzt` : 'besetzt'],
-    haken:     f => [f.unklar ? 0 : f.offen,
-                     f.unklar ? 'nicht beurteilbar' : f.fertig ? 'Haken setzen' : 'Haken entfernen']
-  };
-
-  const alleTeile = f => {
-    const t = [];
-    if (f.ausbau)    t.push(`${f.ausbau} Ausbau`);
-    if (f.kauf)      t.push(`${f.kauf} Fahrzeug`);
-    if (f.weg)       t.push(`${f.weg} zu viel`);
-    if (f.personal)  t.push(`${f.personal} unterbesetzt`);
-    if (f.anhaenger) t.push(`${f.anhaenger} ohne Zugfz`);
-    if (f.lehrgang)  t.push(`${f.lehrgang} Lehrgang`);
-    if (f.lehrgangUnklar) t.push('Ausbildung unerfasst');
-    return t.join(' · ');
-  };
-
   const nurOffen = el?.querySelector('#lssp-nuroffen')?.checked
     ?? (S.opts.nurOffen !== false);
-  const offenIm = f => bereich[tab] ? bereich[tab](f)[0] : f.offen;
+  const offenIm = f => BEREICH[tab] ? BEREICH[tab](f)[0] : f.offen;
   /* Suchwort ohne Rücksicht auf Groß- und Kleinschreibung und ohne die
      Markierung: wer „wasret“ tippt, meint auch „🟢 WasRet 3“. */
   const wort = suche.trim().toLowerCase();
@@ -4356,13 +4392,13 @@ function buildingList(filterFn = null) {
 
   const liste = sichtbar.map(({ b, f, a }) => {
     const still = ruht.has(b.id);
-    const [offenHier, text] = bereich[tab] ? bereich[tab](f) : [f.offen, alleTeile(f)];
+    const [offenHier, text] = BEREICH[tab] ? BEREICH[tab](f) : [f.offen, offenTeile(f)];
     const zustand = still ? ['ruht', 'var(--lp-dim2)']
       : offenHier ? [`${offenHier} offen`, 'var(--lp-err)']
       : (tab === 'lehrgang' && f.lehrgangUnklar) ? ['unklar', 'var(--lp-akzent)']
       : f.fertig ? ['fertig', 'var(--lp-ok)']
       : ['hier fertig', 'var(--lp-ok)'];
-    return `<label${still ? ' style="opacity:.5"' : ''} title="${esc(alleTeile(f) || 'nichts offen')}">
+    return `<label${still ? ' style="opacity:.5"' : ''} title="${esc(offenTeile(f) || 'nichts offen')}">
       <input type="checkbox" class="bsel" value="${b.id}" ${auswahl.has(b.id) ? 'checked' : ''}>
       <span class="lupe" data-wache="${b.id}"
         style="cursor:pointer;text-decoration:underline dotted"
@@ -4409,7 +4445,7 @@ function buildingList(filterFn = null) {
     Handler ein render() auslöste. Genau den Fall sollte D-35 verhindern. */
 function scharfZeigen() {
   if (!el) return false;
-  const scharf = S.opts.dry === false && !['ueber', 'plan', 'lehrgang'].includes(tab);
+  const scharf = S.opts.dry === false && (ansicht !== 'extras' || tab === 'haken');
   el.classList.toggle('scharf', scharf);
   const marke = el.querySelector('#lssp-scharf');
   if (marke) marke.style.display = scharf ? '' : 'none';
@@ -4419,39 +4455,8 @@ function scharfZeigen() {
 function render() {
   if (!el) return;
   const b = el.querySelector('.body');
-  navZeichnen();
-  // Nach jedem Zeichnen: die Knöpfe des Protokollkopfs sind neu entstanden
-  queueMicrotask(() => logKopfBinden(b));
-  /* Scharf heißt: der nächste Druck verändert das Spiel. Das gehört an den
-     Rahmen, nicht nur an ein Häkchen weiter unten. */
-  scharfZeigen();
-
-  /* Ohne importierten Plan lief bisher gar nichts — obwohl seit v0.32 nur noch
-     zwei Dinge daraus kommen: die Stellplatz-Töpfe und der Ausbaukatalog. Alles
-     andere steht eingebacken bereit. Ein neuer Nutzer stand also vor einer
-     Aufforderung, ein Artefakt zu bedienen, das er gar nicht hat. */
-  /* Kaufen geht seit v0.44 ohne Plan: die Stellplätze rechnet LAYOUTS_STANDARD
-     aus Stufe und Ausbauten. Nur die Ausbauten selbst brauchen noch den
-  /* Der Ausbaureiter braucht die Bauplatz-Nummern. Fehlen sie, wird angeboten,
-     sie aus dem Spiel zu holen — ein Abruf, der alle Gebäudearten mitbringt. */
-  if (tab === 'ausbau' && !Object.keys(store.get(KEY_EXTCAT, {})).length) {
-    b.innerHTML = `<p class="hint">Um einen Ausbau zu bestellen, braucht das Spiel die Nummer des
-      Bauplatzes. Die steht auf den Ausbauseiten deiner Wachen — ein Abruf je Gebäudeart, danach
-      merkt sich der Planer sie.</p>
-      <div class="row"><button class="act go" id="lssp-katalog">Ausbaukatalog aus dem Spiel lesen</button></div>
-      <pre id="lssp-log"></pre>`;
-    b.querySelector('#lssp-katalog').onclick = async ev => {
-      ev.target.disabled = true;
-      try {
-        const r = await ausbauKatalogLesen();
-        log(`${r.gesehen} Bauplätze über ${r.proTyp.size} Gebäudearten gelesen, ${r.neu} neu.`, 'good');
-      } catch (e) { log(e.message, 'warn'); }
-      fortAus(); ev.target.disabled = false; render();
-    };
-    log('');
-    return;
-  }
-
+  b.classList.remove('raster');
+  // Vor den Reitern: welche Gebäudearten es gibt, steht erst im Bestand
   if (!S.loaded && loadCached()) {
     // Höchstens einmal am Tag von selbst nachladen — sonst wartet der Planer
     // darauf, dass du „Bestand neu laden“ drückst.
@@ -4462,9 +4467,18 @@ function render() {
         .finally(() => { S.busy = false; fortAus(); render(); });
     }
   }
+  navZeichnen();
+  /* Scharf heißt: der nächste Druck verändert das Spiel. Das gehört an den
+     Rahmen, nicht nur an ein Häkchen weiter unten. */
+  scharfZeigen();
+  // Der Protokollkopf zählt mit, also bei jedem Zeichnen neu; das Feld selbst bleibt
+  const fuss = el.querySelector('.fuss');
+  fuss.querySelector('.logkopf-ort').innerHTML = logKopf();
+  logKopfBinden(fuss);
+
   if (!S.loaded) {
-    b.innerHTML = `<p class="hint"><b>Schritt 2:</b> Der Plan ist da. Jetzt liest der Helfer einmal
-      deine Wachen und Fahrzeuge aus dem Spiel — das dauert ein paar Sekunden und ändert nichts.</p>
+    b.innerHTML = `<p class="hint">Zuerst liest der Planer einmal deine Wachen und Fahrzeuge aus dem
+      Spiel — das dauert ein paar Sekunden und ändert nichts.</p>
       <button class="act go" id="lssp-load">Bestand laden</button>`;
     b.querySelector('#lssp-load').onclick = async () => {
       b.innerHTML = '<p class="hint">Lade Wachen und Fahrzeuge…</p>';
@@ -4480,55 +4494,7 @@ function render() {
     };
     return;
   }
-
-  const acts = {
-    ausbau:   ['Ausbauten bauen',      buildExtensions,
-      'Baut die im Plan vorgesehenen Erweiterungen. Reihenfolge: erst die, die Stellplätze bringen, '
-      + 'dann die übrigen, zuletzt die mehrfach baubaren wie Abrollbehälter-Stellplätze. Kostet Credits.'],
-    kaufen:   ['Fahrzeuge kaufen',     buyVehicles,
-      'Kauft alle Fahrzeuge, die gegenüber dem Plan fehlen. Kostet Credits. '
-      + 'Achtung: Stellplätze müssen vorher gebaut sein.'],
-    /* „Zerstören", nicht „verkaufen": das Spiel kennt keinen Verkauf. Auf
-       der Fahrzeugseite steht genau ein Knopf, und der fragt „Wirklich das
-       Fahrzeug zerstören?" (D-84, nachgemessen). Wer „verkaufen" liest,
-       rechnet mit Credits zurück; ob welche fließen, ist ungemessen — also
-       wird auch keine versprochen. */
-    verkauf:  ['Überzählige zerstören', sellSurplus,
-      'Zerstört Fahrzeuge, die der Plan nicht vorsieht — dasselbe wie der Papierkorb '
-      + 'auf der Fahrzeugseite. Einen Verkauf kennt das Spiel nicht, und einen Erlös '
-      + 'nennt es nicht. Nicht rückgängig zu machen. Fahrzeuge im Einsatz werden übersprungen.'],
-    werben:   ['3 Tage werben',        hire,
-      'Startet an unterbesetzten Wachen eine dreitägige Bewerbungsphase. Kostet nichts.'],
-    umbau:    ['Umrüsten (Optimum)',   umruesten,
-      'Rüstet jedes Fahrzeug, für dessen Typ eine eigene Vorlage „Optimum" angelegt ist, '
-      + 'auf diese Vorlage um — Typen ohne sie bleiben unberührt. Kostet Credits (etwa den '
-      + 'Kaufpreis) und legt das Fahrzeug 48 Stunden auf Status 6, alle auf einmal. Liest '
-      + 'beim Start das Guthaben und hört auf, bevor es aufgebraucht ist. Wer mehr Sitze '
-      + 'bekommt, wird von Grün auf Gelb umbenannt; den Rest besetzt der nächste Personallauf.'],
-    anhaenger:['Anhänger koppeln',     linkTrailers,
-      'Ordnet jedem Anhänger ein festes Zugfahrzeug zu. Braucht einen Abruf je Fahrzeug und dauert entsprechend.'],
-    leeren:   ['Zuweisungen lösen',    zuweisungenLoeschen,
-      'Nimmt die Personen von den Fahrzeugen einer Wache. Gedacht als Neuanfang vor einer '
-      + `sauberen Zuweisung: erst leeren, dann „Personal zuweisen". Was ${HAKEN} trägt, bleibt `
-      + 'unberührt — ein grünes Fahrzeug wird beim Zuweisen nicht neu besetzt und käme sonst '
-      + 'leer zurück. Aus Sicherheitsgründen immer nur eine einzige Wache je Lauf, '
-      + 'und vor der Ausführung wird nochmals nachgefragt.'],
-    haken:    ['Namen abgleichen',     hakenAbgleichen,
-      'Benennt Fahrzeuge und Wachen nach den Vorlagen unten um. Der Punkt am Fahrzeug sagt, '
-      + `wie weit es besetzt ist: ${HAKEN} jeder Sitz belegt und jeder Lehrgang da, `
-      + `${PUNKT_TEIL} ab Mindestbesetzung, ${PUNKT_LEER} darunter. Eine Wache trägt ${HAKEN}, `
-      + 'sobald jedes ihrer Fahrzeuge grün ist. Wo der Punkt im Namen steht, sagt {punkt}; '
-      + 'alles andere daneben ist frei. Wachen ohne erfassten Ausbildungsstand bleiben '
-      + 'unangetastet. Beim ersten Lauf nach v0.65.2 bekommt fast jedes Fahrzeug einen neuen '
-      + 'Namen — bisher trug nur das fertige einen Punkt. Erst mit „Nur Vorschau" ansehen und '
-      + 'Zeit einplanen: jedes Umbenennen ist eine eigene Anfrage.'],
-    personal: ['Personal zuweisen',    assignStaff,
-      'Verteilt vorhandenes Personal auf die Fahrzeuge: erst Ausgebildete auf ihre Fachfahrzeuge, dann der Rest. '
-      + 'Anschließend wird die Einsatzbereitschaft nachgezogen: Fahrzeuge ohne ausreichende Besatzung gehen auf '
-      + 'Status 6, ausreichend besetzte kommen zurück auf 2. Auf Wunsch bekommt jedes Fahrzeug '
-      + 'im selben Durchgang gleich seinen Punkt in den Namen, und ebenfalls auf Wunsch folgen '
-      + 'Ausbauten und Wache ihren Fahrzeugen — beides steht von Haus aus aus.']
-  };
+  if (ansicht !== 'extras') return zeigeWachen(b);
 
   if (tab === 'ueber') {
     let vm = 0, em = 0, hires = 0, done = 0, blockiert = 0, fertig = 0, unklar = 0;
@@ -4582,8 +4548,7 @@ function render() {
         <label><span>Wachen vollständig fertig</span><span class="${fertig ? 'ok' : 'gap'}">${fertig}</span></label>
         ${unklar ? `<label><span>davon nicht beurteilbar</span><span class="warn">${unklar} — Ausbildungsstand fehlt</span></label>` : ''}
         <label><span>Wachen komplett</span><span class="ok">${done}</span></label>
-      </div>
-      ${logKopf()}<pre id="lssp-log"></pre>`;
+      </div>`;
     b.querySelector('#lssp-buf').onchange = e => {
     S.opts.buffer = Number(e.target.value) || 0; store.set(KEY_OPTS, S.opts); standNeu(); render();
   };
@@ -4597,318 +4562,7 @@ function render() {
     return;
   }
 
-  if (tab === 'plan') {
-    /* Der Editor arbeitet auf einer Kopie und schreibt bei jeder Änderung
-       zurück. Ein „Speichern“-Knopf wäre eine zusätzliche Gelegenheit, Arbeit
-       zu verlieren. */
-    const modell = S.modell;
-    const typen = [...new Set([...Object.keys(modell),
-      ...S.buildings.map(b => String(b.building_type))])]
-      // Schulen, Krankenhäuser und Leitstellen sind gesperrt (D-40) — sie
-      // gehören dann auch nicht in die Auswahl, sonst führt sie ins Leere
-      .filter(t => !NICHT_PLANEN.has(Number(t)))
-      .sort((x, y) => T.btName(x).localeCompare(T.btName(y), 'de'));
-    if (!planTyp || !typen.includes(planTyp)) planTyp = typen[0] || null;
-    const profile = modell[planTyp]?.profiles || {};
-    if (!planProfil || !profile[planProfil]) planProfil = Object.keys(profile)[0] || null;
-    const prof = profile[planProfil];
-
-    // Wie viele Wachen hängen an welchem Profil? Erst das macht die Wahl greifbar.
-    const wachenVon = {};
-    for (const b of planWachen()) {
-      if (String(b.building_type) !== planTyp) continue;
-      const p = T.profileOf(b) || '—';
-      wachenVon[p] = (wachenVon[p] || 0) + 1;
-    }
-    const eigene = S.buildings.filter(b => String(b.building_type) === planTyp).length;
-
-    const fzZeilen = Object.entries(prof?.vehicles || {})
-      .sort((x, y) => T.vehName(x[0]).localeCompare(T.vehName(y[0]), 'de'))
-      .map(([id, n]) => `<label>
-        <span>${esc(T.vehName(id))}</span>
-        <span style="color:var(--lp-dim2);font-size:11px">${
-          T.veh(id) ? `${T.veh(id).min}–${T.veh(id).max} Personen` : 'unbekannter Typ'}</span>
-        <span style="margin-left:auto;display:flex;gap:4px;align-items:center">
-          <button class="act pminus" data-id="${id}" title="weniger">−</button>
-          <b style="min-width:22px;text-align:center">${n}</b>
-          <button class="act pplus" data-id="${id}" title="mehr">+</button>
-          <button class="act pweg" data-id="${id}" title="entfernen">×</button>
-        </span></label>`).join('');
-
-    const bekannt = new Set(Object.keys(prof?.vehicles || {}));
-    const kaufbar = kaufbareTypen(planTyp);
-    const alleZeigen = !!ui.alleTypen;
-    const zurWahl = Object.keys(PB)
-      .filter(id => !bekannt.has(id))
-      .filter(id => alleZeigen || kaufbar.has(id))
-      .sort((x, y) => T.vehName(x).localeCompare(T.vehName(y), 'de'))
-      .map(id => `<option value="${id}">${esc(T.vehName(id))}</option>`).join('');
-
-    const extZeilen = Object.entries(prof?.extensions || {})
-      .sort((x, y) => x[0].localeCompare(y[0], 'de'))
-      .map(([name, n]) => `<label><span>${esc(name)}</span>
-        <span style="margin-left:auto;display:flex;gap:4px;align-items:center">
-          <button class="act eminus" data-n="${esc(name)}">−</button>
-          <b style="min-width:22px;text-align:center">${n}</b>
-          <button class="act eplus" data-n="${esc(name)}">+</button>
-          <button class="act eweg" data-n="${esc(name)}">×</button>
-        </span></label>`).join('');
-
-    const sitze = Object.entries(prof?.vehicles || {})
-      .reduce((a, [id, n]) => a + (T.veh(id)?.max || 0) * n, 0);
-    const fzAnzahl = Object.values(prof?.vehicles || {}).reduce((a, n) => a + n, 0);
-
-    b.innerHTML = `<p class="hint">Hier steht, wie eine Wache aussehen soll. Alles andere im Planer
-      rechnet dagegen. Änderungen gelten sofort und bleiben erhalten — auch wenn du später
-      einen Plan importierst.</p>
-      <div class="row">
-        <select id="lssp-ptyp">${typen.map(t => `<option value="${t}"${
-          t === planTyp ? ' selected' : ''}>${esc(T.btName(t))}${
-          S.buildings.some(x => String(x.building_type) === t) ? '' : ' (keine eigene)'}</option>`).join('')}</select>
-        <select id="lssp-pprof">${Object.keys(profile).map(p => `<option value="${esc(p)}"${
-          p === planProfil ? ' selected' : ''}>${esc(p)}${
-          wachenVon[p] ? ` · ${wachenVon[p]} Wachen` : ''}</option>`).join('')
-          || '<option value="">— kein Profil —</option>'}</select>
-        <button class="act" id="lssp-pneu">Neu</button>
-        <button class="act" id="lssp-pkopie">Kopieren</button>
-        <button class="act" id="lssp-pnenn">Umbenennen</button>
-        <button class="act danger" id="lssp-plos">Löschen</button>
-        <span style="flex:1"></span>
-        <button class="act" id="lssp-pstd" title="Nur diesen Gebäudetyp auf den eingebauten Stand zurücksetzen"
-          ${MODELL_STANDARD[planTyp] ? '' : 'disabled'}>Standard für ${esc(T.btName(planTyp))}</button>
-      </div>
-      ${prof ? `
-      <div class="row" style="margin-bottom:4px">
-        <b>Fahrzeuge</b>
-        <span style="color:var(--lp-dim2);font-size:11px">${fzAnzahl} Stück, ${sitze} Sitze</span>
-        <span style="flex:1"></span>
-        <select id="lssp-pfzwahl" style="max-width:230px"><option value="">Fahrzeugtyp hinzufügen …</option>${zurWahl}</select>
-      </div>
-      <div class="row" style="margin:-4px 0 6px">
-        <span style="color:var(--lp-dim2);font-size:11px">${kaufbar.size} Typen gehören hierher${
-          store.get(KEY_KAUFBAR, {})[planTyp] ? ' (aus dem Spiel gelesen)' : ' (aus Profilen und Bestand)'}</span>
-        <span style="flex:1"></span>
-        <label style="color:var(--lp-dim);font-size:11px">
-          <input type="checkbox" id="lssp-palle" ${alleZeigen ? 'checked' : ''}> alle 186 zeigen</label>
-        <button class="act" id="lssp-plesen">Typen aus dem Spiel lesen</button>
-        <button class="act" id="lssp-pausbau" title="Bauplatz-Nummern dieser Gebäudeart lesen"
-          >Ausbaukatalog lesen (${extCatVon(planTyp).filter(Boolean).length})</button>
-      </div>
-      <div class="list">${fzZeilen
-        || '<label><span style="color:var(--lp-dim)">Noch kein Fahrzeug in diesem Profil.</span></label>'}</div>
-
-      <div class="row" style="margin:10px 0 4px">
-        <b>Ausbauten</b>
-        <span style="flex:1"></span>
-        <input id="lssp-pextname" placeholder="Name des Ausbaus" style="flex:1;min-width:160px;
-          background:var(--lp-feld);color:var(--lp-fg);border:1px solid var(--lp-rand);border-radius:3px;padding:5px 8px;font:12px sans-serif">
-        <button class="act" id="lssp-pextadd">hinzufügen</button>
-      </div>
-      <div class="list">${extZeilen
-        || '<label><span style="color:var(--lp-dim)">Keine Ausbauten vorgesehen.</span></label>'}</div>
-
-      <div class="row" style="margin-top:12px">
-        <b>Zuordnung</b>
-        <span style="color:var(--lp-dim2);font-size:11px">${eigene} eigene Wachen dieses Typs</span>
-        <span style="flex:1"></span>
-        <button class="act go" id="lssp-pzuord">Gewählte Wachen auf „${esc(planProfil || '')}“</button>
-      </div>
-      ${buildingList(x => String(x.building_type) === planTyp)}
-      ` : '<p class="hint">Für diesen Gebäudetyp gibt es noch kein Profil. Leg eines an.</p>'}
-
-      <div class="row" style="margin-top:12px">
-        <b>Sicherung</b>
-        <span style="color:var(--lp-dim2);font-size:11px">alle Pläne samt Zuordnung der Wachen</span>
-        <span style="flex:1"></span>
-        <button class="act" id="lssp-pdatei">Als Datei sichern</button>
-        <button class="act" id="lssp-pladen">Aus Datei laden …</button>
-        <input type="file" id="lssp-pdateiwahl" accept=".json,application/json" hidden>
-      </div>
-      <div class="row">
-        <span style="color:var(--lp-dim2);font-size:11px;flex:1">Beim Laden bleibt jede Zuordnung
-          stehen, deren Wache in diesem Konto steht. Aus einem anderen Konto kommen nur die Pläne.</span>
-        <button class="act" id="lssp-pexport">Kopieren</button>
-        <button class="act" id="lssp-pimport">Einfügen …</button>
-      </div>
-      ${logKopf()}<pre id="lssp-log"></pre>`;
-
-    const frisch = () => { modellGeaendert(); render(); };
-    const zahl = (obj, schluessel, delta) => {
-      obj[schluessel] = Math.max(0, (obj[schluessel] || 0) + delta);
-      if (!obj[schluessel]) delete obj[schluessel];
-    };
-
-    b.querySelector('#lssp-ptyp').onchange = e => { planTyp = e.target.value; planProfil = null; render(); };
-    b.querySelector('#lssp-pprof').onchange = e => { planProfil = e.target.value; render(); };
-
-    b.querySelector('#lssp-pneu').onclick = () => {
-      const name = prompt('Name des neuen Profils:', 'eigenes');
-      if (!name) return;
-      modell[planTyp] ||= { slotBonus: 0, profiles: {} };
-      modell[planTyp].profiles[name] = { vehicles: {}, extensions: {} };
-      planProfil = name; frisch();
-    };
-    b.querySelector('#lssp-pkopie').onclick = () => {
-      if (!prof) return;
-      const name = prompt('Name der Kopie:', planProfil + ' 2');
-      if (!name) return;
-      modell[planTyp].profiles[name] = strukturKopie(prof);
-      planProfil = name; frisch();
-    };
-    b.querySelector('#lssp-pnenn').onclick = () => {
-      if (!prof) return;
-      const name = prompt('Neuer Name:', planProfil);
-      if (!name || name === planProfil) return;
-      modell[planTyp].profiles[name] = prof;
-      delete modell[planTyp].profiles[planProfil];
-      // Zuordnungen mitziehen, sonst zeigen sie ins Leere
-      const z = S.zuordnung;
-      for (const [bid, p] of Object.entries(z)) if (p === planProfil) z[bid] = name;
-      S.zuordnung = z;
-      planProfil = name; frisch();
-    };
-    b.querySelector('#lssp-plos').onclick = async () => {
-      if (!prof) return;
-      const dran = wachenVon[planProfil] || 0;
-      if (!await frage(`Profil „${planProfil}“ löschen?`
-        + (dran ? `\n\n${dran} Wachen benutzen es und fallen auf das erste Profil zurück.` : ''))) return;
-      delete modell[planTyp].profiles[planProfil];
-      planProfil = null; frisch();
-    };
-
-    b.querySelector('#lssp-palle')?.addEventListener('change', e => {
-      ui.alleTypen = e.target.checked; saveUi(); render();
-    });
-    b.querySelector('#lssp-plesen')?.addEventListener('click', async () => {
-      const wache = S.buildings.find(x => String(x.building_type) === planTyp);
-      if (!wache) return log('Keine eigene Wache dieses Typs — daraus läßt sich nichts lesen.', 'warn');
-      try {
-        const ids = await kaufbareLesen(wache);
-        log(`${ids.size} kaufbare Typen für ${T.btName(planTyp)} gelesen.`, 'good');
-        render();
-      } catch (e) { log('Nicht gelesen: ' + e.message, 'warn'); }
-    });
-    b.querySelector('#lssp-pausbau')?.addEventListener('click', async () => {
-      try {
-        // Die Sammelseite bringt alle Gebäudearten mit, nicht nur die gewählte.
-        const r = await ausbauKatalogLesen();
-        log(`${r.gesehen} Bauplätze über ${r.proTyp.size} Gebäudearten gelesen, ${r.neu} neu `
-          + `(davon ${r.proTyp.get(Number(planTyp)) || 0} bei ${T.btName(planTyp)}).`, 'good');
-        render();
-      } catch (e) { log('Nicht gelesen: ' + e.message, 'warn'); }
-    });
-    b.querySelector('#lssp-pfzwahl')?.addEventListener('change', e => {
-      if (!e.target.value) return;
-      prof.vehicles ||= {};
-      prof.vehicles[e.target.value] = 1;
-      frisch();
-    });
-    b.querySelectorAll('.pplus').forEach(x => x.onclick = () => { zahl(prof.vehicles, x.dataset.id, +1); frisch(); });
-    b.querySelectorAll('.pminus').forEach(x => x.onclick = () => { zahl(prof.vehicles, x.dataset.id, -1); frisch(); });
-    b.querySelectorAll('.pweg').forEach(x => x.onclick = () => {
-      delete prof.vehicles[x.dataset.id];
-      if (prof.pools) delete prof.pools[x.dataset.id];   // sonst bleibt ein Topf ohne Fahrzeug
-      frisch();
-    });
-
-    b.querySelector('#lssp-pextadd')?.addEventListener('click', () => {
-      const feld = b.querySelector('#lssp-pextname');
-      const name = feld.value.trim();
-      if (!name) return;
-      prof.extensions ||= {};
-      prof.extensions[name] = (prof.extensions[name] || 0) + 1;
-      frisch();
-    });
-    b.querySelectorAll('.eplus').forEach(x => x.onclick = () => { zahl(prof.extensions, x.dataset.n, +1); frisch(); });
-    b.querySelectorAll('.eminus').forEach(x => x.onclick = () => { zahl(prof.extensions, x.dataset.n, -1); frisch(); });
-    b.querySelectorAll('.eweg').forEach(x => x.onclick = () => { delete prof.extensions[x.dataset.n]; frisch(); });
-
-    auswahlBinden(b);
-    b.querySelector('#lssp-pzuord')?.addEventListener('click', () => {
-      const sel = selectedBuildings();
-      if (!sel.length) return log('Keine Wache gewählt.', 'warn');
-      const z = S.zuordnung;
-      for (const w of sel) z[w.id] = planProfil;
-      S.zuordnung = z;
-      log(`${sel.length} Wachen auf „${planProfil}“ gesetzt.`, 'good');
-      render();
-    });
-
-    const sicherungText = () => JSON.stringify({
-      format: SICHERUNG_FORMAT, v: 1, version: VERSION, erstellt: new Date().toISOString(),
-      modell: S.modell, zuordnung: S.zuordnung }, null, 1);
-
-    /* Datei und Zwischenablage laufen durch dieselbe Prüfung und dieselbe
-       Rückfrage. Bis v0.65.4 ersetzte „Einfügen" ungeprüft und ungefragt das
-       ganze Wunschbild — und übernahm fremde Wachennummern gleich mit. */
-    const sicherungLaden = async (txt, woher) => {
-      let d;
-      try { d = JSON.parse(txt); }
-      catch (e) { return log(`${woher}: kein gültiges JSON — ${e.message}`, 'err'); }
-      const r = sicherungPruefen(d, S.buildings, S.zuordnung);
-      if (r.fehler) return log(`${woher}: nicht übernommen — ${r.fehler}. Das bisherige Wunschbild bleibt.`, 'err');
-      const zeilen = [
-        `Wunschbild ersetzen? ${r.typen} Gebäudetypen, ${r.profile} Profile.`,
-        r.ohneBestand
-          ? `Zuordnung: Bestand nicht geladen — von ${r.inDatei} Einträgen der Datei wird keiner übernommen, `
-            + `die bisherige Zuordnung (${r.behalten} Wachen) bleibt. Erst „Bestand neu laden", dann noch einmal laden.`
-          : `Zuordnung: ${r.uebernommen} von ${r.inDatei} übernommen`
-            + (r.fremd ? `, ${r.fremd} gehören nicht zu diesem Konto` : '')
-            + (r.ohneProfil ? `, ${r.ohneProfil} zeigen auf ein Profil, das es nicht gibt` : '')
-            + (r.behalten ? `; ${r.behalten} eigene Zuordnungen bleiben wie sie sind` : '') + '.',
-        r.fremdeTypen ? `${r.fremdeTypen} Fahrzeugeinträge haben Typen, die diese Fassung nicht kennt — sie werden übergangen.` : ''
-      ].filter(Boolean);
-      if (!await frage(zeilen.join('\n\n'))) return log('Nichts übernommen.', 'warn');
-      S.modell = r.modell;
-      S.zuordnung = r.zuordnung;
-      planTyp = planProfil = null;
-      render();
-      zeilen.slice(1).forEach(t => log(t, 'warn'));
-      log(`${woher}: ${r.profile} Profile übernommen, ${Object.keys(r.zuordnung).length} Wachen zugeordnet.`, 'good');
-    };
-
-    b.querySelector('#lssp-pdatei').onclick = () => {
-      /* Ein Verweis mit `download` genügt — ohne @grant, ohne Bibliothek.
-         Das Datum im Namen, damit mehrere Stände nebeneinander liegen können. */
-      const url = URL.createObjectURL(new Blob([sicherungText()], { type: 'application/json' }));
-      const a = Object.assign(document.createElement('a'),
-        { href: url, download: `lss-planer-wunschbild-${new Date().toISOString().slice(0, 10)}.json` });
-      document.body.append(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      log(`Gesichert: ${Object.keys(S.modell).length} Gebäudetypen, `
-        + `${Object.keys(S.zuordnung).length} zugeordnete Wachen.`, 'good');
-    };
-    b.querySelector('#lssp-pladen').onclick = () => b.querySelector('#lssp-pdateiwahl').click();
-    b.querySelector('#lssp-pdateiwahl').onchange = async e => {
-      const datei = e.target.files?.[0];
-      e.target.value = '';             // dieselbe Datei zweimal wählen soll wieder auslösen
-      if (datei) await sicherungLaden(await datei.text(), datei.name);
-    };
-    b.querySelector('#lssp-pexport').onclick = async () => {
-      const txt = sicherungText();
-      try { await navigator.clipboard.writeText(txt); log('Wunschbild samt Zuordnung in der Zwischenablage.', 'good'); }
-      catch { log('Kopieren nicht möglich. Hier zum Herausnehmen:\n' + txt); }
-    };
-    b.querySelector('#lssp-pimport').onclick = async () => {
-      const txt = prompt('Wunschbild einfügen (JSON):');
-      if (txt) await sicherungLaden(txt, 'Eingefügt');
-    };
-    b.querySelector('#lssp-pstd').onclick = async () => {
-      const vorlage = MODELL_STANDARD[planTyp];
-      if (!vorlage) return log('Für diesen Gebäudetyp gibt es keinen eingebauten Stand.', 'warn');
-      const eigene = Object.keys(modell[planTyp]?.profiles || {})
-        .filter(p2 => !vorlage.profiles[p2]);
-      if (!await frage(`Profile für ${T.btName(planTyp)} auf den eingebauten Stand zurücksetzen?`
-        + (eigene.length ? `\n\nSelbst angelegt und dabei verloren: ${eigene.join(', ')}` : '')
-        + '\n\nAndere Gebäudearten und die Zuordnung der Wachen bleiben unberührt.')) return;
-      modell[planTyp] = strukturKopie(vorlage);
-      planProfil = null;
-      log(`${T.btName(planTyp)} auf den Standard zurückgesetzt.`, 'good');
-      modellGeaendert(); render();
-    };
-    log('');
-    return;
-  }
+  if (tab === 'plan') return zeigePlan(b);
 
   if (tab === 'lehrgang') {
     const learned = Object.keys(learnedCourses()).length;
@@ -4968,14 +4622,7 @@ function render() {
         <button class="act" id="lssp-diag">Zuordnung prüfen</button>
         <button class="act" id="lssp-copy">Als Text kopieren</button>
       </div>
-      <div id="lssp-ctab"></div>${logKopf()}<pre id="lssp-log"></pre>`;
-    b.querySelector('#lssp-type')?.addEventListener('change', render);
-  b.querySelector('#lssp-nuroffen')?.addEventListener('change', e => {
-    S.opts.nurOffen = e.target.checked; store.set(KEY_OPTS, S.opts); render();
-  });
-  b.querySelectorAll('button.ruht').forEach(x => x.onclick = ev => {
-    ev.preventDefault(); ruhtUm(Number(x.dataset.id)); render();
-  });
+      <div id="lssp-ctab"></div>`;
     /* Der Umschalter ändert die Rechnung in `courseNeed` — also muß auch die
        gemerkte Rechnung weg, sonst stünden die alten Zahlen weiter da. */
     b.querySelectorAll('input[name=lsspkursziel]').forEach(r => r.onchange = e => {
@@ -5010,7 +4657,7 @@ function render() {
         + (S.opts.ksFreigabe !== false ? ', eine Stunde für den Verband freigegeben.' : ', ohne Freigabe.')
         + '\n\nDer Lehrgang startet wirklich.')) return;
       S.busy = true; ev.target.disabled = true; laufStarten();
-      S.log = []; log(dry ? '── Vorschau ──' : '── Ausführung ──', 'good');
+      logLeeren(); log(dry ? '── Vorschau ──' : '── Ausführung ──', 'good');
       try {
         const n = await lehrgangStarten(key, sel, S.opts.ksAnzahl, S.opts.ksFreigabe !== false,
                                         S.opts.ksVerband !== false, dry);
@@ -5059,28 +4706,11 @@ function render() {
     };
     einzelBinden(b);
 
-    b.querySelector('#lssp-scan').onclick = async ev => {
-      if (S.busy) return;
-      const sel = selectedBuildings();
-      if (!sel.length) return log('Keine Wache ausgewählt', 'warn');
-      S.busy = true; ev.target.disabled = true; S.log = []; laufStarten();
-      log(`Lese ${sel.length} Wachen aus, das dauert etwa ${Math.ceil(sel.length * 0.25)} Sekunden.`, 'good');
-      try {
-        await scanQuals(sel, (done, total, bb) => {
-          schritt(done, total, bb.caption || bb.id);
-          if (done % 5 === 0 || done === total) log(`${done}/${total} — zuletzt ${bb.caption || bb.id}`);
-        });
-        log('Fertig.', 'good');
-        const fertig = sel.filter(x => fortschritt(x).fertig).length;
-        if (fertig) log(`${fertig} Wachen sind jetzt vollständig — im Reiter „Haken" `
-          + `lässt sich das in die Namen übernehmen.`, 'good');
-      } catch (e) { log('Abbruch: ' + e.message, 'err'); }
-      S.busy = false; ev.target.disabled = false; fortAus(); render();
-    };
+    b.querySelector('#lssp-scan').onclick = ev => erfassen(selectedBuildings(), ev.target);
 
     b.querySelector('#lssp-learn').onclick = async ev => {
       if (S.busy) return;
-      S.busy = true; ev.target.disabled = true; S.log = []; laufStarten();
+      S.busy = true; ev.target.disabled = true; logLeeren(); laufStarten();
       const list = await allSchools();
       if (!list.length) {
         log('Keine Schule gefunden — weder eigene noch im Verband. Die eingebauten '
@@ -5098,7 +4728,7 @@ function render() {
     b.querySelector('#lssp-diag').onclick = () => {
       reloadQuals();
       const lc = learnedCourses();
-      S.log = [];
+      logLeeren();
       log(`Bekannte Lehrgangsnamen: ${Object.keys(lc).length}`, 'good');
       log(`Wachen mit erfasstem Ausbildungsstand: ${Object.keys(quals.by).length}`
         + (quals.ts ? ` (${since(quals.ts)})` : ''), 'good');
@@ -5128,57 +4758,8 @@ function render() {
     return;
   }
 
-  const [label, fn, hint] = acts[tab];
-  const modus = tab !== 'kaufen' ? '' : `
-    <div style="border:1px solid var(--lp-rand);border-radius:3px;padding:9px 11px;margin:0 0 10px">
-      <div style="color:var(--lp-dim);font-size:12px;margin-bottom:6px">Wenn Stellplätze fehlen:</div>
-      <label style="display:block;margin-bottom:4px">
-        <input type="radio" name="lsspmode" value="strict" ${S.opts.strict !== false ? 'checked' : ''}>
-        <b>Wache ganz überspringen</b> <span style="color:var(--lp-dim2)">— erst Ausbauten bauen, dann kaufen</span></label>
-      <label style="display:block">
-        <input type="radio" name="lsspmode" value="fit" ${S.opts.strict === false ? 'checked' : ''}>
-        <b>So viel kaufen, wie Platz ist</b> <span style="color:var(--lp-dim2)">— Rest wird gemeldet</span></label>
-    </div>`;
-  const einzeln = tab !== 'leeren' ? '' : `
-    <div style="border:1px solid #6b2f2f;background:#2a1414;border-radius:3px;padding:9px 11px;margin:0 0 10px;color:var(--lp-err)">
-      <b>Nur eine Wache je Lauf.</b> Sind mehrere ausgewählt, passiert nichts.
-      Der Vorgang löst jede Person von ihrem Fahrzeug — danach ist die Wache leer,
-      bis du das Personal neu zuweist.
-    </div>`;
-  const vollopt = tab !== 'personal' ? '' : `
-    <label style="display:block;margin:0 0 10px;color:var(--lp-dim)">
-      <input type="checkbox" id="lssp-voll" ${S.opts.vollBesetzen !== false ? 'checked' : ''}>
-      <b>Fahrzeuge voll besetzen</b>
-      <span style="color:var(--lp-dim2)">— sobald jedes Fahrzeug seine Mindestbesetzung hat,
-      wandern die Übrigen auf freie Sitze. Wer einen Lehrgang hat, der an dieser Wache
-      gebraucht wird, bleibt frei.</span></label>
-    <label style="display:block;margin:0 0 10px;color:var(--lp-dim)">
-      <input type="checkbox" id="lssp-leihen" ${S.opts.gruenLeihen !== false ? 'checked' : ''}>
-      <b>Fachkräfte von grünen Fahrzeugen umsetzen</b>
-      <span style="color:var(--lp-dim2)">— wenn ein Fahrzeug sonst ohne Besatzung bliebe.
-      Nur wer auf dem grünen Fahrzeug entbehrlich ist: es behält seine Mindestbesetzung
-      und damit seinen Punkt. Ohne das steht der ELW2 Drohne für immer, sobald seine
-      Doppelqualifizierten auf einem grünen ELW 2 sitzen.</span></label>
-    <label style="display:block;margin:0 0 10px;color:var(--lp-dim)">
-      <input type="checkbox" id="lssp-fzname" ${S.opts.fzUmbenennen ? 'checked' : ''}>
-      <b>Fahrzeuge anschließend umbenennen</b>
-      <span style="color:var(--lp-dim2)">— jedes Fahrzeug bekommt gleich hier seinen Punkt,
-      nach der Vorlage aus dem Reiter „Namen": ${HAKEN} jeder Sitz belegt, ${PUNKT_TEIL} ab
-      Mindestbesetzung, ${PUNKT_LEER} darunter. Spart den zweiten Durchgang samt zweitem Abruf
-      je Wache. Grüne Fahrzeuge bleiben unberührt, es sei denn, dieser Lauf hat ihre
-      Besatzung selbst verändert — dann bekommen sie den Punkt, der jetzt stimmt.</span></label>
-    <label style="display:block;margin:0 0 10px;color:${S.opts.ausbautenSchalten ? 'var(--lp-akzent)' : 'var(--lp-dim)'}">
-      <input type="checkbox" id="lssp-ausbschalt" ${S.opts.ausbautenSchalten ? 'checked' : ''}>
-      <b>Ausbauten und Wache mitschalten</b>
-      <span style="color:var(--lp-dim2)">— steht hinter einem Ausbau kein einsatzbereites
-      Fahrzeug mehr, wird er abgeschaltet; die Wache selbst hängt am Grundtopf. Das ist der
-      weitreichendste Eingriff dieses Laufs: <b>eine abgeschaltete Wache nimmt an keinem Einsatz
-      mehr teil.</b> Darum von Haus aus aus.</span></label>`;
-  const heimwarnung = tab !== 'personal' ? '' : `
-    <div style="border:1px solid #6b4a1f;background:#2a1f10;border-radius:3px;padding:9px 11px;margin:0 0 10px;color:var(--lp-akzent)">
-      <b>Vorher alle Fahrzeuge einrücken lassen.</b> Der Status lässt sich nur umschalten, wenn ein
-      Fahrzeug auf seiner Wache steht. Was unterwegs ist, wird vorgemerkt und beim nächsten Lauf nachgeholt.
-    </div>`;
+  // Übrig bleibt der Namensreiter: Vorlagen samt Lauf über eine eigene Liste
+  const [label, , hint] = aktionen()[tab];
   /* ── Namensvorlagen: Einstellungen im Reiter „Namen" ────────────────
      Nur hier, nicht global: die Vorlage gehört zu der Tat, die sie ausführt.
      Aufgeklappt wird über <details> — das kann der Browser selbst. */
@@ -5255,7 +4836,7 @@ function render() {
       </div>
     </details>`;
 
-  const namensopt = tab !== 'haken' ? '' : `
+  const namensopt = `
     <div style="border:1px solid var(--lp-rand);border-radius:3px;padding:9px 11px;margin:0 0 10px">
       <div style="margin-bottom:8px"><b>Namensvorlagen</b>
         <span style="color:var(--lp-dim2)">— <code>{punkt}</code> sagt, <b>wo</b> der grüne Punkt
@@ -5281,23 +4862,9 @@ function render() {
   b.innerHTML = `<p class="hint">${esc(hint)}<br><br>
       <b>Lass „Nur Vorschau“ zunächst angehakt.</b> Dann passiert nichts im Spiel, du siehst unten
       nur die Liste dessen, was getan würde. Erst wenn das stimmt, Haken entfernen und erneut drücken.</p>
-      ${einzelAnsicht()}${einzeln}${heimwarnung}${vollopt}${namensopt}${modus}${buildingList()}
-    <div class="row tun">
-      <label style="color:var(--lp-dim)"><input type="checkbox" id="lssp-dry" ${S.opts.dry ? 'checked' : ''}> Nur Vorschau</label>
-      <label style="color:${S.opts.gruenFrei ? 'var(--lp-err)' : 'var(--lp-dim)'}" title="Ohne diesen Haken bleibt alles unberührt, was ${HAKEN} trägt">
-        <input type="checkbox" id="lssp-gruen" ${S.opts.gruenFrei ? 'checked' : ''}> Grüne freigeben</label>
-      <span style="flex:1"></span>
-      <button class="act ${tab === 'verkauf' ? 'danger' : 'go'}" id="lssp-run">${esc(label)}</button>
-    </div>
-    ${logKopf()}<pre id="lssp-log"></pre>`;
+      ${einzelAnsicht()}${namensopt}${buildingList()}
+    ${laufLeiste(`<button class="act go" id="lssp-run">${esc(label)}</button>`)}`;
 
-  b.querySelector('#lssp-type')?.addEventListener('change', render);
-  b.querySelector('#lssp-nuroffen')?.addEventListener('change', e => {
-    S.opts.nurOffen = e.target.checked; store.set(KEY_OPTS, S.opts); render();
-  });
-  b.querySelectorAll('button.ruht').forEach(x => x.onclick = ev => {
-    ev.preventDefault(); ruhtUm(Number(x.dataset.id)); render();
-  });
   auswahlBinden(b);
   einzelBinden(b);
   /* ── Namensvorlagen: Bedienung ──────────────────────────────────────
@@ -5379,55 +4946,796 @@ function render() {
       ['fz', 'wache'].forEach(vorschauZeichnen);
     });
   });
-  if (tab === 'haken') ['fz', 'wache'].forEach(vorschauZeichnen);
+  ['fz', 'wache'].forEach(vorschauZeichnen);
 
-  b.querySelector('#lssp-dry').onchange = e => {
+  laufLeisteBinden(b);
+  b.querySelector('#lssp-run').onclick = ev => aktionLaufen(tab, selectedBuildings(), ev.target);
+  log('');
+}
+
+/* ── Handgriffe ───────────────────────────────────────────────────────
+   Ein Handgriff, drei Orte: die Karte einer Wache, die Sammelaktionen für
+   die Häkchen und der Namensreiter. Text, Rückfrage und Lauf stehen deshalb
+   einmal hier und nicht je Ort.
+   ─────────────────────────────────────────────────────────────────── */
+function aktionen() {
+  return {
+    ausbau:   ['Ausbauten bauen',      buildExtensions,
+      'Baut die im Plan vorgesehenen Erweiterungen. Reihenfolge: erst die, die Stellplätze bringen, '
+      + 'dann die übrigen, zuletzt die mehrfach baubaren wie Abrollbehälter-Stellplätze. Kostet Credits.'],
+    kaufen:   ['Fahrzeuge kaufen',     buyVehicles,
+      'Kauft alle Fahrzeuge, die gegenüber dem Plan fehlen. Kostet Credits. '
+      + 'Achtung: Stellplätze müssen vorher gebaut sein.'],
+    /* „Zerstören", nicht „verkaufen": das Spiel kennt keinen Verkauf. Auf
+       der Fahrzeugseite steht genau ein Knopf, und der fragt „Wirklich das
+       Fahrzeug zerstören?" (D-84, nachgemessen). Wer „verkaufen" liest,
+       rechnet mit Credits zurück; ob welche fließen, ist ungemessen — also
+       wird auch keine versprochen. */
+    verkauf:  ['Überzählige zerstören', sellSurplus,
+      'Zerstört Fahrzeuge, die der Plan nicht vorsieht — dasselbe wie der Papierkorb '
+      + 'auf der Fahrzeugseite. Einen Verkauf kennt das Spiel nicht, und einen Erlös '
+      + 'nennt es nicht. Nicht rückgängig zu machen. Fahrzeuge im Einsatz werden übersprungen.'],
+    werben:   ['3 Tage werben',        hire,
+      'Startet an unterbesetzten Wachen eine dreitägige Bewerbungsphase. Kostet nichts.'],
+    umbau:    ['Umrüsten (Optimum)',   umruesten,
+      'Rüstet jedes Fahrzeug, für dessen Typ eine eigene Vorlage „Optimum" angelegt ist, '
+      + 'auf diese Vorlage um — Typen ohne sie bleiben unberührt. Kostet Credits (etwa den '
+      + 'Kaufpreis) und legt das Fahrzeug 48 Stunden auf Status 6, alle auf einmal. Liest '
+      + 'beim Start das Guthaben und hört auf, bevor es aufgebraucht ist. Wer mehr Sitze '
+      + 'bekommt, wird von Grün auf Gelb umbenannt; den Rest besetzt der nächste Personallauf.'],
+    anhaenger:['Anhänger koppeln',     linkTrailers,
+      'Ordnet jedem Anhänger ein festes Zugfahrzeug zu. Braucht einen Abruf je Fahrzeug und dauert entsprechend.'],
+    leeren:   ['Zuweisungen lösen',    zuweisungenLoeschen,
+      'Nimmt die Personen von den Fahrzeugen einer Wache. Gedacht als Neuanfang vor einer '
+      + `sauberen Zuweisung: erst leeren, dann „Personal zuweisen". Was ${HAKEN} trägt, bleibt `
+      + 'unberührt — ein grünes Fahrzeug wird beim Zuweisen nicht neu besetzt und käme sonst '
+      + 'leer zurück. Aus Sicherheitsgründen immer nur eine einzige Wache je Lauf, '
+      + 'und vor der Ausführung wird nochmals nachgefragt.'],
+    haken:    ['Namen abgleichen',     hakenAbgleichen,
+      'Benennt Fahrzeuge und Wachen nach den Vorlagen unten um. Der Punkt am Fahrzeug sagt, '
+      + `wie weit es besetzt ist: ${HAKEN} jeder Sitz belegt und jeder Lehrgang da, `
+      + `${PUNKT_TEIL} ab Mindestbesetzung, ${PUNKT_LEER} darunter. Eine Wache trägt ${HAKEN}, `
+      + 'sobald jedes ihrer Fahrzeuge grün ist. Wo der Punkt im Namen steht, sagt {punkt}; '
+      + 'alles andere daneben ist frei. Wachen ohne erfassten Ausbildungsstand bleiben '
+      + 'unangetastet. Erst mit „Nur Vorschau" ansehen und Zeit einplanen: jedes Umbenennen '
+      + 'ist eine eigene Anfrage.'],
+    personal: ['Personal zuweisen',    assignStaff,
+      'Verteilt vorhandenes Personal auf die Fahrzeuge: erst Ausgebildete auf ihre Fachfahrzeuge, dann der Rest. '
+      + 'Anschließend wird die Einsatzbereitschaft nachgezogen: Fahrzeuge ohne ausreichende Besatzung gehen auf '
+      + 'Status 6, ausreichend besetzte kommen zurück auf 2. Auf Wunsch bekommt jedes Fahrzeug '
+      + 'im selben Durchgang gleich seinen Punkt in den Namen, und ebenfalls auf Wunsch folgen '
+      + 'Ausbauten und Wache ihren Fahrzeugen — beides steht von Haus aus aus.']
+  };
+}
+
+/** Führt einen Handgriff für die übergebenen Wachen aus — mit denselben
+    Rückfragen wie eh und je. Vorschau oder scharf steht in `S.opts.dry`. */
+async function aktionLaufen(key, sel, knopf = null) {
+  if (S.busy) return log('Es läuft gerade etwas — erst danach.', 'warn');
+  const [label, fn] = aktionen()[key];
+  if (!sel.length) return log('Keine Wache ausgewählt', 'warn');
+  const dry = S.opts.dry !== false;
+  /* Das Zerstören bekommt bewusst kein „nicht mehr fragen“ — es ist die
+     einzige Aktion, die sich nicht rückgängig machen lässt. Und sie sagt
+     „zerstören", weil das Spiel das so nennt und keinen Erlös nennt. */
+  if (!dry && key === 'verkauf' &&
+      !await frage(`Wirklich Fahrzeuge ZERSTÖREN? Einen Verkauf kennt das Spiel nicht, `
+        + `und einen Erlös nennt es nicht. Nicht rückgängig zu machen.\n${sel.length} Wachen betroffen.`)) return;
+  if (!dry && !await frage(`${label} für ${sel.length} Wachen ausführen?`, 'ausfuehren-' + key)) return;
+  S.busy = true; if (knopf) knopf.disabled = true; laufStarten();
+  logLeeren(); log(dry ? '── Vorschau ──' : '── Ausführung ──', 'good');
+  try {
+    const n = await fn(sel, dry);
+    log(`${dry ? 'Vorschau' : 'Fertig'}: ${n} Aktionen`, 'good');
+    if (!dry && n) log(`Bestand lokal fortgeschrieben. Für gemessene Zahlen `
+      + `„Bestand neu laden“ (↻ oben) drücken.`, 'warn');
+  } catch (e) { log('Abbruch: ' + e.message, 'err'); }
+  S.busy = false; fortAus(); render();
+}
+
+/** Liest den Ausbildungsstand — rein lesend, darum ohne Vorschau und Rückfrage. */
+async function erfassen(sel, knopf = null) {
+  if (S.busy) return log('Es läuft gerade etwas — erst danach.', 'warn');
+  if (!sel.length) return log('Keine Wache ausgewählt', 'warn');
+  S.busy = true; if (knopf) knopf.disabled = true; logLeeren(); laufStarten();
+  log(`Lese ${sel.length} Wachen aus, das dauert etwa ${Math.ceil(sel.length * 0.25)} Sekunden.`, 'good');
+  try {
+    await scanQuals(sel, (done, total, bb) => {
+      schritt(done, total, bb.caption || bb.id);
+      if (done % 5 === 0 || done === total) log(`${done}/${total} — zuletzt ${bb.caption || bb.id}`);
+    });
+    log('Fertig.', 'good');
+    const fertig = sel.filter(x => fortschritt(x).fertig).length;
+    if (fertig) log(`${fertig} Wachen sind jetzt vollständig — „Namen abgleichen“ `
+      + `übernimmt das in die Namen.`, 'good');
+  } catch (e) { log('Abbruch: ' + e.message, 'err'); }
+  S.busy = false; fortAus(); render();
+}
+
+/* Um einen Ausbau zu bestellen, braucht das Spiel die Nummer des Bauplatzes.
+   Die steht auf den Ausbauseiten — ein Abruf bringt alle Gebäudearten mit,
+   danach merkt sich der Planer sie. */
+const katalogDa = () => Object.keys(store.get(KEY_EXTCAT, {})).length > 0;
+async function katalogHolen(knopf) {
+  if (S.busy) return log('Es läuft gerade etwas — erst danach.', 'warn');
+  S.busy = true; knopf.disabled = true;
+  try {
+    const r = await ausbauKatalogLesen();
+    log(`${r.gesehen} Bauplätze über ${r.proTyp.size} Gebäudearten gelesen, ${r.neu} neu.`, 'good');
+  } catch (e) { log(e.message, 'warn'); }
+  S.busy = false; fortAus(); render();
+}
+
+/** Vorschau und Freigabe — gelten für jeden Handgriff, darum eine Leiste. */
+function laufLeiste(rechtsHtml = '') {
+  return `<div class="row tun">
+      <label style="color:var(--lp-dim)"><input type="checkbox" id="lssp-dry" ${S.opts.dry ? 'checked' : ''}> Nur Vorschau</label>
+      <label style="color:${S.opts.gruenFrei ? 'var(--lp-err)' : 'var(--lp-dim)'}" title="Ohne diesen Haken bleibt alles unberührt, was ${HAKEN} trägt">
+        <input type="checkbox" id="lssp-gruen" ${S.opts.gruenFrei ? 'checked' : ''}> Grüne freigeben</label>
+      <span style="flex:1"></span>${rechtsHtml}
+    </div>`;
+}
+function laufLeisteBinden(w) {
+  w.querySelector('#lssp-dry')?.addEventListener('change', e => {
     S.opts.dry = e.target.checked;
     store.set(KEY_OPTS, S.opts);
     scharfZeigen();               // sonst bleibt der rote Rahmen aus, bis etwas anderes neu zeichnet
-  };
-  b.querySelector('#lssp-gruen')?.addEventListener('change', e => {
+  });
+  w.querySelector('#lssp-gruen')?.addEventListener('change', e => {
     S.opts.gruenFrei = e.target.checked;
     store.set(KEY_OPTS, S.opts);
     render();                       // die Listen urteilen anders, sobald der Schutz fällt
   });
-  b.querySelector('#lssp-voll')?.addEventListener('change', e => {
-    S.opts.vollBesetzen = e.target.checked; store.set(KEY_OPTS, S.opts);
-  });
-  b.querySelector('#lssp-leihen')?.addEventListener('change', e => {
-    S.opts.gruenLeihen = e.target.checked; store.set(KEY_OPTS, S.opts);
-  });
-  b.querySelector('#lssp-fzname')?.addEventListener('change', e => {
-    S.opts.fzUmbenennen = e.target.checked; store.set(KEY_OPTS, S.opts);
-  });
-  b.querySelector('#lssp-ausbschalt')?.addEventListener('change', e => {
-    S.opts.ausbautenSchalten = e.target.checked; store.set(KEY_OPTS, S.opts);
-    render();                       // die Beschriftung färbt sich mit, wie bei „Grüne freigeben"
-  });
-  b.querySelectorAll('input[name=lsspmode]').forEach(r => r.onchange = e => {
+}
+
+/* Was die Läufe sonst noch wissen wollen. Früher stand es im Reiter des
+   jeweiligen Laufs; jetzt gibt es keinen Reiter je Lauf mehr, also steht es
+   gesammelt unter den Knöpfen — zugeklappt, weil es selten wechselt. */
+function laufOptionen() {
+  return `<details id="lssp-laufopt" style="margin:8px 0"${ui.laufOpt ? ' open' : ''}>
+    <summary style="cursor:pointer;color:var(--lp-dim)">Einstellungen der Läufe</summary>
+    <div style="margin:8px 0 0 4px">
+      <div style="color:var(--lp-dim);font-size:12px;margin-bottom:4px"><b>Fahrzeuge kaufen</b> — wenn Stellplätze fehlen:</div>
+      <label style="display:block;margin-bottom:4px">
+        <input type="radio" name="lsspmode" value="strict" ${S.opts.strict !== false ? 'checked' : ''}>
+        <b>Wache ganz überspringen</b> <span style="color:var(--lp-dim2)">— erst Ausbauten bauen, dann kaufen</span></label>
+      <label style="display:block;margin-bottom:10px">
+        <input type="radio" name="lsspmode" value="fit" ${S.opts.strict === false ? 'checked' : ''}>
+        <b>So viel kaufen, wie Platz ist</b> <span style="color:var(--lp-dim2)">— Rest wird gemeldet</span></label>
+      <div style="color:var(--lp-dim);font-size:12px;margin-bottom:4px"><b>Personal zuweisen</b> — vorher alle
+        Fahrzeuge einrücken lassen: der Status läßt sich nur umschalten, wenn ein Fahrzeug auf seiner
+        Wache steht. Was unterwegs ist, wird vorgemerkt und beim nächsten Lauf nachgeholt.</div>
+      <label style="display:block;margin:0 0 6px;color:var(--lp-dim)">
+        <input type="checkbox" id="lssp-voll" ${S.opts.vollBesetzen !== false ? 'checked' : ''}>
+        <b>Fahrzeuge voll besetzen</b>
+        <span style="color:var(--lp-dim2)">— sobald jedes Fahrzeug seine Mindestbesetzung hat,
+        wandern die Übrigen auf freie Sitze. Wer einen Lehrgang hat, der an dieser Wache
+        gebraucht wird, bleibt frei.</span></label>
+      <label style="display:block;margin:0 0 6px;color:var(--lp-dim)">
+        <input type="checkbox" id="lssp-leihen" ${S.opts.gruenLeihen !== false ? 'checked' : ''}>
+        <b>Fachkräfte von grünen Fahrzeugen umsetzen</b>
+        <span style="color:var(--lp-dim2)">— wenn ein Fahrzeug sonst ohne Besatzung bliebe.
+        Nur wer auf dem grünen Fahrzeug entbehrlich ist: es behält seine Mindestbesetzung
+        und damit seinen Punkt.</span></label>
+      <label style="display:block;margin:0 0 6px;color:var(--lp-dim)">
+        <input type="checkbox" id="lssp-fzname" ${S.opts.fzUmbenennen ? 'checked' : ''}>
+        <b>Fahrzeuge anschließend umbenennen</b>
+        <span style="color:var(--lp-dim2)">— jedes Fahrzeug bekommt gleich hier seinen Punkt,
+        nach der Vorlage unter Extras → Namen. Spart den zweiten Durchgang. Grüne Fahrzeuge
+        bleiben unberührt, es sei denn, dieser Lauf hat ihre Besatzung selbst verändert.</span></label>
+      <label style="display:block;margin:0;color:${S.opts.ausbautenSchalten ? 'var(--lp-akzent)' : 'var(--lp-dim)'}">
+        <input type="checkbox" id="lssp-ausbschalt" ${S.opts.ausbautenSchalten ? 'checked' : ''}>
+        <b>Ausbauten und Wache mitschalten</b>
+        <span style="color:var(--lp-dim2)">— steht hinter einem Ausbau kein einsatzbereites
+        Fahrzeug mehr, wird er abgeschaltet; die Wache selbst hängt am Grundtopf.
+        <b>Eine abgeschaltete Wache nimmt an keinem Einsatz mehr teil.</b> Darum von Haus aus aus.</span></label>
+    </div></details>`;
+}
+function laufOptionenBinden(w) {
+  w.querySelector('#lssp-laufopt')?.addEventListener('toggle', e => { ui.laufOpt = e.target.open; saveUi(); });
+  const merk = (id, schluessel, neuZeichnen = false) =>
+    w.querySelector(id)?.addEventListener('change', e => {
+      S.opts[schluessel] = e.target.checked; store.set(KEY_OPTS, S.opts);
+      if (neuZeichnen) render();
+    });
+  merk('#lssp-voll', 'vollBesetzen');
+  merk('#lssp-leihen', 'gruenLeihen');
+  merk('#lssp-fzname', 'fzUmbenennen');
+  merk('#lssp-ausbschalt', 'ausbautenSchalten', true);   // die Beschriftung färbt sich mit
+  w.querySelectorAll('input[name=lsspmode]').forEach(r => r.onchange = e => {
     S.opts.strict = e.target.value === 'strict'; store.set(KEY_OPTS, S.opts);
   });
-  b.querySelector('#lssp-run').onclick = async ev => {
-    if (S.busy) return;
-    const sel = selectedBuildings();
-    if (!sel.length) return log('Keine Wache ausgewählt', 'warn');
-    const dry = b.querySelector('#lssp-dry').checked;
-    /* Das Zerstören bekommt bewusst kein „nicht mehr fragen“ — es ist die
-       einzige Aktion, die sich nicht rückgängig machen lässt. Und sie sagt
-       „zerstören", weil das Spiel das so nennt und keinen Erlös nennt. */
-    if (!dry && tab === 'verkauf' &&
-        !await frage(`Wirklich Fahrzeuge ZERSTÖREN? Einen Verkauf kennt das Spiel nicht, `
-          + `und einen Erlös nennt es nicht. Nicht rückgängig zu machen.\n${sel.length} Wachen betroffen.`)) return;
-    if (!dry && !await frage(`${label} für ${sel.length} Wachen ausführen?`, 'ausfuehren-' + tab)) return;
-    S.busy = true; ev.target.disabled = true; laufStarten();
-    S.log = []; log(dry ? '── Vorschau ──' : '── Ausführung ──', 'good');
+}
+
+/* Knöpfe in drei Gruppen. Die Zahl am Knopf sagt, wie viel der Handgriff hier
+   zu tun hätte; ist es nichts, bleibt er grau — „nichts zu tun“ soll man sehen,
+   bevor man drückt. Wo sich das nicht vorab zählen läßt, bleibt er offen. */
+const AKTION_GRUPPEN = [
+  ['Bestand',  ['ausbau', 'kaufen', 'umbau', 'verkauf']],
+  ['Personal', ['personal', 'werben', 'anhaenger', 'leeren']],
+  ['Namen',    ['haken']]
+];
+const GEZAEHLT = new Set(['ausbau', 'kaufen', 'verkauf', 'werben', 'anhaenger']);
+
+function aktionsKnoepfe(sel) {
+  const akt = aktionen();
+  const fs = sel.map(fortschritt);
+  return AKTION_GRUPPEN.map(([titel, keys]) => {
+    const knoepfe = keys.filter(k => k !== 'leeren' || sel.length === 1).map(k => {
+      const [label, , hilfe] = akt[k];
+      if (k === 'ausbau' && !katalogDa())
+        return `<button class="act" id="lssp-katalog" title="Ohne die Bauplatz-Nummern kann kein Ausbau bestellt werden. Ein Abruf, ändert nichts.">Ausbaukatalog lesen</button>`;
+      const n = GEZAEHLT.has(k)
+        ? (sel.length === 1 ? BEREICH[k](fs[0])[0] : fs.filter(f => BEREICH[k](f)[0]).length) : null;
+      const zahl = n === null ? '' : `<span class="zahl">${sel.length === 1 ? n : `${n}/${sel.length}`}</span>`;
+      const art = ['verkauf', 'leeren'].includes(k) ? 'danger' : n ? 'go' : '';
+      return `<button class="act lauf ${art}" data-aktion="${k}" title="${escA(hilfe)}"${
+        n === 0 ? ' disabled' : ''}>${esc(label)}${zahl}</button>`;
+    });
+    return `<div class="abschnitt" style="margin-top:8px"><b style="font-size:12px;color:var(--lp-dim)">${titel}</b></div>
+      <div class="knoepfe">${knoepfe.join('')}</div>`;
+  }).join('');
+}
+
+/** Teil der Karte: Überschrift mit Zähler und darunter eine Liste. */
+const kTeil = (titel, zeilen, leer, rechts = '') =>
+  `<div class="abschnitt"><b>${titel}</b>
+    <span style="color:var(--lp-dim2);font-size:11px">${zeilen.length || ''}</span>
+    <span style="flex:1"></span>${rechts}</div>` + dListe(zeilen, leer);
+
+/** Anteil von Fahrzeugen und Ausbauten, die laut Wunschbild schon dastehen. */
+function sollQuote(b) {
+  const z = T.target(b) || {};
+  const summe = o => Object.values(o || {}).reduce((s2, n) => s2 + (Number(n) || 0), 0);
+  const soll = summe(z.vehicles) + summe(z.extensions);
+  const f = fortschritt(b);
+  return soll ? Math.max(0, Math.round((soll - f.kauf - f.ausbau) / soll * 100)) : 100;
+}
+
+/** Was in der Liste neben dem Namen steht: alles, was hier noch offen ist. */
+function offenTeile(f) {
+  const t = [];
+  if (f.ausbau)    t.push(`${f.ausbau} Ausbau`);
+  if (f.kauf)      t.push(`${f.kauf} Fahrzeug`);
+  if (f.weg)       t.push(`${f.weg} zu viel`);
+  if (f.personal)  t.push(`${f.personal} unterbesetzt`);
+  if (f.anhaenger) t.push(`${f.anhaenger} ohne Zugfz`);
+  if (f.lehrgang)  t.push(`${f.lehrgang} Lehrgang`);
+  if (f.lehrgangUnklar) t.push('Ausbildung unerfasst');
+  return t.join(' · ');
+}
+
+/** Die Karte einer Wache: alles, was hier fehlt, und jeder Handgriff dafür. */
+function wachenKarte(b) {
+  const a = analyse(b), f = fortschritt(b), q = sollQuote(b);
+  const [zeichen, farbe] = typKonfig(b.building_type);
+  const still = ruht.has(b.id);
+  const profile = Object.keys(T.profiles(b.building_type));
+  const jetzt = T.profileOf(b);
+
+  const soll = T.target(b)?.vehicles || {};
+  const da = {};
+  for (const v of S.byBuilding.get(b.id) || []) da[v.vehicle_type] = (da[v.vehicle_type] || 0) + 1;
+  const fzZeilen = [...new Set([...Object.keys(soll), ...Object.keys(da)])]
+    .map(id => ({ id, soll: Number(soll[id]) || 0, da: da[id] || 0 }))
+    .sort((x, y) => (y.soll - y.da) - (x.soll - x.da) || T.vehName(x.id).localeCompare(T.vehName(y.id), 'de'))
+    .map(z => dZeile(T.vehName(z.id), `${z.da} von ${z.soll}`,
+      z.da < z.soll ? 'gap' : z.da > z.soll ? 'warn' : 'ok', `data-fahrzeug="${escA(z.id)}"`));
+
+  const kurse = Object.keys(courseNeed(b)).map(key => ({ key, p: kursPosten(b, key) }))
+    .sort((x, y) => (y.p.fehlt || 0) - (x.p.fehlt || 0))
+    .map(({ key, p }) => dZeile(kursNamen(key)[0] || key,
+      p.fehlt === null ? 'nicht erfaßt'
+        : `${p.ist} von ${p.soll}${p.lauf ? ` (+${p.lauf})` : ''}${p.fehlt ? ` — ${p.fehlt} fehlen` : ''}`,
+      p.fehlt === null ? 'warn' : p.fehlt ? 'gap' : 'ok', `data-kurs="${escA(key)}"`));
+
+  const personal = [
+    dZeile('Personal an der Wache', `${a.staffIst} von ${a.staffSoll}`, a.hire ? 'gap' : 'ok'),
+    dZeile('Fahrzeuge unter Mindestbesetzung', String(f.personal), f.personal ? 'gap' : 'ok'),
+    ...(f.personalUnklar ? [dZeile('Besatzung unbekannt', `${f.personalUnklar} Fahrzeuge`, 'warn')] : []),
+    dZeile('Anhänger ohne Zugfahrzeug', String(f.anhaenger), f.anhaenger ? 'gap' : 'ok')
+  ];
+  const blk = f.kauf ? blockers(b) : [];
+
+  return `<div class="kkopf" style="border-left:4px solid ${farbe};padding-left:10px">
+      <span class="gross">${zeichen}</span>
+      <div style="flex:1;min-width:0">
+        <b style="font-size:15px">${esc(b.caption)}</b>${still ? ' <span class="warn">· ruht</span>' : ''}
+        <div style="color:var(--lp-dim);font-size:11px;margin-top:2px">${esc(T.btName(b.building_type))}${
+          b.level != null ? ` · Stufe ${esc(b.level)}` : ''} · Profil
+          <select id="lssp-wprof" style="padding:1px 4px">${profile.map(p =>
+            `<option value="${escA(p)}"${p === jetzt ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
+        <div class="quote"><i style="width:${q}%"></i></div>
+        <span style="font-size:11px;color:var(--lp-dim2)">Fahrzeuge und Ausbauten nach Plan: ${q} %${
+          f.fertig ? ` · ${HAKEN} alle Fahrzeuge grün` : ''}</span>
+      </div>
+      <a href="/buildings/${Number(b.id)}" target="_blank" rel="noopener" class="act"
+        style="text-decoration:none;color:var(--lp-fg);border:1px solid var(--lp-rand);border-radius:3px;padding:5px 9px;font:600 12px sans-serif">im Spiel</a>
+      <button class="act" id="lssp-wruht" title="Übergangene Wachen zählen in den Listen nicht als offen">${still ? '↺ aufnehmen' : '⏸ übergehen'}</button>
+      <button class="act" id="lssp-zu">×</button>
+    </div>
+    ${blk.length ? `<div class="warnkasten"><b>Kauf blockiert:</b> ${blk.map(esc).join(' · ')}</div>` : ''}
+    ${kTeil('Fahrzeuge', fzZeilen, 'Weder geplant noch vorhanden.')}
+    ${a.vehSurplus.length ? kTeil('Überzählig', a.vehSurplus.map(v => {
+        /* Welches Fahrzeug fällt, muß vor dem Klick dastehen — der Verkauf
+           ist die einzige Aktion, die sich nicht zurücknehmen läßt. */
+        const wer = verkaufsNamen(b, v);
+        return dZeile(v.name, `${v.n}× ${wer ? `→ ${wer}` : '→ nichts verkäuflich'}`, 'warn', `data-fahrzeug="${escA(v.id)}"`);
+      }), '') : ''}
+    ${kTeil('Ausbauten fehlen', a.extMissing.map(e =>
+        dZeile(e.caption, e.n > 1 ? `${e.n}×` : '', 'gap', `data-ausbau="${escA(e.caption)}"`)),
+        'Alle geplanten Ausbauten sind gebaut.')}
+    ${kTeil('Personal', personal, '')}
+    ${kTeil('Lehrgänge', kurse, 'Kein Fahrzeug hier verlangt einen Lehrgang.',
+        `<button class="act" id="lssp-erfassen" title="Liest die Personalliste dieser Wache. Ändert nichts.">Ausbildungsstand lesen</button>`)}
+    <div class="abschnitt" style="margin-top:16px"><b>Aktionen</b>
+      <span style="color:var(--lp-dim2);font-size:11px">nur für diese Wache</span></div>
+    ${aktionsKnoepfe([b])}${laufOptionen()}${laufLeiste()}`;
+}
+
+/** Rechts, solange keine Wache offen ist: Handgriffe für alle Häkchen. */
+function sammelPanel(sel) {
+  if (!sel.length) return `<p class="hint" style="margin-top:6px">Klick links auf eine Wache, um ihre Karte
+      zu sehen — oder hake mehrere an, um sie gemeinsam zu bearbeiten.</p>`;
+  return `<div class="abschnitt"><b>${sel.length} ${sel.length === 1 ? "Wache" : "Wachen"} gewählt</b></div>
+    <p class="hint">${sel.slice(0, 12).map(w => esc(ohneHaken(w.caption))).join(', ')}${
+      sel.length > 12 ? ` … und ${sel.length - 12} weitere` : ''}</p>
+    <p class="hint"><b>Lass „Nur Vorschau“ zunächst angehakt.</b> Dann passiert nichts im Spiel, das
+      Protokoll unten zeigt nur, was getan würde. Die Zahl am Knopf: so viele der gewählten Wachen
+      haben dort etwas offen.</p>
+    ${aktionsKnoepfe(sel)}
+    <div class="abschnitt" style="margin-top:8px"><b style="font-size:12px;color:var(--lp-dim)">Ausbildung</b></div>
+    <div class="knoepfe"><button class="act" id="lssp-erfassen">Ausbildungsstand lesen</button></div>
+    ${laufOptionen()}${laufLeiste()}`;
+}
+
+/** Kopfzeile der Zahlen — wie die alte Übersicht, aber für den offenen Reiter. */
+function kacheln(wachen) {
+  let fz = 0, ex = 0, kurs = 0, unter = 0, block = 0, gruen = 0, unklar = 0;
+  for (const w of wachen) {
+    const a = analyse(w), f = fortschritt(w);
+    fz += f.kauf; ex += f.ausbau; kurs += f.lehrgang;
+    if (a.hire) unter++;
+    if (f.kauf && blockers(w).length) block++;
+    if (f.fertig) gruen++;
+    if (f.lehrgangUnklar) unklar++;
+  }
+  const k = (wert, text, art) => `<div class="kachel"><b class="${art}">${wert}</b><span>${text}</span></div>`;
+  return `<div class="kacheln">
+    ${k(fz, 'Fahrzeuge fehlen', fz ? 'gap' : 'ok')}
+    ${k(ex, 'Ausbauten fehlen', ex ? 'gap' : 'ok')}
+    ${k(kurs, unklar ? `Ausbildungen fehlen · ${unklar} Wachen unerfaßt` : 'Ausbildungen fehlen', kurs ? 'gap' : unklar ? 'warn' : 'ok')}
+    ${k(unter, 'Wachen unter Soll-Personal', unter ? 'gap' : 'ok')}
+    ${k(block, 'Kauf blockiert', block ? 'warn' : 'ok')}
+    ${k(`${gruen}/${wachen.length}`, `Wachen ${HAKEN}`, gruen === wachen.length ? 'ok' : '')}
+  </div>`;
+}
+
+/** Die Wachen links: Häkchen, Typfarbe am Rand, Name, was offen ist, Anteil. */
+function wachenListe(wachen) {
+  const nurOffen = S.opts.nurOffen !== false;
+  const wort = suche.trim().toLowerCase();
+  const rows = wachen.map(b => ({ b, f: fortschritt(b), q: sollQuote(b) }));
+  const sichtbar = rows
+    .filter(r => !nurOffen || (r.f.offen && !ruht.has(r.b.id)))
+    .filter(r => !wort || ohneHaken(r.b.caption).toLowerCase().includes(wort))
+    .sort((x, y) => {
+      const name = ohneHaken(x.b.caption).localeCompare(ohneHaken(y.b.caption), 'de');
+      if (sortierung === 'name') return name;
+      if (sortierung === 'typ') return T.btName(x.b.building_type).localeCompare(T.btName(y.b.building_type), 'de') || name;
+      return (y.f.offen || 0) - (x.f.offen || 0) || name;   // „offen“: das Dringendste oben
+    });
+  const fertigN = rows.filter(r => !r.f.offen).length;
+  const gewaehltN = sichtbar.filter(r => auswahl.has(r.b.id)).length;
+  const zeilen = sichtbar.map(({ b, f, q }) => {
+    const still = ruht.has(b.id);
+    const [zeichen, farbe, kurz] = typKonfig(b.building_type);
+    const zustand = still ? 'ruht' : f.offen ? `${f.offen} offen` : f.fertig ? `${HAKEN} fertig` : 'nichts offen';
+    return `<div class="wzeile${fokus?.art === 'wache' && fokus.id === b.id ? ' on' : ''}"
+        style="border-left-color:${farbe}${still ? ';opacity:.5' : ''}">
+      <input type="checkbox" class="bsel" value="${b.id}" ${auswahl.has(b.id) ? 'checked' : ''}>
+      <span class="wtext" data-wache="${b.id}" title="${escA(offenTeile(f) || 'nichts offen')}">
+        <span class="wname">${zeichen} ${esc(b.caption)}</span>
+        <span class="wmeta">${esc(kurz)} · ${esc(T.profileOf(b) || '—')} · ${esc(zustand)}</span>
+        <span class="quote"><i style="width:${q}%"></i></span>
+      </span>
+      <span style="font-size:11px;color:var(--lp-dim2);min-width:32px;text-align:right">${q} %</span>
+      <button class="ruht" data-id="${b.id}" title="${still ? 'Wieder aufnehmen' : 'Wache übergehen'}"
+        style="background:none;border:0;color:var(--lp-dim2);cursor:pointer;padding:0 2px">${still ? '↺' : '⏸'}</button>
+    </div>`;
+  }).join('');
+  const html = `<div class="row" style="margin-bottom:6px">
+      <input id="lssp-suche" value="${escA(suche)}" placeholder="Wache suchen …"
+        style="flex:1;min-width:100px;background:var(--lp-feld);color:var(--lp-fg);border:1px solid var(--lp-rand);
+               border-radius:3px;padding:5px 8px;font:12px sans-serif">
+      <select id="lssp-sort" title="Sortierung">
+        <option value="offen"${sortierung === 'offen' ? ' selected' : ''}>offenste zuerst</option>
+        <option value="name"${sortierung === 'name' ? ' selected' : ''}>Name</option>
+        <option value="typ"${sortierung === 'typ' ? ' selected' : ''}>Typ</option>
+      </select>
+    </div>
+    <div class="row" style="margin-bottom:6px">
+      <button class="act" id="lssp-all">Alle</button>
+      <button class="act" id="lssp-none">Keine</button>
+      <label style="color:var(--lp-dim);font-size:12px">
+        <input type="checkbox" id="lssp-nuroffen" ${nurOffen ? 'checked' : ''}> nur offene</label>
+    </div>
+    <div style="color:${gewaehltN ? 'var(--lp-akzent)' : 'var(--lp-dim2)'};font-size:11px;margin-bottom:4px">${
+      gewaehltN ? `${gewaehltN} von ${sichtbar.length} gewählt` : `${sichtbar.length} sichtbar`
+    } · ${fertigN} ohne Offenes${ruht.size ? `, ${wachen.filter(w => ruht.has(w.id)).length} ruhen` : ''}</div>
+    <div class="list">${zeilen || `<div style="padding:12px;color:var(--lp-ok)">${
+      wort ? 'Keine Wache paßt zur Suche.' : 'Alles erledigt.'}</div>`}</div>`;
+  return { html, sichtbar: sichtbar.map(r => r.b) };
+}
+
+/* Wessen Inhalt rechts zuletzt stand: eine andere Wache beginnt oben, dieselbe
+   behält ihre Stelle — sonst springt die Karte nach jedem Lauf zum Anfang. */
+let karteFuer = '';
+/** Liste links, Karte rechts, Zahlen oben. */
+function zeigeWachen(b) {
+  b.classList.add('raster');
+  const roll = ['.seite', '.karte'].map(q => b.querySelector(q)?.scrollTop || 0);
+  const jetztFuer = JSON.stringify([ansicht, fokus, rechts]);
+  if (jetztFuer !== karteFuer) { roll[1] = 0; karteFuer = jetztFuer; }
+  const typ = ansicht === 'alle' ? null : ansicht;
+  const wachen = planWachen().filter(w => Object.keys(T.profiles(w.building_type)).length)
+    .filter(w => !typ || String(w.building_type) === typ);
+  const liste = wachenListe(wachen);
+  const sel = liste.sichtbar.filter(w => auswahl.has(w.id));
+
+  if (fokus?.art === 'wache' && !S.byId.get(fokus.id)) fokus = null;
+  const modus = rechts || (typ && !sel.length ? 'plan' : 'sammel');
+  const wahl = typ && !fokus ? `<div class="unter rwahl" style="padding:0 0 8px">
+      <button data-r="sammel"${modus === 'sammel' ? ' class="on"' : ''}>Sammelaktionen${sel.length ? ` (${sel.length})` : ''}</button>
+      <button data-r="plan"${modus === 'plan' ? ' class="on"' : ''}>Wunschbild ${esc(typKonfig(typ)[2])}</button></div>` : '';
+  const inhalt = fokus?.art === 'wache' ? wachenKarte(S.byId.get(fokus.id))
+    : fokus ? einzelAnsicht()
+    : wahl + (modus === 'plan' && typ ? '<div id="lssp-planort"></div>' : sammelPanel(sel));
+
+  b.innerHTML = kacheln(wachen)
+    + `<div class="gitter"><div class="seite">${liste.html}</div><div class="karte">${inhalt}</div></div>`;
+  const karte = b.querySelector('.karte');
+  const planOrt = b.querySelector('#lssp-planort');
+  if (planOrt) zeigePlan(planOrt, typ);
+
+  auswahlBinden(b.querySelector('.seite'), render);
+  einzelBinden(b);
+  karte.querySelectorAll('[data-r]').forEach(x => x.onclick = () => { rechts = x.dataset.r; render(); });
+  const ziel = () => fokus?.art === 'wache' ? [S.byId.get(fokus.id)] : liste.sichtbar.filter(w => auswahl.has(w.id));
+  karte.querySelectorAll('button.lauf').forEach(k => k.onclick = () => aktionLaufen(k.dataset.aktion, ziel(), k));
+  karte.querySelector('#lssp-katalog')?.addEventListener('click', ev => katalogHolen(ev.target));
+  karte.querySelector('#lssp-erfassen')?.addEventListener('click', ev => erfassen(ziel(), ev.target));
+  karte.querySelector('#lssp-wruht')?.addEventListener('click', () => { ruhtUm(fokus.id); render(); });
+  karte.querySelector('#lssp-wprof')?.addEventListener('change', e => {
+    const z = S.zuordnung;
+    z[fokus.id] = e.target.value;
+    S.zuordnung = z;                // speichert und verwirft das Gerechnete
+    log(`${ohneHaken(S.byId.get(fokus.id).caption)}: Profil „${e.target.value}“.`, 'good');
+    render();
+  });
+  laufLeisteBinden(karte);
+  laufOptionenBinden(karte);
+
+  [b.querySelector('.seite').scrollTop, karte.scrollTop] = roll;
+  log('');
+}
+
+/** Das Wunschbild: in den Extras für jede Gebäudeart, im Typ-Reiter rechts
+    nur für diese eine (`festTyp`) — dann ohne Typwahl, eigene Liste und Sicherung. */
+function zeigePlan(b, festTyp = null) {
+  /* Der Editor arbeitet auf einer Kopie und schreibt bei jeder Änderung
+     zurück. Ein „Speichern“-Knopf wäre eine zusätzliche Gelegenheit, Arbeit
+     zu verlieren. */
+  const modell = S.modell;
+  const typen = [...new Set([...Object.keys(modell),
+    ...S.buildings.map(b => String(b.building_type))])]
+    // Schulen, Krankenhäuser und Leitstellen sind gesperrt (D-40) — sie
+    // gehören dann auch nicht in die Auswahl, sonst führt sie ins Leere
+    .filter(t => !NICHT_PLANEN.has(Number(t)))
+    .sort((x, y) => T.btName(x).localeCompare(T.btName(y), 'de'));
+  if (festTyp) planTyp = festTyp;
+  if (!planTyp || !typen.includes(planTyp)) planTyp = typen[0] || null;
+  const profile = modell[planTyp]?.profiles || {};
+  if (!planProfil || !profile[planProfil]) planProfil = Object.keys(profile)[0] || null;
+  const prof = profile[planProfil];
+
+  // Wie viele Wachen hängen an welchem Profil? Erst das macht die Wahl greifbar.
+  const wachenVon = {};
+  for (const b of planWachen()) {
+    if (String(b.building_type) !== planTyp) continue;
+    const p = T.profileOf(b) || '—';
+    wachenVon[p] = (wachenVon[p] || 0) + 1;
+  }
+  const eigene = S.buildings.filter(b => String(b.building_type) === planTyp).length;
+
+  const fzZeilen = Object.entries(prof?.vehicles || {})
+    .sort((x, y) => T.vehName(x[0]).localeCompare(T.vehName(y[0]), 'de'))
+    .map(([id, n]) => `<label>
+      <span>${esc(T.vehName(id))}</span>
+      <span style="color:var(--lp-dim2);font-size:11px">${
+        T.veh(id) ? `${T.veh(id).min}–${T.veh(id).max} Personen` : 'unbekannter Typ'}</span>
+      <span style="margin-left:auto;display:flex;gap:4px;align-items:center">
+        <button class="act pminus" data-id="${id}" title="weniger">−</button>
+        <b style="min-width:22px;text-align:center">${n}</b>
+        <button class="act pplus" data-id="${id}" title="mehr">+</button>
+        <button class="act pweg" data-id="${id}" title="entfernen">×</button>
+      </span></label>`).join('');
+
+  const bekannt = new Set(Object.keys(prof?.vehicles || {}));
+  const kaufbar = kaufbareTypen(planTyp);
+  const alleZeigen = !!ui.alleTypen;
+  const zurWahl = Object.keys(PB)
+    .filter(id => !bekannt.has(id))
+    .filter(id => alleZeigen || kaufbar.has(id))
+    .sort((x, y) => T.vehName(x).localeCompare(T.vehName(y), 'de'))
+    .map(id => `<option value="${id}">${esc(T.vehName(id))}</option>`).join('');
+
+  const extZeilen = Object.entries(prof?.extensions || {})
+    .sort((x, y) => x[0].localeCompare(y[0], 'de'))
+    .map(([name, n]) => `<label><span>${esc(name)}</span>
+      <span style="margin-left:auto;display:flex;gap:4px;align-items:center">
+        <button class="act eminus" data-n="${esc(name)}">−</button>
+        <b style="min-width:22px;text-align:center">${n}</b>
+        <button class="act eplus" data-n="${esc(name)}">+</button>
+        <button class="act eweg" data-n="${esc(name)}">×</button>
+      </span></label>`).join('');
+
+  const sitze = Object.entries(prof?.vehicles || {})
+    .reduce((a, [id, n]) => a + (T.veh(id)?.max || 0) * n, 0);
+  const fzAnzahl = Object.values(prof?.vehicles || {}).reduce((a, n) => a + n, 0);
+
+  b.innerHTML = `<p class="hint">Hier steht, wie eine Wache ${festTyp ? 'dieser Art ' : ''}aussehen soll.
+    Alles andere im Planer rechnet dagegen. Änderungen gelten sofort und bleiben erhalten.</p>
+    <div class="row">
+      ${festTyp ? '' : `<select id="lssp-ptyp">${typen.map(t => `<option value="${t}"${
+        t === planTyp ? ' selected' : ''}>${esc(T.btName(t))}${
+        S.buildings.some(x => String(x.building_type) === t) ? '' : ' (keine eigene)'}</option>`).join('')}</select>`}
+      <select id="lssp-pprof">${Object.keys(profile).map(p => `<option value="${esc(p)}"${
+        p === planProfil ? ' selected' : ''}>${esc(p)}${
+        wachenVon[p] ? ` · ${wachenVon[p]} Wachen` : ''}</option>`).join('')
+        || '<option value="">— kein Profil —</option>'}</select>
+      <button class="act" id="lssp-pneu">Neu</button>
+      <button class="act" id="lssp-pkopie">Kopieren</button>
+      <button class="act" id="lssp-pnenn">Umbenennen</button>
+      <button class="act danger" id="lssp-plos">Löschen</button>
+      <span style="flex:1"></span>
+      <button class="act" id="lssp-pstd" title="Nur diesen Gebäudetyp auf den eingebauten Stand zurücksetzen"
+        ${MODELL_STANDARD[planTyp] ? '' : 'disabled'}>Standard für ${esc(T.btName(planTyp))}</button>
+    </div>
+    ${prof ? `
+    <div class="row" style="margin-bottom:4px">
+      <b>Fahrzeuge</b>
+      <span style="color:var(--lp-dim2);font-size:11px">${fzAnzahl} Stück, ${sitze} Sitze</span>
+      <span style="flex:1"></span>
+      <select id="lssp-pfzwahl" style="max-width:230px"><option value="">Fahrzeugtyp hinzufügen …</option>${zurWahl}</select>
+    </div>
+    <div class="row" style="margin:-4px 0 6px">
+      <span style="color:var(--lp-dim2);font-size:11px">${kaufbar.size} Typen gehören hierher${
+        store.get(KEY_KAUFBAR, {})[planTyp] ? ' (aus dem Spiel gelesen)' : ' (aus Profilen und Bestand)'}</span>
+      <span style="flex:1"></span>
+      <label style="color:var(--lp-dim);font-size:11px">
+        <input type="checkbox" id="lssp-palle" ${alleZeigen ? 'checked' : ''}> alle 186 zeigen</label>
+      <button class="act" id="lssp-plesen">Typen aus dem Spiel lesen</button>
+      <button class="act" id="lssp-pausbau" title="Bauplatz-Nummern dieser Gebäudeart lesen"
+        >Ausbaukatalog lesen (${extCatVon(planTyp).filter(Boolean).length})</button>
+    </div>
+    <div class="list">${fzZeilen
+      || '<label><span style="color:var(--lp-dim)">Noch kein Fahrzeug in diesem Profil.</span></label>'}</div>
+
+    <div class="row" style="margin:10px 0 4px">
+      <b>Ausbauten</b>
+      <span style="flex:1"></span>
+      <input id="lssp-pextname" placeholder="Name des Ausbaus" style="flex:1;min-width:160px;
+        background:var(--lp-feld);color:var(--lp-fg);border:1px solid var(--lp-rand);border-radius:3px;padding:5px 8px;font:12px sans-serif">
+      <button class="act" id="lssp-pextadd">hinzufügen</button>
+    </div>
+    <div class="list">${extZeilen
+      || '<label><span style="color:var(--lp-dim)">Keine Ausbauten vorgesehen.</span></label>'}</div>
+
+    <div class="row" style="margin-top:12px">
+      <b>Zuordnung</b>
+      <span style="color:var(--lp-dim2);font-size:11px">${eigene} eigene Wachen dieses Typs</span>
+      <span style="flex:1"></span>
+      <button class="act go" id="lssp-pzuord">Gewählte Wachen auf „${esc(planProfil || '')}“</button>
+    </div>
+    ${festTyp ? '<p class="hint">Wachen dafür links anhaken.</p>' : buildingList(x => String(x.building_type) === planTyp)}
+    ` : '<p class="hint">Für diesen Gebäudetyp gibt es noch kein Profil. Leg eines an.</p>'}
+
+    ${festTyp ? '' : `
+    <div class="row" style="margin-top:12px">
+      <b>Sicherung</b>
+      <span style="color:var(--lp-dim2);font-size:11px">alle Pläne samt Zuordnung der Wachen</span>
+      <span style="flex:1"></span>
+      <button class="act" id="lssp-pdatei">Als Datei sichern</button>
+      <button class="act" id="lssp-pladen">Aus Datei laden …</button>
+      <input type="file" id="lssp-pdateiwahl" accept=".json,application/json" hidden>
+    </div>
+    <div class="row">
+      <span style="color:var(--lp-dim2);font-size:11px;flex:1">Beim Laden bleibt jede Zuordnung
+        stehen, deren Wache in diesem Konto steht. Aus einem anderen Konto kommen nur die Pläne.</span>
+      <button class="act" id="lssp-pexport">Kopieren</button>
+      <button class="act" id="lssp-pimport">Einfügen …</button>
+    </div>
+    `}`;
+
+  const frisch = () => { modellGeaendert(); render(); };
+  const zahl = (obj, schluessel, delta) => {
+    obj[schluessel] = Math.max(0, (obj[schluessel] || 0) + delta);
+    if (!obj[schluessel]) delete obj[schluessel];
+  };
+
+  b.querySelector('#lssp-ptyp')?.addEventListener('change', e => { planTyp = e.target.value; planProfil = null; render(); });
+  b.querySelector('#lssp-pprof').onchange = e => { planProfil = e.target.value; render(); };
+
+  b.querySelector('#lssp-pneu').onclick = () => {
+    const name = prompt('Name des neuen Profils:', 'eigenes');
+    if (!name) return;
+    modell[planTyp] ||= { slotBonus: 0, profiles: {} };
+    modell[planTyp].profiles[name] = { vehicles: {}, extensions: {} };
+    planProfil = name; frisch();
+  };
+  b.querySelector('#lssp-pkopie').onclick = () => {
+    if (!prof) return;
+    const name = prompt('Name der Kopie:', planProfil + ' 2');
+    if (!name) return;
+    modell[planTyp].profiles[name] = strukturKopie(prof);
+    planProfil = name; frisch();
+  };
+  b.querySelector('#lssp-pnenn').onclick = () => {
+    if (!prof) return;
+    const name = prompt('Neuer Name:', planProfil);
+    if (!name || name === planProfil) return;
+    modell[planTyp].profiles[name] = prof;
+    delete modell[planTyp].profiles[planProfil];
+    // Zuordnungen mitziehen, sonst zeigen sie ins Leere
+    const z = S.zuordnung;
+    for (const [bid, p] of Object.entries(z)) if (p === planProfil) z[bid] = name;
+    S.zuordnung = z;
+    planProfil = name; frisch();
+  };
+  b.querySelector('#lssp-plos').onclick = async () => {
+    if (!prof) return;
+    const dran = wachenVon[planProfil] || 0;
+    if (!await frage(`Profil „${planProfil}“ löschen?`
+      + (dran ? `\n\n${dran} Wachen benutzen es und fallen auf das erste Profil zurück.` : ''))) return;
+    delete modell[planTyp].profiles[planProfil];
+    planProfil = null; frisch();
+  };
+
+  b.querySelector('#lssp-palle')?.addEventListener('change', e => {
+    ui.alleTypen = e.target.checked; saveUi(); render();
+  });
+  b.querySelector('#lssp-plesen')?.addEventListener('click', async () => {
+    const wache = S.buildings.find(x => String(x.building_type) === planTyp);
+    if (!wache) return log('Keine eigene Wache dieses Typs — daraus läßt sich nichts lesen.', 'warn');
     try {
-      const n = await fn(sel, dry);
-      log(`${dry ? 'Vorschau' : 'Fertig'}: ${n} Aktionen`, 'good');
-      if (!dry && n) log(`Bestand lokal fortgeschrieben. Für gemessene Zahlen `
-        + `„Bestand neu laden“ drücken.`, 'warn');
-    } catch (e) { log('Abbruch: ' + e.message, 'err'); }
-    S.busy = false; ev.target.disabled = false; fortAus();
+      const ids = await kaufbareLesen(wache);
+      log(`${ids.size} kaufbare Typen für ${T.btName(planTyp)} gelesen.`, 'good');
+      render();
+    } catch (e) { log('Nicht gelesen: ' + e.message, 'warn'); }
+  });
+  b.querySelector('#lssp-pausbau')?.addEventListener('click', async () => {
+    try {
+      // Die Sammelseite bringt alle Gebäudearten mit, nicht nur die gewählte.
+      const r = await ausbauKatalogLesen();
+      log(`${r.gesehen} Bauplätze über ${r.proTyp.size} Gebäudearten gelesen, ${r.neu} neu `
+        + `(davon ${r.proTyp.get(Number(planTyp)) || 0} bei ${T.btName(planTyp)}).`, 'good');
+      render();
+    } catch (e) { log('Nicht gelesen: ' + e.message, 'warn'); }
+  });
+  b.querySelector('#lssp-pfzwahl')?.addEventListener('change', e => {
+    if (!e.target.value) return;
+    prof.vehicles ||= {};
+    prof.vehicles[e.target.value] = 1;
+    frisch();
+  });
+  b.querySelectorAll('.pplus').forEach(x => x.onclick = () => { zahl(prof.vehicles, x.dataset.id, +1); frisch(); });
+  b.querySelectorAll('.pminus').forEach(x => x.onclick = () => { zahl(prof.vehicles, x.dataset.id, -1); frisch(); });
+  b.querySelectorAll('.pweg').forEach(x => x.onclick = () => {
+    delete prof.vehicles[x.dataset.id];
+    if (prof.pools) delete prof.pools[x.dataset.id];   // sonst bleibt ein Topf ohne Fahrzeug
+    frisch();
+  });
+
+  b.querySelector('#lssp-pextadd')?.addEventListener('click', () => {
+    const feld = b.querySelector('#lssp-pextname');
+    const name = feld.value.trim();
+    if (!name) return;
+    prof.extensions ||= {};
+    prof.extensions[name] = (prof.extensions[name] || 0) + 1;
+    frisch();
+  });
+  b.querySelectorAll('.eplus').forEach(x => x.onclick = () => { zahl(prof.extensions, x.dataset.n, +1); frisch(); });
+  b.querySelectorAll('.eminus').forEach(x => x.onclick = () => { zahl(prof.extensions, x.dataset.n, -1); frisch(); });
+  b.querySelectorAll('.eweg').forEach(x => x.onclick = () => { delete prof.extensions[x.dataset.n]; frisch(); });
+
+  auswahlBinden(b);
+  b.querySelector('#lssp-pzuord')?.addEventListener('click', () => {
+    // Im Typ-Reiter kommen die Häkchen aus der Liste links — dort nur dieser Typ
+    const sel = selectedBuildings().filter(x => String(x.building_type) === planTyp);
+    if (!sel.length) return log('Keine Wache gewählt.', 'warn');
+    const z = S.zuordnung;
+    for (const w of sel) z[w.id] = planProfil;
+    S.zuordnung = z;
+    log(`${sel.length} Wachen auf „${planProfil}“ gesetzt.`, 'good');
+    render();
+  });
+
+  /* Sicherung nur in den Extras: sie umfaßt alle Gebäudearten, nicht die eine. */
+  if (!festTyp) {
+    const sicherungText = () => JSON.stringify({
+      format: SICHERUNG_FORMAT, v: 1, version: VERSION, erstellt: new Date().toISOString(),
+      modell: S.modell, zuordnung: S.zuordnung }, null, 1);
+
+    /* Datei und Zwischenablage laufen durch dieselbe Prüfung und dieselbe
+       Rückfrage. Bis v0.65.4 ersetzte „Einfügen" ungeprüft und ungefragt das
+       ganze Wunschbild — und übernahm fremde Wachennummern gleich mit. */
+    const sicherungLaden = async (txt, woher) => {
+      let d;
+      try { d = JSON.parse(txt); }
+      catch (e) { return log(`${woher}: kein gültiges JSON — ${e.message}`, 'err'); }
+      const r = sicherungPruefen(d, S.buildings, S.zuordnung);
+      if (r.fehler) return log(`${woher}: nicht übernommen — ${r.fehler}. Das bisherige Wunschbild bleibt.`, 'err');
+      const zeilen = [
+        `Wunschbild ersetzen? ${r.typen} Gebäudetypen, ${r.profile} Profile.`,
+        r.ohneBestand
+          ? `Zuordnung: Bestand nicht geladen — von ${r.inDatei} Einträgen der Datei wird keiner übernommen, `
+            + `die bisherige Zuordnung (${r.behalten} Wachen) bleibt. Erst „Bestand neu laden", dann noch einmal laden.`
+          : `Zuordnung: ${r.uebernommen} von ${r.inDatei} übernommen`
+            + (r.fremd ? `, ${r.fremd} gehören nicht zu diesem Konto` : '')
+            + (r.ohneProfil ? `, ${r.ohneProfil} zeigen auf ein Profil, das es nicht gibt` : '')
+            + (r.behalten ? `; ${r.behalten} eigene Zuordnungen bleiben wie sie sind` : '') + '.',
+        r.fremdeTypen ? `${r.fremdeTypen} Fahrzeugeinträge haben Typen, die diese Fassung nicht kennt — sie werden übergangen.` : ''
+      ].filter(Boolean);
+      if (!await frage(zeilen.join('\n\n'))) return log('Nichts übernommen.', 'warn');
+      S.modell = r.modell;
+      S.zuordnung = r.zuordnung;
+      planTyp = planProfil = null;
+      render();
+      zeilen.slice(1).forEach(t => log(t, 'warn'));
+      log(`${woher}: ${r.profile} Profile übernommen, ${Object.keys(r.zuordnung).length} Wachen zugeordnet.`, 'good');
+    };
+
+    b.querySelector('#lssp-pdatei').onclick = () => {
+      /* Ein Verweis mit `download` genügt — ohne @grant, ohne Bibliothek.
+         Das Datum im Namen, damit mehrere Stände nebeneinander liegen können. */
+      const url = URL.createObjectURL(new Blob([sicherungText()], { type: 'application/json' }));
+      const a = Object.assign(document.createElement('a'),
+        { href: url, download: `lss-planer-wunschbild-${new Date().toISOString().slice(0, 10)}.json` });
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      log(`Gesichert: ${Object.keys(S.modell).length} Gebäudetypen, `
+        + `${Object.keys(S.zuordnung).length} zugeordnete Wachen.`, 'good');
+    };
+    b.querySelector('#lssp-pladen').onclick = () => b.querySelector('#lssp-pdateiwahl').click();
+    b.querySelector('#lssp-pdateiwahl').onchange = async e => {
+      const datei = e.target.files?.[0];
+      e.target.value = '';             // dieselbe Datei zweimal wählen soll wieder auslösen
+      if (datei) await sicherungLaden(await datei.text(), datei.name);
+    };
+    b.querySelector('#lssp-pexport').onclick = async () => {
+      const txt = sicherungText();
+      try { await navigator.clipboard.writeText(txt); log('Wunschbild samt Zuordnung in der Zwischenablage.', 'good'); }
+      catch { log('Kopieren nicht möglich. Hier zum Herausnehmen:\n' + txt); }
+    };
+    b.querySelector('#lssp-pimport').onclick = async () => {
+      const txt = prompt('Wunschbild einfügen (JSON):');
+      if (txt) await sicherungLaden(txt, 'Eingefügt');
+    };
+  }
+
+  b.querySelector('#lssp-pstd').onclick = async () => {
+    const vorlage = MODELL_STANDARD[planTyp];
+    if (!vorlage) return log('Für diesen Gebäudetyp gibt es keinen eingebauten Stand.', 'warn');
+    const eigene = Object.keys(modell[planTyp]?.profiles || {})
+      .filter(p2 => !vorlage.profiles[p2]);
+    if (!await frage(`Profile für ${T.btName(planTyp)} auf den eingebauten Stand zurücksetzen?`
+      + (eigene.length ? `\n\nSelbst angelegt und dabei verloren: ${eigene.join(', ')}` : '')
+      + '\n\nAndere Gebäudearten und die Zuordnung der Wachen bleiben unberührt.')) return;
+    modell[planTyp] = strukturKopie(vorlage);
+    planProfil = null;
+    log(`${T.btName(planTyp)} auf den Standard zurückgesetzt.`, 'good');
+    modellGeaendert(); render();
   };
   log('');
 }
@@ -5506,6 +5814,8 @@ function mount() {
   el.innerHTML = `<header><b>LSS Planer</b><span style="color:var(--lp-dim2);font-size:11px">v${VERSION}</span>
       <span style="color:var(--lp-dim2);font-size:11px" id="lssp-drag-hint">ziehen zum Verschieben</span>
       <span class="sp"></span>
+      <span style="color:var(--lp-dim2);font-size:11px" id="lssp-stand"></span>
+      <button class="ico" id="lssp-neu" title="Bestand neu laden">↻</button>
       <span class="scharfmarke" id="lssp-scharf" style="display:none">SCHARF</span>
       <button class="ico" id="lssp-thema" title="Helles oder dunkles Bild">◐</button>
       <button class="ico" id="lssp-stop" title="Laufenden Vorgang abbrechen">⏹</button>
@@ -5514,7 +5824,8 @@ function mount() {
       <button class="ico" id="lssp-close" title="Schließen">×</button></header>
     <nav></nav><div class="unter"></div>
     <div id="lssp-fort" style="display:none"><div class="balken"></div><span class="wort"></span></div>
-    <div class="body"></div>`;
+    <div class="body"></div>
+    <div class="fuss"><div class="logkopf-ort"></div><pre id="lssp-log"></pre></div>`;
   document.body.append(btn, el);
   // Erst wenn der Bestand steht, hat die Wachenseite etwas zu zeigen
   if (S.loaded) wachenSeite();
@@ -5524,6 +5835,15 @@ function mount() {
     laufStoppen(); log('Abbruch angefordert — der laufende Schritt wird noch beendet.', 'warn');
   };
   el.querySelector('#lssp-close').onclick = () => { laufStoppen(); el.classList.remove('on'); };
+  el.querySelector('#lssp-neu').onclick = async () => {
+    if (S.busy) return log('Es läuft gerade etwas — erst danach neu laden.', 'warn');
+    S.busy = true;
+    try {
+      await loadAll(true);
+      log(`${S.buildings.length} Gebäude, ${S.vehicles.length} Fahrzeuge geladen`, 'good');
+    } catch (e) { log('Laden fehlgeschlagen: ' + e.message, 'err'); }
+    S.busy = false; fortAus(); render();
+  };
 
   /* Eigenes Fenster: das Panel wandert per adoptNode hinüber, es entsteht
      keine zweite Fassung. Derselbe Ursprung, dieselbe Sitzung, dieselbe
@@ -5540,7 +5860,7 @@ function mount() {
   };
   el.querySelector('#lssp-aus').onclick = () => {
     if (aussen && !aussen.closed) { aussen.focus(); return; }
-    aussen = open('', 'lssp-fenster', 'width=620,height=860');
+    aussen = open('', 'lssp-fenster', 'width=1100,height=860');
     if (!aussen) return log('Das Fenster wurde blockiert — Pop-ups für diese Seite erlauben.', 'warn');
     aussen.document.write('<!doctype html><meta charset="utf-8"><title>LSS Planer</title>');
     aussen.document.close();
