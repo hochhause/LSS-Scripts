@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.69.0
+// @version      0.69.1
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.69.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.69.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -274,7 +274,7 @@ const MODELL_STANDARD = {
   "15": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"64":2,"63":2,"70":2},"pools":{"64":"normal","63":"normal","70":"normal"},"extensions":{}}}},
   "17": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"51":4,"79":6,"80":2,"81":6,"82":2,"94":3},"pools":{"51":"gesamt","79":"gesamt","80":"gesamt","81":"gesamt","82":"gesamt","94":"gesamt"},"extensions":{"SEK: 1. Zug":1,"SEK: 2. Zug":1,"MEK: 1. Zug":1,"MEK: 2. Zug":1,"Diensthundestaffel":1}}}},
   "21": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"91":6},"pools":{"91":"normal"},"extensions":{}}}},
-  "25": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"150":5,"149":4,"151":1,"152":3,"154":2,"158":1,"155":1,"153":2},"pools":{"150":"normal","149":"normal","151":"normal","152":"normal","154":"normal","158":"hoehe","155":"hoehe","153":"hunde"},"extensions":{"Höhenrettung":1,"Rettungshundestaffel":1,"Drohneneinheit":1}}}},
+  "25": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"149":8,"151":2,"152":3,"154":2,"158":1,"155":1,"153":2},"pools":{"149":"normal","151":"normal","152":"normal","154":"normal","158":"hoehe","155":"hoehe","153":"hunde"},"extensions":{"Höhenrettung":1,"Rettungshundestaffel":1,"Drohneneinheit":1}}}},
   "26": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"159":2,"160":3},"pools":{"159":"normal","160":"normal"},"extensions":{}}}},
   "28": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"161":1},"pools":{"161":"normal"},"extensions":{}}}},
   "29": {"slotBonus":0,"profiles":{"standard":{"vehicles":{"184":10},"pools":{"184":"normal"},"extensions":{"Zelle":10}}}}

@@ -3130,3 +3130,23 @@ vom Spiel abgelehnt (ohne Abbuchung). Jetzt: `getText(path, true)` liest mit
 `cache: 'no-store'` (Statusabfrage, Prüfung, Guthaben); der Preis bleibt
 auch bei Ablehnung gebucht; bei einer Ablehnung wird der Kontostand gelesen
 und der Lauf endet, wenn er den nächsten Preis nicht mehr deckt.
+
+## D-114 Bergrettung: Standardprofil nach den Bergeinsätzen (v0.69.1)
+
+**Lage (Sasha, 16.10.2026).** Erste Bergrettungswache gebaut (Berg 1, Arnsdorf).
+Sashas Entwurf hatte 2× GW-Höhenrettung + 1× Anh Höhenrettung — der Ausbau
+Höhenrettung gibt aber nur 2 Plätze, und diese Fahrzeuge dürfen *nur* dort
+stehen (LSSM `unlockedVehiclesOnReservedLotsOnly`, ebenso die Hundestaffel).
+
+**Gegen die 46 Bergeinsätze gerechnet** (`/einsaetze.json`, Höchstbedarf je
+Einsatz): GW-Bergrettung beliebig 3 (in 35), ELW Bergrettung 1 (24), ATV 2 (17),
+Schneefahrzeug 2 (4, nur Januar–März), Höhenrettung 1 (12), Hundestaffel 3 (8),
+Hubschrauber mit Winde 2 (26 — nicht von der Bergrettung), Drohne 1 (12).
+„Beliebiger GW-Bergrettung" ist eine AAO-Kategorie: die NEF-Fassung zählt mit.
+
+**Entscheidung (Sasha):** 8× GW-Bergrettung (NEF), 2× ELW, 3× ATV, 2× Schnee
+auf den 15 normalen Plätzen; 1× GW-H + 1× Anh auf Höhenrettung; 2× Hundestaffel.
+**Verworfen:** gewöhnliche GW-Bergrettung auf den freien Plätzen (billiger, ohne
+Notarzt) — Sasha will die NEF-Fassung, die zugleich die NEF-Anforderung deckt.
+Wer das Wunschbild schon gespeichert hat, bekommt es über „Standard für
+Bergrettungswache" im Wunschbild.
