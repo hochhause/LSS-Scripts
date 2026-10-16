@@ -660,3 +660,27 @@ Einsatzstelle stehen und geht auf **FMS 5**. Gemessen an AB-Atemschutz
 - Danach: die Seite des AB zeigt FMS 6 und keine Auswahl mehr; das gewählte
   WLF stand ebenfalls auf FMS 6 (nicht 3). `/api/v2/vehicles` zeigte beides
   erst verzögert — eine Sekunden später gelesene Liste sah unverändert aus.
+
+## Gebäudearten — Auswahl „Gebäudetyp" auf `/buildings/new` (16.10.2026)
+
+Gelesen, nicht abgeschickt: `select[name="building[building_type]"]`.
+
+```
+0  Feuerwache                    14 Bereitstellungsraum
+1  Feuerwehrschule               15 Wasserrettung
+2  Rettungswache                 17 Polizei-Sondereinheiten
+3  Rettungsschule                18 Feuerwache (Kleinwache)
+4  Krankenhaus                   19 Polizeiwache (Kleinwache)
+5  Rettungshubschrauber-Station  20 Rettungswache (Kleinwache)
+6  Polizeiwache                  21 Rettungshundestaffel
+7  Leitstelle                    24 Reiterstaffel
+8  Polizeischule                 25 Bergrettungswache
+9  THW                           26 Seenotrettungswache
+10 THW Bundesschule              27 Schule für Seefahrt und Seenotrettung
+11 Bereitschaftspolizei          28 Hubschrauberstation (Seenotrettung)
+12 Schnelleinsatzgruppe (SEG)    29 Autobahnpolizei
+13 Polizeihubschrauberstation
+```
+
+16, 22, 23 kommen in der Auswahl nicht vor. `GEBAEUDE_NAMEN` hatte bis dahin
+18, 20, 24 und 27 falsch und 14, 19 gar nicht.

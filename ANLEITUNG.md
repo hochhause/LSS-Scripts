@@ -31,7 +31,7 @@ Der Planer vergleicht, wie deine Wachen **aussehen sollen**, mit dem, was **wirk
 
 ## 2. Das Fenster
 
-**Oben** stehen die Reiter: **📋 Alle** zeigt jede Wache, dann kommt ein Reiter je Art von Wache (🚒 Feuerwehr, 🚑 Rettung, 🚓 Polizei …). Die kleine Zahl daneben sagt, an wie vielen Wachen dieser Art noch etwas offen ist. Ganz rechts liegen die **🧩 Extras**.
+**Oben** stehen die Reiter: **📋 Alle** zeigt jede Wache, dann nach Wichtigkeit 🚒 Feuerwehr, 🚓 Polizei, 🚑 Rettung, ⛑ THW, 🩺 SEG, 🛡 BePol, 🚤 Wasserrettung, 🚁 Hubschrauber und, falls vorhanden, 🏔 Bergrettung. Verwandte Arten stehen zusammen: Kleinwachen bei ihrer großen Art, Autobahnpolizei bei der Polizei, Hundestaffel bei der SEG, Sondereinheiten und Reiterstaffel bei der BePol, Seenotrettung bei der Wasserrettung, alle Hubschrauberstationen unter Hubschrauber. Ein Reiter erscheint nur, wenn du dort eine Wache hast. Die kleine Zahl daneben sagt, an wie vielen Wachen dieser Art noch etwas offen ist. Ganz rechts liegen die **🧩 Extras**.
 
 | Knopf | Was er tut |
 |---|---|
@@ -118,7 +118,7 @@ Hake links Wachen an und schließ die Karte (oder öffne keine). Rechts stehen d
 
 ### 4.6 Wunschbild im Reiter einer Wachenart
 
-Bist du in einem Reiter wie **🚒 Feuerwehr** und hast nichts angehakt, steht rechts das **Wunschbild** dieser Art (siehe [6.2](#62-wunschbild)). Oben rechts schaltest du zwischen **„Sammelaktionen“** und **„Wunschbild“** um. Um Wachen einem Profil zuzuordnen: „Wunschbild“ wählen, links die Wachen anhaken, dann **„Gewählte Wachen auf …“** drücken.
+Bist du in einem Reiter wie **🚒 Feuerwehr** und hast nichts angehakt, steht rechts das **Wunschbild** dieser Art (siehe [6.2](#62-wunschbild)). Faßt ein Reiter mehrere Arten mit Wunschbild (etwa Hubschrauber), wählst du die Art mit den Knöpfen daneben. Oben rechts schaltest du zwischen **„Sammelaktionen“** und **„Wunschbild“** um. Um Wachen einem Profil zuzuordnen: „Wunschbild“ wählen, links die Wachen anhaken, dann **„Gewählte Wachen auf …“** drücken.
 
 ---
 

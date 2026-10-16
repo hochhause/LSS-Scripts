@@ -3103,3 +3103,18 @@ Sperre untätig; gesperrt (grau) sind sie in der Oberfläche trotzdem, damit
 Wunschbild: Stellplatztöpfe und der Hinweis auf der Wachenseite hängen daran.
 Grüner Rand sperrt nicht mehr. „Personal ausbilden" läuft je Lehrgang über alle
 Wachen, die Lücken größten zuerst. Personal auf der Karte zuklappbar.
+
+**Nachtrag 4 (Sasha, 16.10.): Reiter nach Wichtigkeit, Arten zusammengefaßt.**
+Reihenfolge Feuer, Polizei, Rettung, THW, SEG, BePol, Wasserrettung,
+Hubschrauber; dahinter Bergrettung und „Sonstige" für jede Art, die in keine
+paßt. Sasha: Arten, die er noch nicht hat, entweder einordnen oder eigener
+Reiter. Eingeordnet: Kleinwachen zu ihrer großen Art, Autobahnpolizei zur
+Polizei, Hundestaffel zur SEG, Sondereinheiten und Reiterstaffel zur BePol
+(dort gibt es beide auch als Ausbau), Seenotrettungswache zur Wasserrettung,
+RTH, Polizei- und Seenot-Hubschrauber zusammen. Eigener Reiter: Bergrettung —
+sie paßt in keine der acht. Nicht in der Ansicht: Schulen (auch THW Bundesschule
+und Seefahrtschule), Krankenhaus, Leitstelle, Bereitstellungsraum.
+Das Wunschbild rechts gilt je Art; faßt ein Reiter mehrere mit Wunschbild,
+wählt man die Art darüber. Beim Nachmessen aufgefallen: `GEBAEUDE_NAMEN` hatte
+vier Arten falsch (SPIELSEITEN.md) — ohne Folgen für die Rechnung, weil
+Wunschbild und Stellplätze an den Nummern hängen, nicht an den Namen.

@@ -218,16 +218,20 @@ const NICHT_PLANEN = new Set([1, 3, 4, 7, 8]);
    Spieldaten und für jeden gleich — also gehören sie hierher, damit der Planer
    auch ohne Plan lesbar bleibt. Ein importierter Plan darf sie überschreiben,
    falls das Spiel etwas umbenennt. */
+/* Nachgemessen am 16.10.2026 an der Auswahl „Gebäudetyp" von /buildings/new
+   (SPIELSEITEN.md). Vier Einträge waren bis dahin falsch geraten — 18, 20, 24
+   und 27 —, 14 und 19 fehlten. */
 const GEBAEUDE_NAMEN = {
   0: 'Feuerwache', 1: 'Feuerwehrschule', 2: 'Rettungswache', 3: 'Rettungsschule',
   4: 'Krankenhaus', 5: 'Rettungshubschrauber-Station', 6: 'Polizeiwache',
-  7: 'Leitstelle', 8: 'Polizeischule', 9: 'THW', 10: 'THW-Bundesschule',
+  7: 'Leitstelle', 8: 'Polizeischule', 9: 'THW', 10: 'THW Bundesschule',
   11: 'Bereitschaftspolizei', 12: 'Schnelleinsatzgruppe (SEG)',
-  13: 'Polizeihubschrauberstation', 15: 'Wasserrettung', 17: 'Polizei-Sondereinheiten',
-  18: 'Schnelleinsatzgruppe (SEG) Bergwacht', 20: 'Bergrettungswache',
-  21: 'Rettungshundestaffel', 24: 'Wasserrettung (Seenot)', 25: 'Bergrettungswache',
-  26: 'Seenotrettungswache', 27: 'Seenotrettungs-Hubschrauber',
-  28: 'Seenotrettungs-Hubschrauber', 29: 'Autobahnpolizei'
+  13: 'Polizeihubschrauberstation', 14: 'Bereitstellungsraum', 15: 'Wasserrettung',
+  17: 'Polizei-Sondereinheiten', 18: 'Feuerwache (Kleinwache)', 19: 'Polizeiwache (Kleinwache)',
+  20: 'Rettungswache (Kleinwache)', 21: 'Rettungshundestaffel', 24: 'Reiterstaffel',
+  25: 'Bergrettungswache', 26: 'Seenotrettungswache',
+  27: 'Schule für Seefahrt und Seenotrettung', 28: 'Hubschrauberstation (Seenotrettung)',
+  29: 'Autobahnpolizei'
 };
 
 /* Stellplätze je Gebäudeart: wie viele Plätze welcher Sorte eine Wache hat.
@@ -4074,7 +4078,7 @@ const saveUi = () => store.set(KEY_UI, ui);
    rechts die Karte der gewählten Wache mit allen Handgriffen. Was keiner
    einzelnen Wache gehört — Wunschbild, Ausbildung, Namensvorlagen,
    Einstellungen —, steht unter „Extras“. */
-let ansicht = 'alle';                  // 'alle' | Gebäudetyp als Text | 'extras'
+let ansicht = 'alle';                  // 'alle' | Schlüssel aus KATEGORIEN | 'extras'
 /* Rechts ohne gewählte Wache: Sammelaktionen für die Häkchen oder, in einem
    Typ-Reiter, das Wunschbild dieser Gebäudeart. null = von selbst wählen. */
 let rechts = null;
@@ -4085,21 +4089,36 @@ let gewaehlt = null;
 const EXTRAS = [['ueber', 'Einstellungen'], ['plan', 'Wunschbild'],
                 ['lehrgang', 'Ausbildung'], ['haken', 'Namen']];
 
-/* Zeichen und Farbe je Gebäudeart, damit man eine Wache in der Liste am Rand
-   erkennt, ohne den Namen zu lesen. Unbekannte Arten bekommen Grau. */
-const TYP_KONFIG = {
-  0:  ['🚒', '#e8a5a5', 'Feuerwehr'],     2:  ['🚑', '#f0c9a0', 'Rettung'],
-  5:  ['🚁', '#f5d9b3', 'RTH'],           6:  ['🚓', '#a5bde0', 'Polizei'],
-  9:  ['⛑', '#a5c4cc', 'THW'],            11: ['🛡', '#a8c9a5', 'BePol'],
-  12: ['🩺', '#c4a5cc', 'SEG'],           13: ['🚁', '#a5bde0', 'PolHub'],
-  15: ['🚤', '#a5ccd4', 'Wasserrettung'], 17: ['🎯', '#c4a5cc', 'PolSonder'],
-  18: ['🩺', '#c4a5cc', 'SEG Berg'],      20: ['🏔', '#b0c9a5', 'Berg'],
-  21: ['🐕', '#b0c9a5', 'Hunde'],         24: ['🚤', '#a5ccd4', 'Seenot'],
-  25: ['🏔', '#b0c9a5', 'Berg'],          26: ['⛵', '#a5ccd4', 'Seenot'],
-  27: ['🚁', '#a5ccd4', 'Seenot-Hubschr.'], 28: ['🚁', '#a5ccd4', 'Seenot-Hubschr.'],
-  29: ['🛣', '#9ab8d8', 'Autobahn']
+/* Reiter nach Wichtigkeit (Sasha, 16.10.): Feuer, Polizei, Rettung, THW, SEG,
+   BePol, Wasserrettung, Hubschrauber — dahinter, was in keine davon paßt.
+   Verwandte Gebäudearten teilen sich einen Reiter: die Kleinwache mit ihrer
+   großen Schwester, Hundestaffel mit der SEG, Sondereinheiten und Reiter mit der
+   BePol (dort gibt es sie auch als Ausbau), Seenot mit der Wasserrettung, alle
+   drei Hubschrauberstationen zusammen. Eine Art, die hier fehlt, landet unter
+   „Sonstige" statt zu verschwinden. */
+const KATEGORIEN = [
+  { key: 'feuer',   zeichen: '🚒', name: 'Feuerwehr',     farbe: '#e8a5a5', typen: [0, 18] },
+  { key: 'polizei', zeichen: '🚓', name: 'Polizei',       farbe: '#a5bde0', typen: [6, 19, 29] },
+  { key: 'rettung', zeichen: '🚑', name: 'Rettung',       farbe: '#f0c9a0', typen: [2, 20] },
+  { key: 'thw',     zeichen: '⛑',  name: 'THW',           farbe: '#a5c4cc', typen: [9] },
+  { key: 'seg',     zeichen: '🩺', name: 'SEG',           farbe: '#c4a5cc', typen: [12, 21] },
+  { key: 'bepol',   zeichen: '🛡',  name: 'BePol',         farbe: '#a8c9a5', typen: [11, 17, 24] },
+  { key: 'wasser',  zeichen: '🚤', name: 'Wasserrettung', farbe: '#a5ccd4', typen: [15, 26] },
+  { key: 'hub',     zeichen: '🚁', name: 'Hubschrauber',  farbe: '#f5d9b3', typen: [5, 13, 28] },
+  { key: 'berg',    zeichen: '🏔',  name: 'Bergrettung',   farbe: '#b0c9a5', typen: [25] }
+];
+const SONSTIGE = { key: 'sonst', zeichen: '🏢', name: 'Sonstige', farbe: '#9aa5b1', typen: [] };
+const katVon = t => KATEGORIEN.find(k => k.typen.includes(Number(t))) || SONSTIGE;
+/* Kurzname je Art für die Liste — innerhalb eines Reiters muß man die
+   Kleinwache von der großen unterscheiden können. */
+const TYP_KURZ = {
+  0: 'Feuerwache', 18: 'Kleinwache', 6: 'Polizeiwache', 19: 'Kleinwache', 29: 'Autobahn',
+  2: 'Rettungswache', 20: 'Kleinwache', 9: 'THW', 12: 'SEG', 21: 'Hundestaffel',
+  11: 'BePol', 17: 'Sondereinheiten', 24: 'Reiterstaffel', 15: 'Wasserrettung', 26: 'Seenot',
+  5: 'RTH', 13: 'PolHub', 28: 'SeeHub', 25: 'Bergrettung'
 };
-const typKonfig = t => TYP_KONFIG[t] || ['🏢', '#9aa5b1', T.btName(t)];
+/** Zeichen, Farbe, Kurzname einer Gebäudeart — Zeichen und Farbe vom Reiter. */
+const typKonfig = t => { const k = katVon(t); return [k.zeichen, k.farbe, TYP_KURZ[t] || T.btName(t)]; };
 
 /** Neue Absicht, also nichts gewählt und nur Vorschau. */
 function zuruecksetzen() {
@@ -4227,29 +4246,30 @@ function einzelBinden(wurzel) {
    jede ohne, sofern Fahrzeuge dastehen: Personal und Ausbildung rechnen dort
    gegen das Ist (Sasha, 16.10.). Schulen, Krankenhäuser, Leitstellen nie. */
 const hatWunschbild = b => Object.keys(T.profiles(b.building_type)).length > 0;
-const inAnsicht = b => !NICHT_PLANEN.has(Number(b.building_type))
+// Dazu die übrigen Schulen und der Bereitstellungsraum: dort ist nichts zu planen
+const OHNE_ANSICHT = new Set([...NICHT_PLANEN, 10, 14, 27]);
+const inAnsicht = b => !OHNE_ANSICHT.has(Number(b.building_type))
   && (hatWunschbild(b) || (S.byBuilding.get(b.id) || []).length > 0);
 
-/** Gebäudearten, die einen eigenen Reiter bekommen. */
+/** Reiter, in denen eine eigene Wache steht — in der Reihenfolge von KATEGORIEN. */
 function typReiter() {
-  return [...new Set(planWachen().filter(inAnsicht)
-      .map(b => String(b.building_type)))]
-    .sort((x, y) => T.btName(x).localeCompare(T.btName(y), 'de'));
+  const da = new Set(planWachen().filter(inAnsicht).map(b => katVon(b.building_type).key));
+  return [...KATEGORIEN, SONSTIGE].filter(k => da.has(k.key)).map(k => k.key);
 }
+const katNach = key => [...KATEGORIEN, SONSTIGE].find(k => k.key === key) || SONSTIGE;
 
 /** Oben die Gebäudearten, darunter — nur in den Extras — deren Unterreiter. */
 function navZeichnen() {
   const typen = S.loaded ? typReiter() : [];
   if (ansicht !== 'alle' && ansicht !== 'extras' && !typen.includes(ansicht)) ansicht = 'alle';
-  const offenIn = t => planWachen().filter(b => String(b.building_type) === t
+  const offenIn = key => planWachen().filter(b => inAnsicht(b) && katVon(b.building_type).key === key
     && !ruht.has(b.id) && fortschritt(b).offen).length;
   const knopf = (a, inhalt, farbe = '') => `<button data-a="${escA(a)}"${a === ansicht ? ' class="on"' : ''}${
     farbe && a === ansicht ? ` style="border-bottom-color:${farbe}"` : ''}>${inhalt}</button>`;
   el.querySelector('nav').innerHTML = knopf('alle', '📋 Alle')
-    + typen.map(t => {
-        const [zeichen, farbe, kurz] = typKonfig(t);
-        const n = offenIn(t);
-        return knopf(t, `${zeichen} ${esc(kurz)}${n ? `<span class="zahl">${n}</span>` : ''}`, farbe);
+    + typen.map(key => {
+        const k = katNach(key), n = offenIn(key);
+        return knopf(key, `${k.zeichen} ${esc(k.name)}${n ? `<span class="zahl">${n}</span>` : ''}`, k.farbe);
       }).join('')
     + knopf('extras', '🧩 Extras');
   const unter = el.querySelector('.unter');
@@ -5565,15 +5585,25 @@ function wachenListe(wachen) {
 /* Wessen Inhalt rechts zuletzt stand: eine andere Wache beginnt oben, dieselbe
    behält ihre Stelle — sonst springt die Karte nach jedem Lauf zum Anfang. */
 let karteFuer = '';
+// Welche Art eines Reiters rechts im Wunschbild steht, je Reiter gemerkt
+const katTyp = {};
 /** Liste links, Karte rechts, Zahlen oben. */
 function zeigeWachen(b) {
   b.classList.add('raster');
   const roll = ['.seite', '.karte'].map(q => b.querySelector(q)?.scrollTop || 0);
   const jetztFuer = JSON.stringify([ansicht, fokus, rechts]);
   if (jetztFuer !== karteFuer) { roll[1] = 0; karteFuer = jetztFuer; }
-  const typ = ansicht === 'alle' ? null : ansicht;
+  const kat = ansicht === 'alle' ? null : katNach(ansicht);
   const wachen = planWachen().filter(inAnsicht)
-    .filter(w => !typ || String(w.building_type) === typ);
+    .filter(w => !kat || katVon(w.building_type).key === kat.key);
+  /* Ein Reiter faßt mehrere Arten; das Wunschbild gilt je Art. Zur Wahl steht
+     jede Art des Reiters, die ein Wunschbild hat — die eigene zuerst. */
+  const planArten = !kat ? [] : [...new Set([
+      ...wachen.map(w => String(w.building_type)),
+      ...kat.typen.map(String)])]
+    .filter(t => Object.keys(T.profiles(t)).length);
+  if (!planArten.includes(katTyp[kat?.key])) katTyp[kat?.key] = planArten[0];
+  const typ = kat ? katTyp[kat.key] || null : null;
   const liste = wachenListe(wachen);
   const sel = liste.sichtbar.filter(w => auswahl.has(w.id));
 
@@ -5581,7 +5611,9 @@ function zeigeWachen(b) {
   const modus = rechts || (typ && !sel.length ? 'plan' : 'sammel');
   const wahl = typ && !fokus ? `<div class="unter rwahl" style="padding:0 0 8px">
       <button data-r="sammel"${modus === 'sammel' ? ' class="on"' : ''}>Sammelaktionen${sel.length ? ` (${sel.length})` : ''}</button>
-      <button data-r="plan"${modus === 'plan' ? ' class="on"' : ''}>Wunschbild ${esc(typKonfig(typ)[2])}</button></div>` : '';
+      <button data-r="plan"${modus === 'plan' ? ' class="on"' : ''}>Wunschbild</button>
+      ${modus === 'plan' && planArten.length > 1 ? planArten.map(t =>
+        `<button data-kt="${escA(t)}"${t === typ ? ' class="on"' : ''}>${esc(T.btName(t))}</button>`).join('') : ''}</div>` : '';
   const inhalt = fokus?.art === 'wache' ? wachenKarte(S.byId.get(fokus.id))
     : fokus ? einzelAnsicht()
     : wahl + (modus === 'plan' && typ ? '<div id="lssp-planort"></div>' : sammelPanel(sel));
@@ -5595,6 +5627,7 @@ function zeigeWachen(b) {
   auswahlBinden(b.querySelector('.seite'), render);
   einzelBinden(b);
   karte.querySelectorAll('[data-r]').forEach(x => x.onclick = () => { rechts = x.dataset.r; render(); });
+  karte.querySelectorAll('[data-kt]').forEach(x => x.onclick = () => { katTyp[kat.key] = x.dataset.kt; render(); });
   const ziel = () => fokus?.art === 'wache' ? [S.byId.get(fokus.id)] : liste.sichtbar.filter(w => auswahl.has(w.id));
   karte.querySelectorAll('button.lauf').forEach(k => k.onclick = () => {
     gewaehlt = gewaehlt === k.dataset.aktion ? null : k.dataset.aktion; render();
