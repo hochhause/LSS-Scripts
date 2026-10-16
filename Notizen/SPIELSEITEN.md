@@ -684,3 +684,25 @@ Gelesen, nicht abgeschickt: `select[name="building[building_type]"]`.
 
 16, 22, 23 kommen in der Auswahl nicht vor. `GEBAEUDE_NAMEN` hatte bis dahin
 18, 20, 24 und 27 falsch und 14, 19 gar nicht.
+
+## Baupreise je Gebäudeart (16.10.2026)
+
+Formeln aus der LSS-Manager-API (`special`), gegengeprüft an den Knöpfen
+`#build_credits_<typ>` auf `/buildings/new` beim Stand 25 Feuerwachen,
+24 Polizeiwachen, 5 THW, 26 Rettungswachen. `n` = vorhandene Wachen der Art.
+
+| Art | Preis der nächsten | geprüft |
+|---|---|---|
+| Feuerwache, Polizeiwache | n ≤ 23: 100.000, danach 100.000 + 200.000·log₂(n − 22) | 416.993 bei n=25, 300.000 bei n=24 |
+| Kleinwache Feuer/Polizei | **Hälfte** der großen (LSSM nennt „/2" einer anderen Formel — falsch) | 208.496, 150.000 |
+| THW | 200.000 + 100.000·log₂(n + 1) | 458.496 bei n=5 (LSSMs Beispielliste ist um eins verschoben) |
+| Berg-, Seenotrettungswache | n < 10: 100.000, sonst 100.000 + 100.000·log₅(n − 9) | ungeprüft, keine eigene |
+| alle übrigen | fest (Liste unten) | Knöpfe = Listenpreis |
+
+Fest: Rettungswache 200.000, Kleinwache Rettung 100.000, SEG 100.000 (ab der
+5. Rettungswache), Wasserrettung 500.000, BePol 500.000, Sondereinheiten
+400.000, Autobahnpolizei 400.000, Reiterstaffel 300.000, Hundestaffel 450.000,
+Schulen 500.000, Krankenhaus 200.000, Hubschrauberstationen 1.000.000
+(begrenzt über Landeplätze: 4 bis zum 125. Gebäude, danach +1 je 25),
+Leitstelle 0 (eine je 10 Gebäude). Ob Kleinwachen bei `n` mitzählen, ist
+ungeprüft.
