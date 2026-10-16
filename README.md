@@ -8,6 +8,9 @@ Alles auf Deutsch, weil das Spiel es ist.
 > **„Nur Vorschau"** laufen lassen, die Liste lesen, dann handeln. Dasselbe
 > gilt für „Einrücken": es holt Fahrzeuge aus laufenden Einsätzen zurück.
 
+**Neu hier?** Die [Anleitung zum Planer](ANLEITUNG.md) erklärt jeden Reiter
+Schritt für Schritt, ohne Fachchinesisch.
+
 ## Installieren
 
 Voraussetzung ist [Tampermonkey](https://www.tampermonkey.net/) (Chrome, Edge,
