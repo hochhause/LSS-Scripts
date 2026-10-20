@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.69.1
+// @version      0.69.2
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.69.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.69.2';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -4083,7 +4083,11 @@ let planTyp = null, planProfil = null;
 /* Suchwort und Sortierung der Wachenliste. Sie stehen hier und nicht im DOM,
    weil jeder Lauf die Liste neu zeichnet — im Feld getippter Text wäre sonst
    nach der ersten Aktion weg. */
-let suche = '', sortierung = 'offen';
+// Nach Name ist Standard (Sasha, 20.10.): eine Wache sucht man am Namen
+let suche = '', sortierung = 'name';
+/* Zuletzt angeklicktes Ankreuzfeld — Anker für Umschalt-Klick. Steht hier,
+   weil jeder Klick neu zeichnet und die Felder dabei neu entstehen. */
+let letzteWahl = null;
 
 /* Fensterzustand und kleine Vorlieben. Steht auf Modulebene, weil der
    Plan-Reiter sie ebenso braucht wie der Rahmen. */
@@ -4419,7 +4423,22 @@ function auswahlBinden(wurzel, danach = () => {}) {
   wurzel.querySelector('#lssp-sort')?.addEventListener('change', e => {
     sortierung = e.target.value; render();
   });
-  wurzel.querySelectorAll('.bsel').forEach(c => c.onchange = () => {
+  /* Umschalt-Klick setzt alles zwischen dem letzten und diesem Feld auf
+     denselben Stand — wie in jeder Dateiliste. Beim Klick ist das Feld schon
+     umgeschaltet, sein Stand gilt also für den ganzen Bereich. */
+  const felder = [...wurzel.querySelectorAll('.bsel')];
+  felder.forEach(c => c.addEventListener('click', ev => {
+    const hier = felder.indexOf(c);
+    const dort = felder.findIndex(x => Number(x.value) === letzteWahl);
+    if (ev.shiftKey && dort >= 0 && dort !== hier) {
+      for (const x of felder.slice(Math.min(hier, dort), Math.max(hier, dort) + 1)) {
+        x.checked = c.checked;
+        c.checked ? auswahl.add(Number(x.value)) : auswahl.delete(Number(x.value));
+      }
+    }
+    letzteWahl = Number(c.value);
+  }));
+  felder.forEach(c => c.onchange = () => {
     const id = Number(c.value);
     c.checked ? auswahl.add(id) : auswahl.delete(id);
     danach();
@@ -4482,7 +4501,8 @@ function buildingList(filterFn = null) {
     .filter(r => !nurOffen || (offenIm(r.f) && !ruht.has(r.b.id)))
     .filter(r => !wort || ohneHaken(r.b.caption).toLowerCase().includes(wort))
     .sort((x, y) => {
-      if (sortierung === 'name') return ohneHaken(x.b.caption).localeCompare(ohneHaken(y.b.caption), 'de');
+      // numeric: „Berg 2" vor „Berg 10"
+      if (sortierung === 'name') return ohneHaken(x.b.caption).localeCompare(ohneHaken(y.b.caption), 'de', { numeric: true });
       if (sortierung === 'typ') return T.btName(x.b.building_type).localeCompare(T.btName(y.b.building_type), 'de')
         || ohneHaken(x.b.caption).localeCompare(ohneHaken(y.b.caption), 'de');
       // „offen“: das Dringendste oben, bei Gleichstand alphabetisch
@@ -4521,8 +4541,8 @@ function buildingList(filterFn = null) {
         style="flex:1;min-width:120px;background:var(--lp-feld);color:var(--lp-fg);border:1px solid var(--lp-rand);
                border-radius:3px;padding:5px 8px;font:12px sans-serif">
       <select id="lssp-sort" title="Sortierung">
-        <option value="offen"${sortierung === 'offen' ? ' selected' : ''}>offenste zuerst</option>
         <option value="name"${sortierung === 'name' ? ' selected' : ''}>Name</option>
+        <option value="offen"${sortierung === 'offen' ? ' selected' : ''}>offenste zuerst</option>
         <option value="typ"${sortierung === 'typ' ? ' selected' : ''}>Typ</option>
       </select>
     </div>
@@ -5550,7 +5570,7 @@ function wachenListe(wachen) {
     .filter(r => !nurOffen || (r.f.offen && !ruht.has(r.b.id)))
     .filter(r => !wort || ohneHaken(r.b.caption).toLowerCase().includes(wort))
     .sort((x, y) => {
-      const name = ohneHaken(x.b.caption).localeCompare(ohneHaken(y.b.caption), 'de');
+      const name = ohneHaken(x.b.caption).localeCompare(ohneHaken(y.b.caption), 'de', { numeric: true });
       if (sortierung === 'name') return name;
       if (sortierung === 'typ') return T.btName(x.b.building_type).localeCompare(T.btName(y.b.building_type), 'de') || name;
       return (y.f.offen || 0) - (x.f.offen || 0) || name;   // „offen“: das Dringendste oben
@@ -5580,8 +5600,8 @@ function wachenListe(wachen) {
         style="flex:1;min-width:100px;background:var(--lp-feld);color:var(--lp-fg);border:1px solid var(--lp-rand);
                border-radius:3px;padding:5px 8px;font:12px sans-serif">
       <select id="lssp-sort" title="Sortierung">
-        <option value="offen"${sortierung === 'offen' ? ' selected' : ''}>offenste zuerst</option>
         <option value="name"${sortierung === 'name' ? ' selected' : ''}>Name</option>
+        <option value="offen"${sortierung === 'offen' ? ' selected' : ''}>offenste zuerst</option>
         <option value="typ"${sortierung === 'typ' ? ' selected' : ''}>Typ</option>
       </select>
     </div>

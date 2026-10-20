@@ -86,8 +86,9 @@ Die Kacheln oben zeigen für den offenen Reiter, wie weit du bist: fehlende Fahr
 ### 4.2 Die Liste links
 
 - **Suchfeld:** findet Wachen nach dem Namen.
-- **Sortierung:** „offenste zuerst“, „Name“ oder „Typ“.
+- **Sortierung:** „Name“ (Standard, „Berg 2“ vor „Berg 10“), „offenste zuerst“ oder „Typ“.
 - **„Alle“ / „Keine“:** hakt alle sichtbaren Wachen an oder ab.
+- **Umschalt-Klick** auf ein Häkchen setzt alle Wachen zwischen dem zuletzt angeklickten und diesem auf denselben Stand.
 - **„nur offene“:** blendet Wachen aus, an denen nichts zu tun ist.
 - Jede Zeile zeigt: Farbe und Zeichen der Wachenart, Namen, Profil, wie viel offen ist, und einen Balken mit dem Anteil an Fahrzeugen und Ausbauten, die schon nach Plan dastehen.
 - **Namen anklicken:** öffnet rechts die Karte dieser Wache.
