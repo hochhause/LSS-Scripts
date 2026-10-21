@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.69.3
+// @version      0.69.4
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.69.3';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.69.4';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -7379,7 +7379,12 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry, fe
       if (!r.ok) { log(`   abgelehnt: HTTP ${r.status} — nichts als gestartet vermerkt`, 'err'); continue; }
     }
     await abmeldenNachSenden(fahrt, sel, dry);
+    /* Auch in der Vorschau gilt, wer eingeplant ist, für den nächsten Lehrgang
+       desselben Laufs als vergeben — sonst verplante die Vorschau dieselben
+       Leute für jeden Kurs und meldete nie „zu wenig" (Sasha, 21.10.). Nur im
+       Speicher des Laufs; gespeichert wird bloß, was wirklich abging. */
     if (!dry) gestartetVermerken(fahrt, zaehl, key, sc.tage);
+    else alsInAusbildungVermerken(fahrt, key);
     n += fahrt.length;
   }
 
@@ -7400,6 +7405,7 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry, fe
           log(`${sc.s.caption} (Verband): würde ${name} mit einem Raum starten und ${fahrt.length} Personen `
             + 'schicken — welche Wachen die Schule nimmt, zeigt erst der gestartete Lehrgang.', 'good');
           await abmeldenNachSenden(fahrt, sel, true);
+          alsInAusbildungVermerken(fahrt, key);        // wie oben: im Lauf vergeben
           n += fahrt.length; sc.raeume--; continue;
         }
         /* Je Start frisch lesen: nach dem vorletzten Raum verschwindet die
