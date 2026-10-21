@@ -178,7 +178,7 @@ Beides kostet nichts.
 
 Zusätzlich stellt dieser Lauf alle **Abrollbehälter** ein: zufälliges WLF, auch von anderen Wachen, und das WLF fährt danach heim.
 
-**„Personal ausbilden“** zeigt beim Wählen zuerst eine **Übersicht**: je Lehrgang, wie viele ausgebildet sind, wie viele gerade lernen und wie viele fehlen. Erst „▶ ausführen“ startet die Lehrgänge — **Lehrgang für Lehrgang über alle gewählten Wachen**, der mit den meisten Lücken zuerst, — erst in deinen Schulen, dann auf Wunsch in Schulen des Verbands. Einstellungen: **Freigabe für den Verband** (nicht, 1 Stunde, 12 Stunden, 1 Tag oder 2 Tage) und **„auch Schulen des Verbands“**. Eigene Schulen kosten Credits. Geschickt werden nur Leute ohne Lehrgang, die verfügbar sind und auf keinem Fahrzeug sitzen.
+**„Personal ausbilden“** zeigt beim Wählen zuerst eine **Übersicht**: je Lehrgang, wie viele ausgebildet sind, wie viele gerade lernen und wie viele fehlen. Erst „▶ ausführen“ startet die Lehrgänge — **Lehrgang für Lehrgang über alle gewählten Wachen**, der mit den meisten Lücken zuerst, — erst in deinen Schulen, dann auf Wunsch in Schulen des Verbands. Einstellungen: **„Ausbilden bis“** — **Mindestbesetzung** (nur so viele, dass jedes Fahrzeug ausrücken kann; das Richtige bei Personalmangel) oder **alle Sitze** —, **Freigabe für den Verband** (nicht, 1 Stunde, 12 Stunden, 1 Tag oder 2 Tage) und **„auch Schulen des Verbands“**. Übersicht und Zahl am Knopf rechnen gegen das gewählte Ziel. Eigene Schulen kosten Credits. Geschickt werden nur Leute ohne Lehrgang, die verfügbar sind und auf keinem Fahrzeug sitzen.
 
 **„Anhänger koppeln“** gibt jedem Anhänger ein festes Zugfahrzeug. Abrollbehälter sind ausgenommen, die fahren mit zufälligem WLF.
 

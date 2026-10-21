@@ -3150,3 +3150,10 @@ auf den 15 normalen Plätzen; 1× GW-H + 1× Anh auf Höhenrettung; 2× Hundesta
 Notarzt) — Sasha will die NEF-Fassung, die zugleich die NEF-Anforderung deckt.
 Wer das Wunschbild schon gespeichert hat, bekommt es über „Standard für
 Bergrettungswache" im Wunschbild.
+
+**Nachtrag zu D-113 (Sasha, 21.10.): „Personal ausbilden" bis zur Mindestbesetzung.**
+Eigener Schalter am Lauf (`S.opts.ausbildenZiel`, `ausbildenZiel()`), nicht der
+Anzeigeschalter unter Extras → Ausbildung — eine Handlung hängt nicht an einer
+Anzeige (siehe `kursZiel`). `lehrgangStarten`, `kursPosten`, `kursUebersicht`
+nehmen das Ziel jetzt ausdrücklich. Von Haus aus „alle Sitze", wie bisher —
+decided by Claude, damit sich am Verhalten bestehender Installationen nichts ändert.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.69.2
+// @version      0.69.3
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.69.2';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.69.3';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -3828,6 +3828,16 @@ function anhaengerZaehlt(meta, key, tgt) {
     Kurs zuteilt, wen er einem Fahrzeug zuweist —, nennt sein Feld weiterhin
     ausdrücklich; sonst hinge eine Handlung an einem Anzeigeschalter. */
 const kursZiel = () => (S.opts.kursMin ? 'min' : 'max');
+/* Wohin „Personal ausbilden" auf der Karte ausbildet — eigener Schalter am Lauf
+   (Sasha, 21.10.): bei Personalmangel zuerst nur so viele, daß jedes Fahrzeug
+   ausrücken kann. Getrennt von der Anzeige oben, eine Handlung hängt nicht an
+   einem Anzeigeschalter. Von Haus aus alle Sitze, wie bisher. */
+const ausbildenZiel = () => (S.opts.ausbildenZiel === 'min' ? 'min' : 'max');
+/** Plätze, die an einer Wache bis zum Ziel noch fehlen; null = Stand unbekannt. */
+function ausbildungsLuecke(b, feld) {
+  if (!quals.by[b.id]) return null;
+  return Object.keys(courseNeed(b, feld)).reduce((n, key) => n + (kursPosten(b, key, feld).fehlt || 0), 0);
+}
 
 function courseNeed(b, feld = kursZiel()) {
   const mk = b.id + '|' + feld;
@@ -4177,8 +4187,8 @@ const dListe = (zeilen, leer) => zeilen.length
 /* Eine Zeile je Lehrgang für eine Wache — oder je Wache für einen Lehrgang.
    Gerechnet wird beides aus denselben Quellen wie die Sammelliste, damit die
    Zahlen nicht auseinanderlaufen. */
-function kursPosten(b, key) {
-  const soll = courseNeed(b)[key] || 0;
+function kursPosten(b, key, feld = kursZiel()) {
+  const soll = courseNeed(b, feld)[key] || 0;
   const erf  = quals.by[b.id];
   const ist  = erf ? (erf[key] || 0) : null;
   const lauf = laufendeAusbildung(key, b.id);
@@ -5159,24 +5169,27 @@ async function aktionLaufen(key, sel, knopf = null) {
 /** Für jeden Lehrgang, der an einer der Wachen fehlt, einen Start — über
     dieselbe Strecke wie Extras → Ausbildung. */
 async function ausbildungenStarten(sel, dry) {
+  const feld = ausbildenZiel();
+  log(feld === 'min' ? 'Ziel: Mindestbesetzung — nur so viele, daß jedes Fahrzeug ausrücken kann.'
+                     : 'Ziel: alle Sitze.');
   const offen = new Map();                      // Schlüssel → Wachen, denen er fehlt
   let unerfasst = 0;
   for (const b of sel) {
     if (!quals.by[b.id]) { unerfasst++; continue; }
-    for (const key of Object.keys(courseNeed(b)))
-      if (kursPosten(b, key).fehlt > 0) offen.set(key, [...(offen.get(key) || []), b]);
+    for (const key of Object.keys(courseNeed(b, feld)))
+      if (kursPosten(b, key, feld).fehlt > 0) offen.set(key, [...(offen.get(key) || []), b]);
   }
   if (unerfasst) log(`${unerfasst} Wachen ohne erfaßten Ausbildungsstand übergangen — erst „Aktualisieren".`, 'warn');
   if (!offen.size) { log('Kein Lehrgang fehlt laut Plan — nichts zu starten.', 'good'); return 0; }
   /* Je Lehrgang ein Durchgang über alle Wachen, nicht je Wache alle Lehrgänge
      (Sasha, 16.10.): so teilt sich ein Kurs die Räume aller Wachen. Der
      Lehrgang mit den meisten Lücken zuerst — er braucht die meisten Plätze. */
-  const lueckeVon = ([key, wachen]) => wachen.reduce((s2, b) => s2 + kursPosten(b, key).fehlt, 0);
+  const lueckeVon = ([key, wachen]) => wachen.reduce((s2, b) => s2 + kursPosten(b, key, feld).fehlt, 0);
   let n = 0;
   for (const [key, wachen] of [...offen].sort((x, y) => lueckeVon(y) - lueckeVon(x))) {
     if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
     log(`── ${kursNamen(key)[0] || key}: ${wachen.length} Wachen ──`);
-    n += await lehrgangStarten(key, wachen, 0, freigabeSek(), S.opts.ksVerband !== false, dry);
+    n += await lehrgangStarten(key, wachen, 0, freigabeSek(), S.opts.ksVerband !== false, dry, feld);
   }
   return n;
 }
@@ -5289,7 +5302,15 @@ function laufOptionen(key, sel = []) {
       + haken('lssp-ausbschalt', S.opts.ausbautenSchalten, 'Ausbauten und Wache mitschalten',
           '<b>eine abgeschaltete Wache nimmt an keinem Einsatz mehr teil.</b> Darum von Haus aus aus.',
           S.opts.ausbautenSchalten ? 'var(--lp-akzent)' : 'var(--lp-dim)'),
-    ausbildung: kursUebersicht(sel)
+    ausbildung: `<div style="color:var(--lp-dim);font-size:12px;margin-bottom:4px">Ausbilden bis:</div>
+      <label style="display:block;margin-bottom:4px">
+        <input type="radio" name="lsspausbziel" value="min" ${ausbildenZiel() === 'min' ? 'checked' : ''}>
+        <b>Mindestbesetzung</b> <span style="color:var(--lp-dim2)">— nur so viele, daß jedes Fahrzeug
+        ausrücken kann. Das Richtige bei Personalmangel.</span></label>
+      <label style="display:block;margin-bottom:8px">
+        <input type="radio" name="lsspausbziel" value="max" ${ausbildenZiel() === 'max' ? 'checked' : ''}>
+        <b>Alle Sitze</b> <span style="color:var(--lp-dim2)">— jeder Platz auf jedem Fahrzeug ausgebildet</span></label>`
+      + kursUebersicht(sel, ausbildenZiel())
       + `<div class="row" style="margin:8px 0 6px">${freigabeWahl('lssp-afrei')}
           <span style="color:var(--lp-dim2);font-size:11px">kostenlos; freie Plätze stehen dann anderen offen</span></div>`
       + haken('lssp-averband', S.opts.ksVerband !== false, 'auch Schulen des Verbands',
@@ -5316,6 +5337,10 @@ function laufOptionenBinden(w) {
   merk('#lssp-averband', 'ksVerband');
   w.querySelectorAll('input[name=lsspmode]').forEach(r => r.onchange = e => {
     S.opts.strict = e.target.value === 'strict'; store.set(KEY_OPTS, S.opts);
+  });
+  w.querySelectorAll('input[name=lsspausbziel]').forEach(r => r.onchange = e => {
+    S.opts.ausbildenZiel = e.target.value; store.set(KEY_OPTS, S.opts);
+    render();                       // Übersicht und Zahl am Knopf rechnen gegen das neue Ziel
   });
   w.querySelectorAll('input[name=lsspwerben]').forEach(r => r.onchange = e => {
     S.opts.werbenModus = e.target.value; store.set(KEY_OPTS, S.opts);
@@ -5345,7 +5370,7 @@ const werbenSoll = () => Math.max(1, Math.min(9999, parseInt(S.opts.werbenSoll, 
 function aktionsKnoepfe(sel) {
   const akt = aktionen();
   const fs = sel.map(fortschritt);
-  const zaehle = k => { const z = BEREICH[k === 'ausbildung' ? 'lehrgang' : k]; return z(fs[0])[0]; };
+  const zaehle = k => k === 'ausbildung' ? (ausbildungsLuecke(sel[0], ausbildenZiel()) || 0) : BEREICH[k](fs[0])[0];
   if (gewaehlt === 'leeren' && sel.length !== 1) gewaehlt = null;
   if (WACHE_PLAN.has(gewaehlt) && !sel.some(hatWunschbild)) gewaehlt = null;
   const gruppen = AKTION_GRUPPEN.map(([titel, keys]) => {
@@ -5353,10 +5378,9 @@ function aktionsKnoepfe(sel) {
       const [label, , hilfe] = akt[k];
       if (k === 'ausbau' && !katalogDa())
         return `<button class="act" id="lssp-katalog" title="Ohne die Bauplatz-Nummern kann kein Ausbau bestellt werden. Ein Abruf, ändert nichts.">Ausbaukatalog lesen</button>`;
-      const z = BEREICH[k === 'ausbildung' ? 'lehrgang' : k];
+      const offenAn = (b, f) => k === 'ausbildung' ? (ausbildungsLuecke(b, ausbildenZiel()) ?? 1) > 0 : BEREICH[k](f)[0] > 0;
       // Unerfaßte Ausbildung ist nicht fertig, sondern unbekannt — sie zählt als offen
-      const n = !gezaehlt(k) ? null : sel.length === 1 ? zaehle(k)
-        : fs.filter(f => z(f)[0] || (k === 'ausbildung' && f.lehrgangUnklar)).length;
+      const n = !gezaehlt(k) ? null : sel.length === 1 ? zaehle(k) : sel.filter((b, i) => offenAn(b, fs[i])).length;
       // Ausbildungsstand nicht erfaßt: „?" statt einer grauen 0, die „nichts fehlt" behauptete
       const unklar = k === 'ausbildung' && sel.length === 1 && fs[0].lehrgangUnklar;
       const zahl = unklar ? '<span class="zahl" title="Ausbildungsstand nicht erfaßt">?</span>'
@@ -5389,13 +5413,13 @@ function aktionsKnoepfe(sel) {
 
 /** Vor „Personal ausbilden": was da ist und was fehlt, je Lehrgang über die
     gewählten Wachen — erst ansehen, dann starten (Sasha, 16.10.). */
-function kursUebersicht(sel) {
+function kursUebersicht(sel, feld = kursZiel()) {
   const summe = new Map();
   let unerfasst = 0;
   for (const b of sel) {
     if (!quals.by[b.id]) { unerfasst++; continue; }
-    for (const key of Object.keys(courseNeed(b))) {
-      const p = kursPosten(b, key);
+    for (const key of Object.keys(courseNeed(b, feld))) {
+      const p = kursPosten(b, key, feld);
       const z = summe.get(key) || { soll: 0, ist: 0, lauf: 0, fehlt: 0 };
       z.soll += p.soll; z.ist += p.ist; z.lauf += p.lauf; z.fehlt += p.fehlt;
       summe.set(key, z);
@@ -7303,7 +7327,7 @@ function gestartetVermerken(fahrt, zaehl, key, tage) {
     `jeWache` > 0: so viele je Wache. Sonst: was laut Plan noch fehlt
     (gegen den Umschalter Mindestbesatzung/alle Sitze). */
 /** `freigeben`: Sekunden aus FREIGABE_DAUERN, 0 = ohne Freigabe. */
-async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry) {
+async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry, feld = kursZiel()) {
   const name = kursNamen(key)[0] || key;
   const proWache = [];
   let i = 0;
@@ -7315,7 +7339,7 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry) {
     const hat = p => p.quals.includes(key) || (p.inAusbildung || []).includes(key);
     let anzahl = jeWache;
     if (!(anzahl > 0)) {
-      const ziel = courseNeed(b)[key] || 0;
+      const ziel = courseNeed(b, feld)[key] || 0;
       const da = roster.people.filter(hat).length;
       if (!ziel) { log(`${b.caption}: der Plan sieht hier kein ${name} vor — „je Wache" angeben, um trotzdem auszubilden`); continue; }
       anzahl = ziel - da;
