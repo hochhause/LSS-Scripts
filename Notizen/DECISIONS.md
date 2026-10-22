@@ -3232,3 +3232,24 @@ verschieden, der Ausschluss sichtbar und eigen.
 
 **Verworfen:** eine Einstellung für beides — Sasha will sie getrennt. Und: die
 unsichtbaren Zeichen auch für den Ausschluss — den tippt man von Hand.
+
+## D-118 Doppelausbildung je Person, nicht je Sitz (v0.71.1)
+
+**Lage (Sasha, 22.10.2026).** „Personal ausbilden" an SEG #2 schickte niemanden:
+45 Betreuungssitze, 46 Betreuer, 45 Verpflegungshelfer — je Lehrgang gezählt
+gedeckt, aber nur 16 Personen hatten beides. Die Zählung je Kursschlüssel
+(`courseNeed`/`kursPosten`) kann „dieselbe Person braucht beide" nicht ausdrücken.
+
+**Entscheidung (Sasha):** Wer an einer Wache mit Verpflegungs- oder
+Betreuungsfahrzeugen einen Lehrgang eines Paars aus `DOPPEL_ZIEL` hat, bekommt
+den anderen auch — der eine nützt nie ohne den anderen. Umgesetzt als zweiter
+Schritt in `ausbildungenStarten`: je Paarschlüssel `lehrgangStarten(..., wahl =
+doppelErgaenzung)`; `doppelErgaenzung` nimmt jeden mit dem Partnerlehrgang, der
+den Schlüssel nicht hat, nicht in einer Schule ist und nicht auf einem grünen
+Fahrzeug sitzt — Zugewiesene kommen mit (`vomFahrzeug`, Status 6 über
+`nachAbzugAbmelden`). Nur bei „Ausbilden bis: alle Sitze"; bei
+„Mindestbesetzung" geht es ums Ausrücken, nicht um den zweiten Kurs.
+
+**Messung SEG #2 (22.10.):** 4 freie Verpflegungshelfer würden sofort in die
+Betreuung gehen; 42 weitere sitzen auf grünen Bt-Fahrzeugen. Die werden mit
+v0.70.1 beim nächsten „Namen abgleichen" gelb (D-116) und sind danach dran.

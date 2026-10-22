@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.71.0
+// @version      0.71.1
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.71.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.71.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2553,6 +2553,40 @@ const DOPPEL_ZIEL = {
   131: ['care_service', 'care_service_equipment'],        // Bt-Kombi
   133: ['care_service', 'care_service_equipment']         // Bt LKW
 };
+/* Doppelausbildung je Person (Sasha, 22.10., D-118): wer an einer Wache mit
+   solchen Fahrzeugen einen Lehrgang eines Paars hat, bekommt den anderen auch —
+   „der eine ist nie gebraucht, wo der andere nicht auch nützt". Gezählt wird
+   nach Köpfen, nicht nach Sitzen: SEG #2 hatte 46 Betreuer und 45
+   Verpflegungshelfer bei 45 Sitzen, aber nur 16 mit beidem — je Lehrgang
+   gezählt sah das gedeckt aus. */
+function partnerFuer(b, key) {
+  const partner = new Set();
+  for (const id of Object.keys(T.soll(b).vehicles || {})) {
+    const paar = DOPPEL_ZIEL[id] || [];
+    if (paar.includes(key)) paar.forEach(k => k !== key && partner.add(k));
+  }
+  return partner;
+}
+/** Wer an Wache `b` den Partnerlehrgang hat und `key` noch nicht. Zugewiesene
+    kommen mit (ihr Fahrzeug fällt dann ggf. auf Status 6), grüne Fahrzeuge
+    geben niemanden her — wie überall ohne „Grüne freigeben". */
+function doppelErgaenzung(b, key, leute) {
+  const partner = partnerFuer(b, key);
+  if (!partner.size) return [];
+  const fz = new Map(echteVon(b).map(v => [String(v.id), v]));
+  return leute.filter(p => {
+    if ((p.inAusbildung || []).length || p.verfuegbar === false) return false;
+    const q = p.quals || [];
+    if (q.includes(key) || !q.some(k => partner.has(k))) return false;
+    if (p.assignedTo) {
+      const v = fz.get(String(p.assignedTo));
+      if (v && geschuetzt(v)) return false;
+      p.vomFahrzeug = String(p.assignedTo);
+    }
+    return true;
+  });
+}
+
 /** Lehrgänge, die ein Fahrzeugtyp im Plan auf jedem Sitz braucht: Katalog plus Doppelziel. */
 const planKurse = (id, meta) => [...new Set([...(meta?.kurse || []).map(k => k.k), ...(DOPPEL_ZIEL[id] || [])])];
 
@@ -5368,7 +5402,7 @@ async function ausbildungenStarten(sel, dry) {
       if (kursPosten(b, key, feld).fehlt > 0) offen.set(key, [...(offen.get(key) || []), b]);
   }
   if (unerfasst) log(`${unerfasst} Wachen ohne erfaßten Ausbildungsstand übergangen — erst „Aktualisieren".`, 'warn');
-  if (!offen.size) { log('Kein Lehrgang fehlt laut Plan — nichts zu starten.', 'good'); return 0; }
+  if (!offen.size) log('Kein Lehrgang fehlt laut Plan.', 'good');
   /* Je Lehrgang ein Durchgang über alle Wachen, nicht je Wache alle Lehrgänge
      (Sasha, 16.10.): so teilt sich ein Kurs die Räume aller Wachen. Der
      Lehrgang mit den meisten Lücken zuerst — er braucht die meisten Plätze. */
@@ -5378,6 +5412,17 @@ async function ausbildungenStarten(sel, dry) {
     if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
     log(`── ${kursNamen(key)[0] || key}: ${wachen.length} Wachen ──`);
     n += await lehrgangStarten(key, wachen, 0, freigabeSek(), S.opts.ksVerband !== false, dry, feld);
+  }
+  /* Danach die Doppelausbildung je Person (D-118) — nicht bei „Mindestbesetzung":
+     dort geht es um Ausrücken bei Personalmangel, nicht um den zweiten Kurs. */
+  if (feld === 'max') {
+    for (const key of [...new Set(Object.values(DOPPEL_ZIEL).flat())]) {
+      if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
+      const wachen = sel.filter(b => quals.by[b.id] && partnerFuer(b, key).size);
+      if (!wachen.length) continue;
+      log(`── Doppelausbildung ${kursNamen(key)[0] || key}: alle mit dem Partnerlehrgang ──`);
+      n += await lehrgangStarten(key, wachen, 0, freigabeSek(), S.opts.ksVerband !== false, dry, feld, doppelErgaenzung);
+    }
   }
   return n;
 }
@@ -7529,7 +7574,9 @@ function gestartetVermerken(fahrt, zaehl, key, tage) {
     `jeWache` > 0: so viele je Wache. Sonst: was laut Plan noch fehlt
     (gegen den Umschalter Mindestbesatzung/alle Sitze). */
 /** `freigeben`: Sekunden aus FREIGABE_DAUERN, 0 = ohne Freigabe. */
-async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry, feld = kursZiel()) {
+/** `wahl`: eigene Auswahl `(b, leute) => Personen` statt Bedarf und Kandidatenregel —
+    für die Doppelausbildung (D-118). */
+async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry, feld = kursZiel(), wahl = null) {
   const name = kursNamen(key)[0] || key;
   const proWache = [];
   let i = 0;
@@ -7538,6 +7585,11 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry, fe
     if (abgebrochen()) { log('Abgebrochen.', 'warn'); return 0; }
     const roster = await rosterFuerLauf(b);
     if (!roster) { log(`${b.caption}: keine Fahrzeuge — ohne Zuweisungsseite ist niemand prüfbar`, 'warn'); continue; }
+    if (wahl) {
+      const leute = wahl(b, key, roster.people);
+      if (leute.length) { proWache.push({ b, leute }); log(`${b.caption}: ${leute.length} mit dem Partnerlehrgang`); }
+      continue;
+    }
     const hat = p => p.quals.includes(key) || (p.inAusbildung || []).includes(key);
     let anzahl = jeWache;
     if (!(anzahl > 0)) {
@@ -7553,7 +7605,7 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry, fe
     if (leute.length) proWache.push({ b, leute });
   }
   const gesamt = proWache.reduce((s2, w) => s2 + w.leute.length, 0);
-  if (!gesamt) { log(`Für ${name} ist an den gewählten Wachen niemand zu schicken.`, 'warn'); return 0; }
+  if (!gesamt) { log(`Für ${name} ist an den gewählten Wachen niemand zu schicken.`, wahl ? '' : 'warn'); return 0; }
 
   const offen = () => proWache.reduce((s2, w) => s2 + w.leute.length, 0);
   const startFelder = (sc, raeume, mitFilter) => [

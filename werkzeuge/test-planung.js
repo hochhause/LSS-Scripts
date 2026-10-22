@@ -69,14 +69,14 @@ const echteVon = b => mineOf(b).filter(v => !istPlatzhalter(v));
 `;
 
 const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
-           bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze, zeichenSatz,
+           bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze, zeichenSatz, doppelErgaenzung,
            courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
            verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
            anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN: PB,
            MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
            nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
-        bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze, zeichenSatz,
+        bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze, zeichenSatz, doppelErgaenzung,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
         verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
         anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN,
@@ -1675,6 +1675,31 @@ console.log('\n42. Statuszeichen einstellbar, Erkennung umfasst alles (D-117)');
     nameAus('{punkt} {old}', markenFuer(MARKEN_FZ), { punkt: '​', alt: 'HLF 1' }), '​HLF 1');
   pruefe('sichtbares Zeichen behält den Leerschritt',
     nameAus('{punkt} {old}', markenFuer(MARKEN_FZ), { punkt: '🟢', alt: 'HLF 1' }), '🟢 HLF 1');
+}
+
+console.log('\n43. Doppelausbildung je Person (D-118)');
+{
+  /* Wer an einer Wache mit Bt-Fahrzeugen Betreuung oder Verpflegungshelfer hat,
+     bekommt den anderen auch — gezählt nach Köpfen, nicht nach Sitzen. */
+  const kombi = fz(131), gruen = fz(131, { caption: HAKEN + ' Bt-Kombi' }), ktw = fz(58);
+  const b = wache([kombi, gruen, ktw]);
+  const leute = [
+    lp(1, ['care_service']),                          // frei, nur Betreuung → ja
+    lp(2, ['care_service_equipment']),                // hat schon Verpflegungshelfer → nein
+    lp(3, ['care_service', 'care_service_equipment']),// beides → nein
+    lp(4),                                            // ungelernt → nein, das ist kein Doppel
+    lp(5, ['care_service'], gruen.id),                // auf grünem Fahrzeug → bleibt
+    lp(6, ['care_service'], ktw.id),                  // auf dem KTW → darf mit
+    lp(7, ['care_service'], null, ['notarzt']),       // gerade in einer Schule → nein
+    lp(8, ['care_service', 'notarzt'])                // mit weiterem Lehrgang → ja
+  ];
+  const r = doppelErgaenzung(b, 'care_service_equipment', leute);
+  pruefe('Verpflegungshelfer: alle mit Betreuung, die ihn nicht haben', r.map(p => p.id), ['1', '6', '8']);
+  pruefe('wer vom Fahrzeug kommt, trägt es (Status 6 möglich)', r.find(p => p.id === '6').vomFahrzeug, String(ktw.id));
+  pruefe('und umgekehrt: Betreuung für den reinen Verpflegungshelfer',
+    doppelErgaenzung(b, 'care_service', leute).map(p => p.id), ['2']);
+  pruefe('Wache ohne solche Fahrzeuge: niemand',
+    doppelErgaenzung(wache([fz(30)]), 'care_service_equipment', [lp(9, ['care_service'])]).length, 0);
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');
