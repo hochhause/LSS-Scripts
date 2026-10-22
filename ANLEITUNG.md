@@ -197,6 +197,7 @@ Die alte Übersicht mit allen Zahlen, dazu:
 - **„Personal-Puffer“:** wie viel Prozent Personal über dem Bedarf beim Werben eingeplant wird (Voreinstellung 15 %).
 - **„Bestand neu laden“:** wie **↻** oben. Ist der Stand älter als einen Tag, lädt der Planer ihn selbst neu.
 - **„Auf Wachenseiten einblenden“:** zeigt auf jeder Wachenseite im Spiel einen kleinen Kasten, was dort laut Plan fehlt.
+- **„Umrüst-Vorlagen lesen“:** liest für jeden Fahrzeugtyp deine Umrüst-Vorlage „Optimum“. Hat sie eine eigene Sitzzahl, rechnet der Planer ab dann überall damit: Wunschbild, Personal und Lehrgänge. Beim Umrüsten liest er sie ohnehin mit. Ändert nichts im Spiel.
 - **„Wieder fragen“:** Hast du bei Rückfragen „Diese Frage nicht mehr anzeigen“ gewählt, schaltest du sie hier alle wieder ein.
 
 ### 6.2 Wunschbild

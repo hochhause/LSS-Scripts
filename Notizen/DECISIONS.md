@@ -3157,3 +3157,26 @@ Anzeigeschalter unter Extras → Ausbildung — eine Handlung hängt nicht an ei
 Anzeige (siehe `kursZiel`). `lehrgangStarten`, `kursPosten`, `kursUebersicht`
 nehmen das Ziel jetzt ausdrücklich. Von Haus aus „alle Sitze", wie bisher —
 decided by Claude, damit sich am Verhalten bestehender Installationen nichts ändert.
+
+## D-115 Umrüst-Vorlage „Optimum" ist die Sitzzahl im Wunschbild (v0.70.0)
+
+**Lage (Sasha, 22.10.2026).** Die Feuerwachen sind auf „Optimum" umgerüstet:
+GTLF 10000 W, TLF 5000 W und GW-Waldbrand haben 9 statt 3 Sitze. Seit D-111
+besetzt der Personallauf mit der echten Sitzzahl — Lehrgänge und Personal-Soll
+rechneten aber weiter mit den Katalogsitzen des Wunschbilds. Ergebnis: 12
+Waldbrand-Plätze geplant, 36 Sitze vorhanden; ein umgerüstetes Fahrzeug konnte
+nie grün werden.
+
+**Entscheidung (Sasha):** Hat ein Fahrzeugtyp eine gespeicherte Vorlage
+„Optimum" mit Sitzregler, ist deren Sitzzahl die Wahrheit für diesen Typ — auch
+für Fahrzeuge, die noch nicht umgerüstet sind, denn dorthin wird umgerüstet.
+`T.vehPlan(typ)` liefert den Katalog mit dieser Sitzzahl; `courseNeedIntern`,
+`bedarfDerWache`, `doppelKombis` (Soll-Teil), `bestandGegenSoll` und die
+Wunschbild-Anzeige rechnen damit. Die Mindestbesetzung bleibt beim Katalog.
+Die Vorlagen merkt `optimumFuer` je Typ (`lssplaner.optimum`, null = keine);
+gefüllt beim Umrüsten oder über „Umrüst-Vorlagen lesen" unter Extras →
+Einstellungen (ein Fahrzeug je Typ, rein lesend).
+
+**Verworfen:** die Sitzzahl jedes einzelnen Fahrzeugs (`custom_personal_max`)
+als Quelle fürs Wunschbild — geplante, noch nicht gekaufte Fahrzeuge haben keine,
+und ein halb umgerüsteter Bestand gäbe je Wache eine andere Zahl.

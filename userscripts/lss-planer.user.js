@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.69.5
+// @version      0.70.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.69.5';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.70.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -40,6 +40,7 @@ const KEY_ZUORD   = 'lssplaner.zuordnung';   // Wache → Profil
 const KEY_KAUFBAR = 'lssplaner.kaufbar';     // Gebäudetyp → kaufbare Fahrzeugtypen
 const KEY_SCHULE  = 'lssplaner.schulkurse';  // Schultyp → angebotene Lehrgänge
 const KEY_EXTCAT  = 'lssplaner.ausbaukatalog'; // Gebäudetyp → Bauplatz-Nummer → Name
+const KEY_OPTIMUM = 'lssplaner.optimum';     // Fahrzeugtyp → Umrüst-Vorlage „Optimum" oder null (D-115)
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let chain = Promise.resolve();
@@ -808,8 +809,21 @@ const T = {
     return p ? T.profiles(b.building_type)[p] : null;
   },
   /** Wogegen Personal und Ausbildung rechnen: das Wunschbild, sonst das Ist. */
-  soll(b) { return this.target(b) || istZiel(b); }
+  soll(b) { return this.target(b) || istZiel(b); },
+  /** Katalog für die Rechnung gegen das Wunschbild: hat der Typ eine
+      gespeicherte Vorlage „Optimum", gilt deren Sitzzahl (Sasha, 22.10.) —
+      dorthin wird umgerüstet, also wird darauf geplant. Typen ohne Vorlage
+      oder ohne Sitzregler behalten den Katalog. */
+  vehPlan(id) {
+    const kat = this.veh(id);
+    const sitze = optimumVorlagen[id]?.werte?.[0];
+    if (!kat?.max || !(sitze > 0)) return kat;
+    return { ...kat, max: sitze, min: Math.min(kat.min ?? 0, sitze) };
+  }
 };
+/* Gelesen beim Umrüsten oder über „Umrüst-Vorlagen lesen"; null heißt: der
+   Typ hat keine Vorlage „Optimum". Fehlt ein Typ ganz, ist es ungelesen. */
+const optimumVorlagen = store.get(KEY_OPTIMUM, {});
 
 /* ═══════════════════════════════════════════════════════════════════
    Daten laden
@@ -1925,7 +1939,7 @@ function bestandGegenSoll(have, sollFahrzeuge) {
   for (const [id, n] of Object.entries(soll)) {
     const d = (Number(n) || 0) - (have[id] || 0);
     if (d > 0) fehlt.push({ id, n: d, name: T.vehName(id) });
-    sitze += (T.veh(id)?.max || 0) * (Number(n) || 0);
+    sitze += (T.vehPlan(id)?.max || 0) * (Number(n) || 0);
   }
   for (const [id, n] of Object.entries(have)) {
     const s = Number(soll[id]) || 0;
@@ -2815,15 +2829,40 @@ async function optimumFuer(v) {
   const doc = new DOMParser().parseFromString(await getText(`/vehicles/${v.id}/refit`), 'text/html');
   const opt = [...doc.querySelectorAll('select[name="vehicle_fitting_template[id]"] option')]
     .find(o => o.value && o.textContent.trim() === 'Optimum');
-  if (!opt) return null;
+  if (!opt) { vorlageMerken(v.vehicle_type, null); return null; }
   const w = JSON.parse(await getText(`/vehicle_fitting_templates/${opt.value}/fitting_values`));
   if (!w?.success) throw new Error(`Vorlage „Optimum" (${opt.value}) nicht lesbar`);
   /* `null` heißt: der Typ hat dafür keinen Regler (SLF und ULF kennen weder
      Sitze noch Pumpe). Bis v0.68.1 wurde daraus 0 — der Vergleich mit der API
      schlug fehl, gelungene Umbauten galten als abgelehnt, ihr Preis fiel aus
      der Rechnung, und ein späterer Lauf hätte sie erneut bezahlt. */
-  return { id: opt.value, werte: [w.cabin_size, w.water_tank_capacity, w.pump_capacity, w.foam_capacity]
+  const vorlage = { id: opt.value, werte: [w.cabin_size, w.water_tank_capacity, w.pump_capacity, w.foam_capacity]
     .map(x => x == null ? null : Number(x)) };
+  vorlageMerken(v.vehicle_type, vorlage);
+  return vorlage;
+}
+/** Merkt die Vorlage je Typ und verwirft das Gerechnete, wenn sich die Sitzzahl ändert. */
+function vorlageMerken(typ, vorlage) {
+  const alt = optimumVorlagen[typ]?.werte?.[0] ?? null;
+  optimumVorlagen[typ] = vorlage;
+  store.set(KEY_OPTIMUM, optimumVorlagen);
+  if ((vorlage?.werte?.[0] ?? null) !== alt) standNeu();
+}
+
+/** Liest die Vorlage „Optimum" je Fahrzeugtyp im Bestand — ein Fahrzeug je Typ
+    genügt, Vorlagen gelten je Typ. Rein lesend. */
+async function vorlagenLesen() {
+  const jeTyp = new Map();
+  for (const v of S.vehicles) if (!istPlatzhalter(v) && !jeTyp.has(v.vehicle_type)) jeTyp.set(v.vehicle_type, v);
+  let i = 0, mit = [];
+  for (const [typ, v] of jeTyp) {
+    if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
+    schritt(i++, jeTyp.size, T.vehName(typ));
+    const vl = await optimumFuer(v);
+    if (vl?.werte?.[0] > 0) mit.push(`${T.vehName(typ)} ${vl.werte[0]} Sitze`);
+  }
+  log(`${jeTyp.size} Fahrzeugtypen gelesen, ${mit.length} mit Vorlage „Optimum" und eigener Sitzzahl`
+    + (mit.length ? `: ${mit.join(', ')}` : '.'), 'good');
 }
 const aufOptimum = (werte, ist) => werte.every((w, i) => w == null || Number(ist?.[i]) === w);
 
@@ -3478,7 +3517,7 @@ function doppelKombis(b) {
   // Was geplant ist: Typen, die von sich aus zwei Lehrgänge auf jeden Sitz legen
   const tgt = T.soll(b);
   for (const [id, n] of Object.entries(tgt?.vehicles || {})) {
-    const meta = T.veh(id);
+    const meta = T.vehPlan(id);
     const alle = (meta?.kurse || []).filter(k => k.art === 'alle').map(k => k.k);
     if (alle.length > 1) buche(soll, alle, sitzeFuerKurs(meta, 'max') * (Number(n) || 0));
   }
@@ -3850,7 +3889,7 @@ function courseNeed(b, feld = kursZiel()) {
 function courseNeedIntern(b, feld) {
   const tgt = T.soll(b), out = {};
   for (const [id, n] of Object.entries(tgt.vehicles || {})) {
-    const meta = T.veh(id); if (!meta?.kurse?.length) continue;
+    const meta = T.vehPlan(id); if (!meta?.kurse?.length) continue;
     const seats = sitzeFuerKurs(meta, feld) * (Number(n) || 0);
     if (!seats) continue;
     for (const k of meta.kurse)
@@ -4644,6 +4683,7 @@ function render() {
         <span style="color:var(--lp-dim2);font-size:12px">Bestand ${esc(since(S.stamp))}${
           S.aenderungen ? ` · ${S.aenderungen} lokale Änderungen` : ''}</span>
         <button class="act" id="lssp-reload">Bestand neu laden</button>
+        <button class="act" id="lssp-vorlagen" title="Liest je Fahrzeugtyp die Umrüst-Vorlage „Optimum". Deren Sitzzahl gilt danach für Wunschbild, Personal und Lehrgänge. Ändert nichts im Spiel.">Umrüst-Vorlagen lesen</button>
       </div>
       <p class="hint" style="margin-bottom:8px">
         <b>Die Punkte im Namen</b> setzt der Planer selbst — an <b>Fahrzeugen</b>:
@@ -4682,6 +4722,12 @@ function render() {
     S.opts.buffer = Number(e.target.value) || 0; store.set(KEY_OPTS, S.opts); standNeu(); render();
   };
     b.querySelector('#lssp-reload').onclick = () => bestandAuffrischen();
+    b.querySelector('#lssp-vorlagen').onclick = async ev => {
+      if (S.busy) return log('Es läuft gerade etwas — erst danach.', 'warn');
+      S.busy = true; ev.target.disabled = true; laufStarten();
+      try { await vorlagenLesen(); } catch (e) { log('Vorlagen nicht gelesen: ' + e.message, 'err'); }
+      S.busy = false; fortAus(); render();
+    };
     b.querySelector('#lssp-inline')?.addEventListener('change', e => {
       ui.inline = e.target.checked; saveUi();
       if (ui.inline) wachenSeite(); else document.querySelector('#lssp-wache')?.remove();
@@ -5752,7 +5798,8 @@ function zeigePlan(b, festTyp = null) {
     .map(([id, n]) => `<label>
       <span>${esc(T.vehName(id))}</span>
       <span style="color:var(--lp-dim2);font-size:11px">${
-        T.veh(id) ? `${T.veh(id).min}–${T.veh(id).max} Personen` : 'unbekannter Typ'}</span>
+        T.veh(id) ? `${T.vehPlan(id).min}–${T.vehPlan(id).max} Personen${
+          T.vehPlan(id).max !== T.veh(id).max ? ' (Optimum)' : ''}` : 'unbekannter Typ'}</span>
       <span style="margin-left:auto;display:flex;gap:4px;align-items:center">
         <button class="act pminus" data-id="${id}" title="weniger">−</button>
         <b style="min-width:22px;text-align:center">${n}</b>
@@ -5780,7 +5827,7 @@ function zeigePlan(b, festTyp = null) {
       </span></label>`).join('');
 
   const sitze = Object.entries(prof?.vehicles || {})
-    .reduce((a, [id, n]) => a + (T.veh(id)?.max || 0) * n, 0);
+    .reduce((a, [id, n]) => a + (T.vehPlan(id)?.max || 0) * n, 0);
   const fzAnzahl = Object.values(prof?.vehicles || {}).reduce((a, n) => a + n, 0);
 
   b.innerHTML = `<p class="hint">Hier steht, wie eine Wache ${festTyp ? 'dieser Art ' : ''}aussehen soll.
@@ -7055,7 +7102,7 @@ function bedarfDerWache(b, key) {
   const tgt = T.soll(b);
   let min = 0, max = 0;
   for (const [id, n] of Object.entries(tgt?.vehicles || {})) {
-    const meta = T.veh(id);
+    const meta = T.vehPlan(id);
     if (!meta?.kurse?.some(k => k.k === key)) continue;
     if (!anhaengerZaehlt(meta, key, tgt)) continue;
     const anz = Number(n) || 0;

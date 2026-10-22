@@ -54,8 +54,11 @@ const T = {
     const p = this.profileOf(b);
     return p ? S.plan.model.types[b.building_type].profiles[p] : null;
   },
-  soll(b) { return this.target(b) || istZiel(b); }
+  soll(b) { return this.target(b) || istZiel(b); },
+  // Vorlage „Optimum" im Test über vorlagenSitze[typ]
+  vehPlan(id) { const k = vehMeta(id), s = vorlagenSitze[id]; return k?.max && s > 0 ? { ...k, max: s, min: Math.min(k.min ?? 0, s) } : k; }
 };
+const vorlagenSitze = {};
 const kursNamen = k => [k];
 const stand0 = 0;
 const memoK = new Map();
@@ -65,14 +68,14 @@ const echteVon = b => mineOf(b).filter(v => !istPlatzhalter(v));
 `;
 
 const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
-           bedarfKeys, doppelKombis, zaehleAus, quals, S,
+           bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze,
            courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
            verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
            anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN: PB,
            MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
            nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
-        bedarfKeys, doppelKombis, zaehleAus, quals, S,
+        bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
         verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
         anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN,
@@ -1591,6 +1594,24 @@ const lp = (id, quals = [], assignedTo = null, inAusbildung = [], verfuegbar = t
          lehrgangsKandidaten(b, 'care_service_equipment', [p(1, ['care_service'])]).liste.length, 1);
   pruefe('aber nicht in einen fremden Lehrgang',
          lehrgangsKandidaten(b, 'wildfire', [p(1, ['care_service'])]).liste.length, 0);
+}
+
+console.log('\n40. Umrüst-Vorlage „Optimum" gilt als Sitzzahl im Wunschbild (D-115)');
+{
+  /* Sasha, 22.10.: GW-Waldbrand im Katalog 3 Sitze, umgerüstet 9. Mit gespeicherter
+     Vorlage plant der Planer Lehrgänge und Personal auf 9, nicht auf 3. */
+  const b = ziel(41, 0, { 190: 2, 189: 1 });   // 2 GW-Waldbrand, 1 GTLF 10000 W
+  S.byBuilding = new Map([[41, []]]);
+  memoK.clear();
+  pruefe('ohne Vorlage: Katalogsitze (2×3 + 3)', courseNeed(b, 'max').wildfire, 9);
+  vorlagenSitze[190] = 9; memoK.clear();
+  pruefe('mit Vorlage GW-Waldbrand 9: 2×9 + 3', courseNeed(b, 'max').wildfire, 21);
+  pruefe('Mindestbesetzung bleibt beim Katalog-Minimum', courseNeed(b, 'min').wildfire, 3);
+  pruefe('Personal-Soll rechnet mit der Vorlage', bestandGegenSoll({}, { 190: 2 }).sitze, 18);
+  pruefe('bedarfDerWache sieht dieselbe Zahl', bedarfDerWache(b, 'wildfire').max, 21);
+  vorlagenSitze[190] = null; memoK.clear();
+  pruefe('Vorlage ohne Sitzregler (null) ändert nichts', courseNeed(b, 'max').wildfire, 9);
+  delete vorlagenSitze[190]; memoK.clear();
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');
