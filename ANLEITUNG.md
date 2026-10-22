@@ -48,7 +48,7 @@ Der Planer vergleicht, wie deine Wachen **aussehen sollen**, mit dem, was **wirk
 
 **Fortschrittsbalken:** Während eines Laufs steht oben, wie weit er ist und wie lange es ungefähr noch dauert.
 
-**Protokoll:** Ganz unten steht immer, was der Planer getan hat oder tun würde, und warum. Mit den Knöpfen darüber zeigst du nur Informationen, nur Warnungen oder nur Fehler an. **„leeren“** löscht das Protokoll. Die Höhe ziehst du am Griff unten rechts; sie bleibt gemerkt.
+**Protokoll:** Ganz unten steht immer, was der Planer getan hat oder tun würde, und warum. Mit den Knöpfen darüber zeigst du nur Informationen, nur Warnungen oder nur Fehler an. **„leeren“** löscht das Protokoll. Die Höhe stellst du an der Leiste über dem Protokoll ein: nach oben ziehen macht es höher. Sie bleibt gemerkt; Doppelklick auf die Leiste stellt sie zurück.
 
 **Beim Wechsel des Reiters** wird die Auswahl geleert, „Nur Vorschau“ wieder angehakt und „Grüne freigeben“ abgehakt. So passiert nichts aus Versehen.
 

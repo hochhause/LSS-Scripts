@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.69.4
+// @version      0.69.5
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.69.4';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.69.5';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -4012,7 +4012,7 @@ html.lssp-hell #lssp nav button.on{color:#333}
 #lssp pre.nurwarn span:not(.warn):not(.err){display:none}
 #lssp pre.nurerr span:not(.err){display:none}
 #lssp pre.nurinfo span.warn,#lssp pre.nurinfo span.err{display:none}
-#lssp .body{padding:12px 14px;overflow-y:auto;flex:1}
+#lssp .body{padding:12px 14px;overflow-y:auto;flex:1;min-height:0}
 #lssp .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 /* Die Aktionsleiste klebt am unteren Rand: bei 102 Wachen war der
    Ausführen-Knopf sonst außer Sicht, sobald man in der Liste blätterte. */
@@ -4077,7 +4077,12 @@ html.lssp-hell #lssp nav button.on{color:#333}
 #lssp .fuss{border-top:1px solid var(--lp-rand);padding:0 14px 10px}
 #lssp .fuss .logkopf{margin:6px 0 -4px}
 /* Die Höhe zieht man am Griff unten rechts; sie bleibt gemerkt. */
-#lssp .fuss pre{height:130px;min-height:40px;max-height:70vh;overflow-y:auto;margin-top:8px;resize:vertical}
+/* Höhe über die Leiste oben am Protokoll: der Griff in der Ecke von
+   resize:vertical war kaum zu finden und zog nach unten, aus dem Fenster heraus. */
+#lssp .fuss pre{height:130px;min-height:40px;overflow-y:auto;margin-top:8px;box-sizing:border-box}
+#lssp .logziehen{height:8px;margin:0 -14px;cursor:ns-resize;touch-action:none;
+ background:linear-gradient(var(--lp-rand),var(--lp-rand)) center/40px 2px no-repeat}
+#lssp .logziehen:hover{background-color:var(--lp-hover)}
 @media (max-width:820px){#lssp .gitter{grid-template-columns:1fr}#lssp .body.raster{overflow-y:auto}}
 `;
 
@@ -6119,16 +6124,29 @@ function mount() {
     <nav></nav><div class="unter"></div>
     <div id="lssp-fort" style="display:none"><div class="balken"></div><span class="wort"></span></div>
     <div class="body"></div>
-    <div class="fuss"><div class="logkopf-ort"></div><pre id="lssp-log"></pre></div>`;
+    <div class="fuss"><div class="logziehen" title="Ziehen: Protokoll höher oder flacher · Doppelklick: zurück"></div>
+      <div class="logkopf-ort"></div><pre id="lssp-log"></pre></div>`;
   document.body.append(btn, el);
   const logFeld = el.querySelector('#lssp-log');
   if (ui.logHoehe) logFeld.style.height = ui.logHoehe + 'px';
-  /* Gemerkt wird nur, was man selbst gezogen hat — beim Schließen meldet der
-     Beobachter 0, das darf die gespeicherte Höhe nicht überschreiben. */
-  new ResizeObserver(() => {
-    const h = Math.round(logFeld.offsetHeight);
-    if (h > 0 && h !== ui.logHoehe) { ui.logHoehe = h; saveUi(); }
-  }).observe(logFeld);
+  /* Nach oben ziehen macht das Protokoll höher. Höchstens bis 100 px unter den
+     Fensterkopf, damit Reiter und Liste nie ganz verschwinden. */
+  const leiste = el.querySelector('.logziehen');
+  leiste.addEventListener('pointerdown', ev => {
+    ev.preventDefault();
+    leiste.setPointerCapture(ev.pointerId);
+    const y0 = ev.clientY, h0 = logFeld.offsetHeight;
+    const grenze = () => Math.max(40, el.clientHeight - 200);
+    const ziehen = e => { logFeld.style.height = Math.min(grenze(), Math.max(40, h0 - (e.clientY - y0))) + 'px'; };
+    const los = () => {
+      leiste.removeEventListener('pointermove', ziehen);
+      leiste.removeEventListener('pointerup', los);
+      ui.logHoehe = logFeld.offsetHeight; saveUi();
+    };
+    leiste.addEventListener('pointermove', ziehen);
+    leiste.addEventListener('pointerup', los);
+  });
+  leiste.addEventListener('dblclick', () => { logFeld.style.height = ''; delete ui.logHoehe; saveUi(); });
   // Erst wenn der Bestand steht, hat die Wachenseite etwas zu zeigen
   if (S.loaded) wachenSeite();
   /* Beim ersten Öffnen nach jedem Seitenaufruf frisch lesen (Sasha, 16.10.) —
