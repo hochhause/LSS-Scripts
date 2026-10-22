@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Farben — Punkte als Farbe, Status 6 rot
 // @namespace    https://leitstellenspiel.de/
-// @version      0.2.0
+// @version      0.3.0
 // @description  Färbt Fahrzeuge und Wachen nach ihrem Punkt — grün, gelb, rot — und blendet den Punkt aus; Status 6 wird rot
 // @match        https://www.leitstellenspiel.de/*
 // @grant        none
@@ -27,9 +27,27 @@
 
 /* Seit Planer v0.65.2 gibt es drei Punkte statt eines. Ausgeblendet und
    gefärbt werden alle drei; der Ausschlußpunkt ⚫ bleibt stehen — er ist von
-   Hand gesetzt und soll gerade auffallen. */
-const PUNKTE  = { '\u{1F7E2}': 'fertig', '\u{1F7E1}': 'teil', '\u{1F534}': 'leer' };
-const PUNKT_RE = new RegExp(`[${Object.keys(PUNKTE).join('')}]\\s*`, 'gu');
+   Hand gesetzt und soll gerade auffallen.
+
+   Seit Planer v0.71.0 sind die Zeichen einstellbar (`lssplaner.zeichen`):
+   eigene Zeichen oder unsichtbare. Erkannt werden immer die Standard-Emojis,
+   die unsichtbaren Zeichen **und** die eigene Einstellung (Sasha, 22.10.). */
+const KEY_ZEICHEN = 'lssplaner.zeichen';
+const STANDARD = [['\u{1F7E2}', 'fertig'], ['\u{1F7E1}', 'teil'], ['\u{1F534}', 'leer'],
+                  ['​', 'fertig'], ['‌', 'teil'], ['⁠', 'leer'], ['⁣', 'fertig']];
+let PUNKTE = [], PUNKT_RE = /$^/;
+function zeichenLaden() {
+  let cfg = {};
+  try { cfg = JSON.parse(localStorage.getItem(KEY_ZEICHEN) || '{}') || {}; } catch { cfg = {}; }
+  const karte = new Map(STANDARD);
+  for (const [z, art] of [[cfg.fz?.voll, 'fertig'], [cfg.fz?.teil, 'teil'], [cfg.fz?.leer, 'leer'], [cfg.wache?.voll, 'fertig']])
+    if (z && !karte.has(z)) karte.set(z, art);
+  // Längere zuerst, damit „[+]" nicht als „+" gelesen wird
+  PUNKTE = [...karte].sort((a, b) => b[0].length - a[0].length);
+  const muster = PUNKTE.map(([z]) => z.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  PUNKT_RE = new RegExp(`(?:${muster})\\s*`, 'gu');
+}
+zeichenLaden();
 const KEY     = 'lssplaner.data';
 const ALTER   = 6 * 60 * 60 * 1000;      // Bestand älter als 6 h: Status ignorieren
 
@@ -83,7 +101,7 @@ const UEBERGANGEN = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT']);
 function punkteFaerben(wurzel) {
   const lauf = document.createTreeWalker(wurzel, NodeFilter.SHOW_TEXT, {
     acceptNode(n) {
-      if (!Object.keys(PUNKTE).some(p => n.nodeValue.includes(p))) return NodeFilter.FILTER_REJECT;
+      if (!PUNKTE.some(([p]) => n.nodeValue.includes(p))) return NodeFilter.FILTER_REJECT;
       const el = n.parentElement;
       if (!el || UEBERGANGEN.has(el.tagName) || el.isContentEditable) return NodeFilter.FILTER_REJECT;
       // Das Planer-Fenster zeigt die Namen absichtlich mit Punkt
@@ -97,12 +115,16 @@ function punkteFaerben(wurzel) {
     /* Der erste Punkt im Text bestimmt die Farbe. Ein Fahrzeugname trägt den
        Wachennamen in sich und damit manchmal zwei — vorne steht der eigene,
        und um den geht es. */
-    const erster = [...n.nodeValue].find(z => PUNKTE[z]);
+    let erster = null, stelle = Infinity;
+    for (const [z, art] of PUNKTE) {
+      const i = n.nodeValue.indexOf(z);
+      if (i >= 0 && i < stelle) { stelle = i; erster = art; }
+    }
     /* Nur die Anzeige wird angefasst, nie ein Eingabefeld: der Name auf dem
        Server behält seinen Punkt. Wer die Wache umbenennt, sieht im Formular
        weiterhin, was wirklich gespeichert ist. */
     n.nodeValue = n.nodeValue.replace(PUNKT_RE, '');
-    n.parentElement?.classList.add('lssf-' + PUNKTE[erster]);
+    n.parentElement?.classList.add('lssf-' + erster);
   }
 }
 
@@ -157,7 +179,10 @@ const neuLesen = () => {
   status = statusKarte();
   if (status !== vorher) durchgang();
 };
-addEventListener('storage', e => { if (e.key === KEY) neuLesen(); });
+addEventListener('storage', e => {
+  if (e.key === KEY) neuLesen();
+  if (e.key === KEY_ZEICHEN) { zeichenLaden(); durchgang(); }
+});
 setInterval(neuLesen, 5 * 60 * 1000);
 
 })();

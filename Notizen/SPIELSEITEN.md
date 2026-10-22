@@ -706,3 +706,11 @@ Schulen 500.000, Krankenhaus 200.000, Hubschrauberstationen 1.000.000
 (begrenzt über Landeplätze: 4 bis zum 125. Gebäude, danach +1 je 25),
 Leitstelle 0 (eine je 10 Gebäude). Ob Kleinwachen bei `n` mitzählen, ist
 ungeprüft.
+
+## Unsichtbare Zeichen in Fahrzeugnamen (22.10.2026)
+
+Gemessen an einem Fahrzeug (GW-Bergrettung (NEF), BergRet #1): Name über das
+Bearbeiten-Formular (`/vehicles/<id>` PATCH, `vehicle[caption]`) mit U+200B,
+U+200C, U+2060, U+2063 vorn gesetzt und über `/api/v2/vehicles/<id>` zurückgelesen
+(`result.caption`): **alle vier unverändert gespeichert.** Danach der alte Name
+wiederhergestellt. Für Wachennamen nicht eigens gemessen.

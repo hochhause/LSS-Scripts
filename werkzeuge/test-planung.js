@@ -25,7 +25,8 @@ const teile = [
   schnitt('/** Soll je Kursschlüssel für eine Wache.', '/** Liest die Personalauswahl einer Wache'),
   schnitt('function sitzeFuerKurs(meta, feld', '/* Das Spiel nennt „N in Ausbildung“'),
   schnitt('/** Leitet den Ausbildungsstand aus einer gelesenen Personalliste ab.', '/* Personallisten für einen Lauf über mehrere Lehrgänge'),
-  schnitt('/** Trägt jedem Fahrzeug einer Wache seinen Punkt ein', '/** Setzt oder entfernt das Häkchen')
+  schnitt('/** Trägt jedem Fahrzeug einer Wache seinen Punkt ein', '/** Setzt oder entfernt das Häkchen'),
+  schnitt('const ZEICHEN_VORLAGEN = {', 'let ZEICHEN = zeichenSatz(')
 ].join('\n');
 
 const stub = `
@@ -68,14 +69,14 @@ const echteVon = b => mineOf(b).filter(v => !istPlatzhalter(v));
 `;
 
 const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
-           bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze,
+           bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze, zeichenSatz,
            courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
            verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
            anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN: PB,
            MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
            nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
-        bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze,
+        bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze, zeichenSatz,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
         verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
         anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN,
@@ -1648,6 +1649,32 @@ console.log('\n41. Verpflegung und Betreuung doppelt ausgebildet (D-116)');
          r.liste.map(x => x.id), ['1', '3']);
   pruefe('Feuerwehr-Verpflegung + Verpflegungshelfer ist ein gewolltes Paar',
          lehrgangsKandidaten(wache([]), 'fire_care_service', [lp(4, ['care_service_equipment'])]).liste.length, 1);
+}
+
+console.log('\n42. Statuszeichen einstellbar, Erkennung umfasst alles (D-117)');
+{
+  const ohne = (Z, t) => String(t).replace(Z.alle, '').replace(/\s{2,}/g, ' ').trim();
+  const std = zeichenSatz({});
+  pruefe('Standard schreibt Emojis', [std.fz.voll, std.fz.teil, std.fz.leer, std.wache.voll].join(''), '🟢🟡🔴🟢');
+  pruefe('grün erkannt: Emoji, altes Häkchen, unsichtbar',
+    ['🟢 A', '✅ A', '✔️ A', '​A'].map(t => std.gruen.test(t)), [true, true, true, true]);
+  pruefe('gelb und rot sind nicht grün', ['🟡 A', '🔴 A', '‌A'].map(t => std.gruen.test(t)), [false, false, false]);
+  pruefe('alles wird entfernt, auch in der Mitte', ohne(std, '🟢 HLF - ‌Feuer 1 ⚫'), 'HLF - Feuer 1');
+
+  const unsichtbar = zeichenSatz({ fz: { voll: '​', teil: '‌', leer: '⁠' }, wache: { voll: '⁣' } });
+  pruefe('unsichtbar: schreibt Zeichen der Breite null', unsichtbar.fz.voll.codePointAt(0).toString(16), '200b');
+  pruefe('nach dem Umstellen bleibt ein 🟢-Fahrzeug geschützt', unsichtbar.gruen.test('🟢 HLF'), true);
+  pruefe('und der Name verliert das alte Zeichen', ohne(unsichtbar, '🟢 HLF 1'), 'HLF 1');
+
+  const eigen = zeichenSatz({ fz: { voll: '[+]', teil: '(~)', leer: '*!' }, ausschluss: '#X#' });
+  pruefe('eigene Zeichen: Sonderzeichen sicher im Muster', eigen.gruen.test('[+] HLF'), true);
+  pruefe('eigene Zeichen werden entfernt', ohne(eigen, '(~) HLF *! #X#'), 'HLF');
+  pruefe('ohne die Zeichen bleibt der Name heil', ohne(eigen, 'HLF 20 (Feuer+)'), 'HLF 20 (Feuer+)');
+  pruefe('eigener Ausschluss gilt, ⚫ wird weiter entfernt', [eigen.ausschluss, ohne(eigen, '⚫ Wache')], ['#X#', 'Wache']);
+  pruefe('unsichtbares Zeichen ohne Leerschritt dahinter',
+    nameAus('{punkt} {old}', markenFuer(MARKEN_FZ), { punkt: '​', alt: 'HLF 1' }), '​HLF 1');
+  pruefe('sichtbares Zeichen behält den Leerschritt',
+    nameAus('{punkt} {old}', markenFuer(MARKEN_FZ), { punkt: '🟢', alt: 'HLF 1' }), '🟢 HLF 1');
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');

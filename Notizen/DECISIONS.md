@@ -3205,3 +3205,30 @@ wären lahm gewesen, bis alle doppelt geschult sind.
 **Folge, gewollt:** heute grüne Verpflegungs- und Betreuungsfahrzeuge werden
 beim nächsten Namenslauf gelb. Erst danach gibt der Planer ihr Personal für
 den zweiten Lehrgang her — grüne Fahrzeuge sind ohne „Grüne freigeben" geschützt.
+
+## D-117 Statuszeichen einstellbar, auch unsichtbar (v0.71.0, lss-farben 0.3.0)
+
+**Entscheidung (Sasha, 22.10.2026).** Unter Extras → Namen „Statuszeichen":
+je Fahrzeuge (voll/teil/leer) und Wachen (voll) **getrennt** wählbar —
+Emojis, unsichtbar oder eigene Zeichen; der Ausschluss ebenfalls einstellbar.
+lss-farben erkennt immer die Standard-Emojis **und** die eigene Einstellung.
+
+**Unsichtbar** = U+200B (voll), U+200C (teil), U+2060 (leer), U+2063 (Wache voll);
+das Spiel speichert sie unverändert (SPIELSEITEN.md). Hinter einem unsichtbaren
+Zeichen fällt der Leerschritt weg (`nameAus`), sonst begänne der Name sichtbar
+mit einem Leerzeichen.
+
+**Erkennung umfasst immer alles** (`zeichenSatz`): alte Häkchen, Emojis,
+unsichtbare Zeichen, die eigene Einstellung. Grund: der grüne Punkt ist der
+Schutzmarker — wer umstellt, darf ihn nicht verlieren, und der nächste
+Namenslauf soll das alte Zeichen gegen das neue tauschen statt beide zu tragen.
+⚫ und der alte rote Punkt an Wachen bleiben als Ausschluss gültig, gleich was
+eingestellt ist. Die Emojis `HAKEN`/`PUNKT_TEIL`/`PUNKT_LEER` sind nur noch Anzeige
+im Planer; geschrieben wird `punktZeichen(art)` bzw. `ZEICHEN.wache.voll`.
+
+**Grenzen der eigenen Zeichen** (`zeichenPruefen`): höchstens 6 Zeichen, mindestens
+ein Sonderzeichen (ein reines „V" würde aus jedem „HLF V" entfernt), voll/teil/leer
+verschieden, der Ausschluss sichtbar und eigen.
+
+**Verworfen:** eine Einstellung für beides — Sasha will sie getrennt. Und: die
+unsichtbaren Zeichen auch für den Ausschluss — den tippt man von Hand.

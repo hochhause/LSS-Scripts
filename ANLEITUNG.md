@@ -68,6 +68,8 @@ Der Planer vergleicht, wie deine Wachen **aussehen sollen**, mit dem, was **wirk
 
 Anhänger und Abrollbehälter sind 🟢, sobald ein passendes Zugfahrzeug der Wache mit genug ausgebildeten Leuten ausrücken kann. Gekoppelt müssen sie dafür nicht sein.
 
+**Andere Zeichen:** Unter Extras → Namen stellst du unter „Statuszeichen“ ein, was in die Namen kommt — getrennt für Fahrzeuge und Wachen: die Emojis, **unsichtbare** Zeichen (sieht im Spiel niemand, lss-farben färbt die Namen trotzdem) oder eigene wie „[+]“. Auch das Ausschlusszeichen ist einstellbar; ⚫ gilt immer zusätzlich. Nach dem Umstellen tauscht der nächste Lauf „Namen abgleichen“ die Zeichen aus — grüne Fahrzeuge bleiben dabei geschützt.
+
 **Ein 🟢 schützt das Fahrzeug.** Der Planer nimmt ihm nichts weg, benennt es nicht um und zerstört es nicht, außer du setzt **„Grüne freigeben“**. Etwas dazugeben darf er trotzdem, zum Beispiel freie Sitze füllen.
 
 **An der Wache**

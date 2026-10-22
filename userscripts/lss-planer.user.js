@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.70.1
+// @version      0.71.0
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.70.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.71.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -40,6 +40,7 @@ const KEY_ZUORD   = 'lssplaner.zuordnung';   // Wache → Profil
 const KEY_KAUFBAR = 'lssplaner.kaufbar';     // Gebäudetyp → kaufbare Fahrzeugtypen
 const KEY_SCHULE  = 'lssplaner.schulkurse';  // Schultyp → angebotene Lehrgänge
 const KEY_EXTCAT  = 'lssplaner.ausbaukatalog'; // Gebäudetyp → Bauplatz-Nummer → Name
+const KEY_ZEICHEN = 'lssplaner.zeichen';     // Statuszeichen je Fahrzeug/Wache, Ausschluss (D-117)
 const KEY_OPTIMUM = 'lssplaner.optimum';     // Fahrzeugtyp → Umrüst-Vorlage „Optimum" oder null (D-115)
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1214,10 +1215,78 @@ function fortschritt(b) {
 /* Drei Punkte statt eines, seit v0.65.2 (Sasha, 01.10.). Vorher gab es grün
    oder nichts, und „noch nie besetzt" sah aus wie „reicht knapp nicht" —
    beides kein Punkt. Jetzt sagt die Farbe, wie weit ein Fahrzeug ist. */
+/* Diese drei sind seit v0.71.0 nur noch die **Anzeige** im Planer (Texte,
+   Protokoll). Was in die Namen geschrieben wird, bestimmt die Einstellung
+   „Statuszeichen" — siehe `zeichenSatz`. */
 const HAKEN      = '🟢';   // jeder Sitz belegt, Lehrgänge stimmen
 const PUNKT_TEIL = '🟡';   // Mindestbesetzung samt Lehrgängen steht, aber nicht voll
 const PUNKT_LEER = '🔴';   // darunter
-const PUNKT_VON  = { voll: HAKEN, teil: PUNKT_TEIL, leer: PUNKT_LEER };
+const PUNKT_ANZEIGE = { voll: HAKEN, teil: PUNKT_TEIL, leer: PUNKT_LEER };
+
+/** Statuszeichen (Sasha, 22.10., D-117)
+    ═══════════════════════════════════════════════════════════════════
+    Welche Zeichen in die Namen kommen, ist einstellbar — getrennt für
+    Fahrzeuge (voll/teil/leer) und Wachen (voll), dazu der Ausschluss.
+    Vorlagen: die Emojis, oder **unsichtbare** Zeichen (Breite null), die das
+    Spiel nachweislich unverändert speichert (SPIELSEITEN.md, 22.10.).
+
+    **Erkannt wird immer alles** — alte Häkchen, Emojis, unsichtbare Zeichen und
+    die eigene Einstellung. Daran hängt der Schutz der grünen Fahrzeuge: wer
+    die Zeichen umstellt, verliert ihn nicht, und der nächste Namenslauf
+    tauscht das alte Zeichen sauber gegen das neue. ⚫ und der alte rote Punkt
+    an Wachen bleiben als Ausschluss gültig, gleich was eingestellt ist. */
+const ZEICHEN_VORLAGEN = {
+  emoji:      { fz: { voll: '\u{1F7E2}', teil: '\u{1F7E1}', leer: '\u{1F534}' }, wache: { voll: '\u{1F7E2}' } },
+  unsichtbar: { fz: { voll: '\u200B', teil: '\u200C', leer: '\u2060' }, wache: { voll: '\u2063' } }
+};
+function zeichenSatz(cfg = {}) {
+  const vorlage = ZEICHEN_VORLAGEN.emoji;
+  const fz = { ...vorlage.fz, ...(cfg.fz || {}) };
+  const wache = { ...vorlage.wache, ...(cfg.wache || {}) };
+  const ausschluss = cfg.ausschluss || '\u26AB';
+  const alleVorlagen = Object.values(ZEICHEN_VORLAGEN);
+  // Grün: was als fertig gilt und geschützt ist — alte Häkchen eingeschlossen
+  const gruen = new Set(['\u2705', '\u2714\uFE0F', '\u2714', '\u2713', fz.voll, wache.voll,
+    ...alleVorlagen.flatMap(v => [v.fz.voll, v.wache.voll])]);
+  const alle = new Set([...gruen, '\uFE0F', fz.teil, fz.leer, ausschluss, '\u26AB',
+    ...alleVorlagen.flatMap(v => [v.fz.teil, v.fz.leer])]);
+  const muster = menge => [...menge].filter(Boolean).sort((a, b) => b.length - a.length)
+    .map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  return {
+    fz, wache, ausschluss,
+    alle: new RegExp(`(?:${muster(alle)})+\\s*`, 'gu'),
+    gruen: new RegExp(`(?:${muster(gruen)})`, 'u')
+  };
+}
+let ZEICHEN = zeichenSatz(store.get(KEY_ZEICHEN, {}));
+const UNSICHTBAR_RE = /^[\u200B-\u200D\u2060-\u2064\uFEFF]+$/u;
+/** Für die Anzeige: unsichtbare Zeichen als Code, alles andere wie es ist. */
+const zeichenText = x => !x ? '—' : UNSICHTBAR_RE.test(x)
+  ? 'unsichtbar ' + [...x].map(c => 'U+' + c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')).join(' ')
+  : x;
+/** Welche Vorlage eine Zeichengruppe ist — oder „eigen". */
+const vorlageVon = (gruppe, werte) => Object.entries(ZEICHEN_VORLAGEN)
+  .find(([, v]) => Object.keys(v[gruppe]).every(k => v[gruppe][k] === werte[k]))?.[0] || 'eigen';
+/** Leer heißt: in Ordnung. Sonst der Grund, warum die Einstellung nicht gilt. */
+function zeichenPruefen(cfg) {
+  const z = zeichenSatz(cfg);
+  const werte = [['Fahrzeug voll', z.fz.voll], ['Fahrzeug teil', z.fz.teil], ['Fahrzeug leer', z.fz.leer],
+                 ['Wache voll', z.wache.voll], ['Ausschluss', z.ausschluss]];
+  for (const [name, w] of werte) {
+    if (!w || !String(w).trim() && !UNSICHTBAR_RE.test(w)) return `${name}: leer`;
+    if ([...w].length > 6) return `${name}: höchstens 6 Zeichen`;
+    /* Ein Zeichen aus Buchstaben oder Ziffern würde überall aus den Namen
+       entfernt, wo es vorkommt — „V" aus jedem „HLF V". */
+    if (!UNSICHTBAR_RE.test(w) && !/[^\p{L}\p{N}\s]/u.test(w)) return `${name}: braucht ein Sonderzeichen, nicht nur Buchstaben oder Ziffern`;
+  }
+  if (new Set([z.fz.voll, z.fz.teil, z.fz.leer]).size < 3) return 'Fahrzeug voll, teil und leer müssen verschieden sein';
+  if ([z.fz.teil, z.fz.leer].includes(z.wache.voll)) return 'Wache voll darf nicht das gelbe oder rote Fahrzeugzeichen sein';
+  if ([z.fz.voll, z.fz.teil, z.fz.leer, z.wache.voll].includes(z.ausschluss)) return 'Der Ausschluss braucht ein eigenes Zeichen';
+  if (UNSICHTBAR_RE.test(z.ausschluss)) return 'Den Ausschluss tippst du von Hand — er muss sichtbar sein';
+  return '';
+}
+/** Das Zeichen, das ein Fahrzeug mit diesem Stand in den Namen bekommt. */
+const punktZeichen = art => ZEICHEN.fz[art] || '';
 
 /* Der Ausschlußpunkt wird **nie** vom Skript gesetzt. Wer ihn von Hand in
    einen Wachennamen schreibt, nimmt diese Wache vollständig aus dem Planer
@@ -1237,30 +1306,17 @@ const AUSSCHLUSS     = '⚫';
 const AUSSCHLUSS_ALT = '🔴';
 const ausgeschlossen = b => {
   const t = String(b?.caption || '');
-  return t.includes(AUSSCHLUSS) || t.includes(AUSSCHLUSS_ALT);
+  return t.includes(ZEICHEN.ausschluss) || t.includes(AUSSCHLUSS) || t.includes(AUSSCHLUSS_ALT);
 };
 const altAusgeschlossen = () => (S.buildings || []).filter(b =>
   !String(b.caption || '').includes(AUSSCHLUSS)
   && String(b.caption || '').includes(AUSSCHLUSS_ALT));
 /** Wachen, mit denen der Planer überhaupt arbeiten darf. */
 const planWachen = () => S.buildings.filter(b => !ausgeschlossen(b));
-/* Erkannt wird auch das alte Häkchen, damit es beim nächsten Lauf verschwindet —
-   vorn wie hinten, denn bis v0.25 stand die Markierung am Ende. \uFE0F gehört in
-   die Liste: ✔️ war nie ein Zeichen, sondern zwei — U+2714 plus ein unsichtbarer
-   Variantenwähler, der sonst im Namen hängen bliebe. */
-const HAKEN_ZEICHEN = '\\u2705\\u2714\\u2713\\uFE0F\\u{1F7E2}';
-/* Entfernt wird überall, nicht nur am Rand. Fahrzeugnamen tragen den
-   Wachennamen in sich — „MZB #I - WasRet 3 ✔️ - Sasha“ —, und dieses ✔️ in der
-   Mitte ist die alte Markierung derselben Wache. Bliebe sie stehen, hinge sie
-   für immer im Fahrzeugnamen, während die Wache längst umbenannt ist. */
-/* Gelb, rot und der Ausschlußpunkt stehen mit in der Liste, obwohl letzterer
-   nie verschwinden soll: was ihn trägt, wird gar nicht erst umbenannt. Hier
-   geht es um Namen, die auf so etwas VERWEISEN — {stationName}, {dispatch} —,
-   und dort gehört die Markierung der anderen Sache nicht hinein. */
-const HAKEN_ALLE = new RegExp(`[${HAKEN_ZEICHEN}\\u{1F7E1}\\u{1F534}\\u{26AB}]+\\s*`, 'gu');
-/* Nur das Grün. Daran hängt, was als fertig gilt und was geschützt ist — ein
-   gelber Punkt ist weder das eine noch das andere. */
-const GRUEN_ALLE = new RegExp(`[${HAKEN_ZEICHEN}]+`, 'gu');
+/* Erkannt und entfernt wird überall, nicht nur am Rand: Fahrzeugnamen tragen
+   den Wachennamen in sich — „MZB #I - WasRet 3 ✔️ - Sasha" —, und das Zeichen
+   in der Mitte ist die Markierung derselben Wache. Die Muster baut
+   `zeichenSatz`; die Liste der alten Zeichen steht dort. */
 /* ── Schutz für Fertiges ──────────────────────────────────────────────
    Was den Punkt trägt, ist erklärtermaßen fertig — daran soll das Skript
    nicht mehr rühren, bis es ausdrücklich freigegeben wird. Der Schalter
@@ -1290,10 +1346,10 @@ function schutzMelden() {
 }
 
 const ohneHaken = t => String(t)
-  .replace(HAKEN_ALLE, '')
+  .replace(ZEICHEN.alle, '')
   .replace(/\s{2,}/g, ' ')          // wo die Markierung stand, bleibt sonst eine Lücke
   .trim();
-const hatHaken  = t => { GRUEN_ALLE.lastIndex = 0; return GRUEN_ALLE.test(String(t)); };
+const hatHaken  = t => ZEICHEN.gruen.test(String(t));
 
 /** Namensvorlagen
     ═══════════════════════════════════════════════════════════════════
@@ -1406,6 +1462,9 @@ function nameAus(vorlage, marken, kontext) {
       marken[name] ? String(marken[name].wert(kontext) ?? '') : ganz)
     /* Fällt `{punkt}` weg, bleibt sonst eine Lücke oder ein Rand stehen. */
     .replace(/\s{2,}/g, ' ')
+    /* Hinter einem unsichtbaren Zeichen stünde sonst ein sichtbarer Leerschritt
+       vorn im Namen (D-117). */
+    .replace(/([​-‍⁠-⁤])\s+/gu, '$1')
     .trim();
 }
 
@@ -1589,7 +1648,7 @@ const leitstelleName = b => S.buildings
 
 /** Kontext eines Fahrzeugs. Wer eine neue Marke einbaut, ergänzt `MARKEN`
     um eine Zeile und hier um ein Feld — die Tabelle liest nur von hier. */
-/** `zeichen` ist seit v0.65.2 der Punkt selbst (`PUNKT_VON[...]`), nicht mehr
+/** `zeichen` ist seit v0.65.2 der Punkt selbst (`punktZeichen(art)`), nicht mehr
     ein Wahrheitswert: ein Fahrzeug kennt drei Zustände, und welcher davon
     gemeint ist, weiß der Aufrufer. Leertext heißt ausdrücklich „kein Punkt“ —
     so bleibt die alte Vorschau ohne Urteil möglich. */
@@ -1614,7 +1673,7 @@ function kontextFahrzeug(b, v, zeichen) {
     beide dürfen benutzt werden, das ist kein Versehen. */
 function kontextWache(b, punkt) {
   return {
-    punkt:          punkt ? HAKEN : '',
+    punkt:          punkt ? ZEICHEN.wache.voll : '',
     id:             b.id,
     alt:            ohneHaken(b.caption),
     wache:          ohneHaken(b.caption),
@@ -1691,7 +1750,7 @@ async function fahrzeugNameSetzen(b, v, zeichen, vorlage, marken, dry, besatzung
     log(`   ${v.caption}: die Vorlage ergibt einen leeren Namen — übersprungen`, 'warn');
     return 'leer';
   }
-  log(`   ${v.caption} → ${soll}`, zeichen === HAKEN ? 'good' : '');
+  log(`   ${v.caption} → ${soll}`, zeichen === punktZeichen('voll') ? 'good' : '');
   try { await umbenennenFahrzeug(v, soll, dry); return 'getan'; }
   catch (e) { log(`      fehlgeschlagen: ${e.message}`, 'err'); return 'fehler'; }
 }
@@ -1810,11 +1869,11 @@ async function hakenAbgleichen(sel, dry) {
           /* Ohne Begründung ist ein gelber oder fehlender Punkt nicht von
              einem übersehenen Fahrzeug zu unterscheiden. Beides sieht gleich
              aus: nichts passiert. */
-          ohneGruen.push(`${PUNKT_VON[s.art]} ${ohneHaken(v.caption)}: `
+          ohneGruen.push(`${PUNKT_ANZEIGE[s.art]} ${ohneHaken(v.caption)}: `
             + (s.grund || 'nicht besetzbar'));
         }
 
-        const was = await fahrzeugNameSetzen(b, v, PUNKT_VON[s.art],
+        const was = await fahrzeugNameSetzen(b, v, punktZeichen(s.art),
                                              pruefung.vorlageFz, markenFz, dry);
         if (was === 'getan') n++;
         else if (was === 'gleich') gleichFz++;
@@ -2979,7 +3038,7 @@ async function umruesten(sel, dry) {
          nur noch gelb (Sasha, 13.10.). Der Grün-Schutz hielte das 🟢 fest,
          obwohl dieser Lauf die Sitze eben selbst verändert hat. */
       if (sitze != null && !pruefung.fehler && hatHaken(v.caption) && v.besatzung != null && v.besatzung < sitze)
-        await fahrzeugNameSetzen(b, v, PUNKT_TEIL, pruefung.vorlageFz, marken, dry, true);
+        await fahrzeugNameSetzen(b, v, punktZeichen('teil'), pruefung.vorlageFz, marken, dry, true);
     }
   }
   const ohne = [...vorlagen].filter(([, x]) => !x).length;
@@ -3439,7 +3498,7 @@ async function assignStaff(sel, dry) {
         if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
         const s = stand.get(v.id);
         if (!s) continue;                    // Typ steht nicht in den Stammdaten
-        const was = await fahrzeugNameSetzen(b, v, PUNKT_VON[s.art],
+        const was = await fahrzeugNameSetzen(b, v, punktZeichen(s.art),
                                              vorlagen.vorlageFz, markenFzLauf, dry, geaendert.has(v.id));
         if (was === 'getan') n++;
       }
@@ -5031,6 +5090,32 @@ function render() {
       </div>
     </details>`;
 
+  /* Statuszeichen (D-117): Vorlage je Gruppe, „eigen" zeigt die Felder. */
+  const zeichenBlock = () => {
+    const cfg = store.get(KEY_ZEICHEN, {});
+    const modus = { fz: cfg.modusFz || vorlageVon('fz', ZEICHEN.fz), wache: cfg.modusWache || vorlageVon('wache', ZEICHEN.wache) };
+    const wahl = (id, gruppe) => `<select id="${id}">${[['emoji', 'Emojis 🟢🟡🔴'], ['unsichtbar', 'unsichtbar'], ['eigen', 'eigene Zeichen']]
+      .map(([w, t]) => `<option value="${w}"${modus[gruppe] === w ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
+    const feld = (pfad, wert, titel) => `<label style="display:inline-flex;gap:4px;align-items:center;margin-right:10px">${titel}
+      <input type="text" class="lssp-zeichen" data-pfad="${pfad}" value="${escA(wert)}" spellcheck="false" style="width:64px"></label>`;
+    return `<div style="border:1px solid var(--lp-rand);border-radius:3px;padding:9px 11px;margin:0 0 10px">
+      <div style="margin-bottom:6px"><b>Statuszeichen</b>
+        <span style="color:var(--lp-dim2)">— was der Planer vorn in die Namen schreibt. Erkannt wird immer
+        alles, auch alte Zeichen: nach einem Umstellen tauscht der nächste Namenslauf sie aus, und kein
+        grünes Fahrzeug verliert dabei seinen Schutz. „unsichtbar" sieht im Spiel niemand;
+        lss-farben färbt die Namen trotzdem.</span></div>
+      <div class="row" style="margin-bottom:4px"><span style="min-width:80px">Fahrzeuge</span>${wahl('lssp-zfz', 'fz')}
+        <span style="color:var(--lp-dim2);font-size:11px">${['voll', 'teil', 'leer'].map(k => zeichenText(ZEICHEN.fz[k])).join(' · ')}</span></div>
+      ${modus.fz === 'eigen' ? `<div class="row" style="margin:0 0 6px 80px">${feld('fz.voll', ZEICHEN.fz.voll, 'voll')}${
+        feld('fz.teil', ZEICHEN.fz.teil, 'teil')}${feld('fz.leer', ZEICHEN.fz.leer, 'leer')}</div>` : ''}
+      <div class="row" style="margin-bottom:4px"><span style="min-width:80px">Wachen</span>${wahl('lssp-zw', 'wache')}
+        <span style="color:var(--lp-dim2);font-size:11px">${zeichenText(ZEICHEN.wache.voll)}</span></div>
+      ${modus.wache === 'eigen' ? `<div class="row" style="margin:0 0 6px 80px">${feld('wache.voll', ZEICHEN.wache.voll, 'voll')}</div>` : ''}
+      <div class="row" style="margin-bottom:0"><span style="min-width:80px">Ausschluss</span>${feld('ausschluss', ZEICHEN.ausschluss, '')}
+        <span style="color:var(--lp-dim2);font-size:11px">schreibst du selbst in einen Wachennamen; ⚫ gilt immer zusätzlich</span></div>
+      <div id="lssp-zfehler" class="err" style="font-size:12px;margin-top:4px"></div>
+    </div>`;
+  };
   const namensopt = `
     <div style="border:1px solid var(--lp-rand);border-radius:3px;padding:9px 11px;margin:0 0 10px">
       <div style="margin-bottom:8px"><b>Namensvorlagen</b>
@@ -5053,7 +5138,8 @@ function render() {
                  value="${Number(S.opts.nameMax ?? NAME_MAX_STANDARD)}"></label>
       </div>
       ${aliasBlock()}
-    </div>`;
+    </div>
+    ${zeichenBlock()}`;
   b.innerHTML = `<p class="hint">${esc(hint)}<br><br>
       <b>Lass „Nur Vorschau“ zunächst angehakt.</b> Dann passiert nichts im Spiel, du siehst unten
       nur die Liste dessen, was getan würde. Erst wenn das stimmt, Haken entfernen und erneut drücken.</p>
@@ -5074,13 +5160,15 @@ function render() {
     const roh = feld.value;
     const vorlage = mitPunkt(roh);
     const grenze = Number(S.opts.nameMax ?? NAME_MAX_STANDARD);
-    const name = nameAus(vorlage, marken, MUSTER_KONTEXT);
+    // Das Beispiel zeigt das Zeichen, das wirklich geschrieben würde (D-117)
+    const muster = { ...MUSTER_KONTEXT, punkt: welche === 'fz' ? punktZeichen('voll') : ZEICHEN.wache.voll };
+    const name = nameAus(vorlage, marken, muster);
     const warn = [];
     if (!HAT_PUNKT.test(roh))
       warn.push('kein {punkt} — er kommt vorn hin; ohne ihn gäbe es keinen Schutz');
     const unbekannt = [...String(roh).matchAll(/\{(.*?)\}/g)].map(m => m[1]).filter(x => !marken[x]);
     if (unbekannt.length) warn.push(`bleibt wörtlich stehen: ${unbekannt.map(x => '{' + x + '}').join(', ')}`);
-    const w = wachsendeVorlage(vorlage, marken, MUSTER_KONTEXT);
+    const w = wachsendeVorlage(vorlage, marken, muster);
     if (w) warn.push(`wächst bei jedem Lauf: „${w.einmal}" → „${w.zweimal}" — der Lauf wird abgelehnt`);
     if (!name) warn.push('ergibt einen leeren Namen');
     if (name.length > grenze) warn.push(`${name.length} Zeichen, Grenze ${grenze}`);
@@ -5142,6 +5230,34 @@ function render() {
     });
   });
   ['fz', 'wache'].forEach(vorschauZeichnen);
+
+  /* Statuszeichen speichern: erst prüfen, dann gilt es sofort — für das
+     Schreiben neuer Namen. Erkannt wird ohnehin immer alles. */
+  const zeichenSpeichern = cfg => {
+    const fehler = zeichenPruefen(cfg);
+    if (fehler) { b.querySelector('#lssp-zfehler').textContent = 'Nicht übernommen: ' + fehler; return; }
+    store.set(KEY_ZEICHEN, cfg);
+    ZEICHEN = zeichenSatz(cfg);
+    log(`Statuszeichen: Fahrzeuge ${['voll', 'teil', 'leer'].map(k => zeichenText(ZEICHEN.fz[k])).join(' · ')}, `
+      + `Wachen ${zeichenText(ZEICHEN.wache.voll)}, Ausschluss ${ZEICHEN.ausschluss}. `
+      + 'Der nächste Lauf „Namen abgleichen" schreibt sie in die Namen.', 'good');
+    render();
+  };
+  for (const [id, gruppe, modusFeld] of [['#lssp-zfz', 'fz', 'modusFz'], ['#lssp-zw', 'wache', 'modusWache']]) {
+    b.querySelector(id)?.addEventListener('change', e => {
+      const cfg = { ...store.get(KEY_ZEICHEN, {}) };
+      cfg[modusFeld] = e.target.value;
+      if (e.target.value !== 'eigen') cfg[gruppe] = { ...ZEICHEN_VORLAGEN[e.target.value][gruppe] };
+      else cfg[gruppe] = { ...ZEICHEN[gruppe] };       // eigene beginnen beim jetzigen Stand
+      zeichenSpeichern(cfg);
+    });
+  }
+  b.querySelectorAll('.lssp-zeichen').forEach(feld => feld.addEventListener('change', () => {
+    const cfg = { ...store.get(KEY_ZEICHEN, {}), fz: { ...ZEICHEN.fz }, wache: { ...ZEICHEN.wache }, ausschluss: ZEICHEN.ausschluss };
+    const [gruppe, teil] = feld.dataset.pfad.split('.');
+    if (teil) cfg[gruppe][teil] = feld.value; else cfg[gruppe] = feld.value.trim();
+    zeichenSpeichern(cfg);
+  }));
 
   laufLeisteBinden(b);
   b.querySelector('#lssp-run').onclick = ev => aktionLaufen(tab, selectedBuildings(), ev.target);
