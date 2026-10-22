@@ -3294,3 +3294,15 @@ ohne offene Lehrgänge weiter und sagt es.
 **ASSUMPTION(D-120-kosten):** Das Format der Spalte „Kosten" ist nicht nachgemessen.
 `kostenAus` nimmt die Ziffern als Credits je Person, ohne Ziffern 0. Beim ersten
 offenen kostenpflichtigen Lehrgang nachmessen.
+
+**Nachtrag zu D-120 (Sasha, 22.10., v0.71.4):**
+- **Reihenfolge:** Fehlen mehrere Lehrgänge und nur für einige ist ein Raum offen
+  (freie Plätze, Preis im Rahmen), kommen diese zuerst — erst danach die übrigen
+  nach Größe der Lücke. Sonst verbrauchte ein Kurs ohne offenen Raum die Leute,
+  und der offene Raum bliebe leer. `/schoolings` wird dafür einmal je Lauf gelesen.
+- **Kopiertext** je Schulart: Überschrift (Feuerwehrschule, Rettungsschule,
+  Polizeischule, THW Bundesschule, Seefahrtschule), darunter
+  „Lehrgang: N Räume" (Plätze ÷ 10, aufgerundet) in der Reihenfolge der
+  Kursauswahl der Schule (`KEY_SCHULE`, gelesen mit „Lehrgangsnamen lesen").
+  Biete mehrere Schularten denselben Kurs an, zählt die, die für die Wache
+  zuständig ist (`zustaendigFuer`).

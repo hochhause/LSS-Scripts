@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.71.3
+// @version      0.71.4
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.71.3';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.71.4';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -5424,8 +5424,17 @@ async function ausbildungenStarten(sel, dry) {
      (Sasha, 16.10.): so teilt sich ein Kurs die Räume aller Wachen. Der
      Lehrgang mit den meisten Lücken zuerst — er braucht die meisten Plätze. */
   const lueckeVon = ([key, wachen]) => wachen.reduce((s2, b) => s2 + kursPosten(b, key, feld).fehlt, 0);
+  /* Wer einen offenen Raum hat, kommt zuerst (Sasha, 22.10., D-120): fehlen X und
+     Y und nur für X ist ein Lehrgang offen, wird X zuerst gefüllt — sonst
+     verbrauchte Y die Leute, und der offene Raum bliebe leer. */
+  const mitOffenemRaum = new Set();
+  try {
+    for (const ol of await offeneLehrgaenge())
+      if (ol.frei > 0 && ol.kosten <= hoechstpreis()) mitOffenemRaum.add(ol.key);
+  } catch (e) { log(`Offene Lehrgänge nicht lesbar (${e.message}) — Reihenfolge nur nach Lücke.`, 'warn'); }
+  const offenZuerst = ([key]) => (mitOffenemRaum.has(key) ? 1 : 0);
   let n = 0;
-  for (const [key, wachen] of [...offen].sort((x, y) => lueckeVon(y) - lueckeVon(x))) {
+  for (const [key, wachen] of [...offen].sort((x, y) => offenZuerst(y) - offenZuerst(x) || lueckeVon(y) - lueckeVon(x))) {
     if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
     log(`── ${kursNamen(key)[0] || key}: ${wachen.length} Wachen ──`);
     n += await lehrgangStarten(key, wachen, 0, freigabeSek(), S.opts.ksVerband !== false, dry, feld);
@@ -7630,33 +7639,57 @@ const hoechstpreis = () => Math.max(0, parseInt(S.opts.hoechstpreis, 10) || 0);
     ASSUMPTION(D-120-kosten): der Wert gilt je Person, wie die Spalte ihn nennt;
     das genaue Format der Spalte ist noch nicht nachgemessen. */
 const kostenAus = text => (/\d/.test(String(text)) ? parseInt(String(text).replace(/[^\d]/g, ''), 10) : 0);
-async function offeneLehrgaenge(key) {
+async function offeneLehrgaenge(key = null) {
   const d = new DOMParser().parseFromString(await getText('/schoolings', true), 'text/html');
   return [...d.querySelectorAll('#schooling_opened_table tr[data-education-key]')]
-    .filter(tr => tr.getAttribute('data-education-key') === key)
+    .filter(tr => !key || tr.getAttribute('data-education-key') === key)
     .map(tr => {
       const a = tr.querySelector('a[href^="/schoolings/"]'), tds = tr.querySelectorAll('td');
       const kostenText = (tds[2]?.textContent || '').replace(/\s+/g, ' ').trim();
-      return { url: a?.getAttribute('href'), titel: a?.textContent.trim() || key, kostenText, kosten: kostenAus(kostenText) };
+      const frei = parseInt((tds[1]?.textContent || '').replace(/\D+/g, ''), 10);
+      return { key: tr.getAttribute('data-education-key'), url: a?.getAttribute('href'),
+               titel: a?.textContent.trim() || key, frei: Number.isFinite(frei) ? frei : 0,
+               kostenText, kosten: kostenAus(kostenText) };
     })
     .filter(l => l.url);
 }
 
-/** Kurzer Text für den Verbandschat: welche Lehrgänge den Wachen noch fehlen. */
+/** Text für den Verbandschat (Sasha, 22.10.): je Schulart ein Block, darin die
+    Lehrgänge in der Reihenfolge der Kursauswahl der Schule und wie viele
+    Räume (zu je 10 Plätzen) sie bräuchten.
+
+      Feuerwehrschule
+      Wald- und Vegetationsbrand: 3 Räume
+
+    Welche Schule zuständig ist, entscheidet `zustaendigFuer`; die Reihenfolge
+    kommt aus dem gelesenen Angebot (`KEY_SCHULE`, „Lehrgangsnamen lesen"). */
 function bedarfText(wachen, feld) {
-  const summe = new Map();
+  const angebot = store.get(KEY_SCHULE, {});
+  const proSchule = new Map();                    // Schulart → Kurs → Plätze
   let unerfasst = 0;
   for (const b of wachen) {
     if (!quals.by[b.id]) { unerfasst++; continue; }
     for (const key of Object.keys(courseNeed(b, feld))) {
       const f = kursPosten(b, key, feld).fehlt || 0;
-      if (f > 0) summe.set(key, (summe.get(key) || 0) + f);
+      if (f <= 0) continue;
+      const bieten = Object.keys(angebot).filter(t => angebot[t].includes(key));
+      const schule = bieten.find(t => zustaendigFuer(Number(t)).has(Number(b.building_type))) ?? bieten[0] ?? '?';
+      const kurse = proSchule.get(schule) || proSchule.set(schule, new Map()).get(schule);
+      kurse.set(key, (kurse.get(key) || 0) + f);
     }
   }
-  const teile = [...summe].sort((x, y) => y[1] - x[1]).map(([k, n]) => `${n}× ${kursNamen(k)[0] || k}`);
-  return `Lehrgangsbedarf (${wachen.length} ${wachen.length === 1 ? 'Wache' : 'Wachen'}): `
-    + (teile.length ? teile.join(', ') : 'nichts offen')
-    + (unerfasst ? ` — ${unerfasst} ohne erfaßten Ausbildungsstand` : '');
+  if (!proSchule.size) return 'Lehrgangsbedarf: nichts offen' + (unerfasst ? ` (${unerfasst} Wachen ohne erfaßten Ausbildungsstand)` : '');
+  const reihe = t => [1, 3, 8, 10, 27].indexOf(Number(t)) + 1 || 99;
+  const bloecke = [...proSchule].sort((x, y) => reihe(x[0]) - reihe(y[0])).map(([t, kurse]) => {
+    const ordnung = angebot[t] || [];
+    const pos = k => (ordnung.indexOf(k) + 1) || 999;
+    const zeilen = [...kurse].sort((x, y) => pos(x[0]) - pos(y[0])).map(([k, n]) => {
+      const r = Math.ceil(n / PLAETZE_JE_RAUM);
+      return `${kursNamen(k)[0] || k}: ${r} ${r === 1 ? 'Raum' : 'Räume'}`;
+    });
+    return [t === '?' ? 'Schule unbekannt' : T.btName(t), ...zeilen].join('\n');
+  });
+  return bloecke.join('\n\n') + (unerfasst ? `\n\n(${unerfasst} Wachen ohne erfaßten Ausbildungsstand)` : '');
 }
 
 /** `wahl`: eigene Auswahl `(b, leute) => Personen` statt Bedarf und Kandidatenregel —
