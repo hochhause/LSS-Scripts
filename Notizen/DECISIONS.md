@@ -3270,3 +3270,27 @@ und der zweite Schritt in `ausbildungenStarten` laufen darüber.
 grün, ohne dass seine Fahrer alle Behälterkurse haben. Das ELW2 Drohne verlangt
 beide Kurse ohnehin schon vom Spiel. Gesagt hat Sasha nur „jeder bekommt"; ein
 strengeres Grün wäre wie bei D-116 nachrüstbar.
+
+## D-120 Offene Verbandslehrgänge zuerst belegen; „nur offene"; Bedarf kopieren (v0.71.3)
+
+**Lage (Sasha, 22.10.2026).** Nicht jeder darf Verbandsräume öffnen oder hat
+eigene Schulen. Die Übersicht auf `/schoolings` konnte offene Lehrgänge schon
+füllen — aber nur dort, nicht aus „Personal ausbilden".
+
+**Entscheidung (Sasha):** Offene Lehrgänge werden **immer zuerst** belegt, vor
+jedem neuen Raum („so spart man Platz, und offene Räume werden gleich
+abgedeckt"). Einstellung „Räume": *offene zuerst, dann neue öffnen* (Standard) oder
+*nur offene*. Kostenpflichtige offene Lehrgänge nur bis zu einem **Höchstpreis je
+Person** (Standard 0 = nur kostenlose). Dazu „Bedarf kopieren": ein Satz für den
+Verbandschat mit den fehlenden Lehrgängen der gewählten Wachen.
+
+**Umsetzung.** `lehrgangStarten` liest je Kurs `/schoolings`
+(`#schooling_opened_table`, Zeilen mit `data-education-key`), dann je Lehrgang
+frisch die Anmeldeseite (`#schooling_free`, `.building_list[building_id]`) und
+meldet über `POST /schoolings/<id>/education` an — derselbe zweite Schritt wie
+beim Verbandsstart (SPIELSEITEN.md). Ist `/schoolings` nicht lesbar, läuft der Rest
+ohne offene Lehrgänge weiter und sagt es.
+
+**ASSUMPTION(D-120-kosten):** Das Format der Spalte „Kosten" ist nicht nachgemessen.
+`kostenAus` nimmt die Ziffern als Credits je Person, ohne Ziffern 0. Beim ersten
+offenen kostenpflichtigen Lehrgang nachmessen.

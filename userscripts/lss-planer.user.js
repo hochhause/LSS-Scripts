@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.71.2
+// @version      0.71.3
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.71.2';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.71.3';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -5564,6 +5564,19 @@ function laufOptionen(key, sel = []) {
       + kursUebersicht(sel, ausbildenZiel())
       + `<div class="row" style="margin:8px 0 6px">${freigabeWahl('lssp-afrei')}
           <span style="color:var(--lp-dim2);font-size:11px">kostenlos; freie Plätze stehen dann anderen offen</span></div>`
+      + `<div style="color:var(--lp-dim);font-size:12px;margin:8px 0 4px">Räume:</div>
+      <label style="display:block;margin-bottom:4px">
+        <input type="radio" name="lsspraeume" value="offenZuerst" ${raeumeNurOffen() ? '' : 'checked'}>
+        <b>Offene Lehrgänge zuerst, dann neue öffnen</b> <span style="color:var(--lp-dim2)">— spart Räume</span></label>
+      <label style="display:block;margin-bottom:6px">
+        <input type="radio" name="lsspraeume" value="offen" ${raeumeNurOffen() ? 'checked' : ''}>
+        <b>Nur offene Lehrgänge</b> <span style="color:var(--lp-dim2)">— öffnet nichts; für Spieler ohne
+        eigene Schulen oder ohne Rechte im Verband</span></label>
+      <div class="row" style="margin:0 0 8px">Höchstpreis je Person
+        <input type="number" id="lssp-hpreis" min="0" max="10000" value="${hoechstpreis()}" style="width:80px"> Credits
+        <span style="color:var(--lp-dim2);font-size:11px">0 = nur kostenlose offene Lehrgänge</span></div>
+      <div class="row" style="margin:0 0 8px"><button class="act" id="lssp-bedarfkopie" data-wachen="${sel.map(b => b.id).join(',')}"
+        title="Kopiert, welche Lehrgänge die gewählten Wachen noch brauchen — etwa für den Verbandschat">Bedarf kopieren</button></div>`
       + haken('lssp-averband', S.opts.ksVerband !== false, 'auch Schulen des Verbands',
           'wenn die eigenen Schulen nicht reichen.'),
     verkauf: warn('<b>Nicht rückgängig zu machen.</b> Vor dem Zerstören fragt der Planer immer noch einmal.'),
@@ -5588,6 +5601,20 @@ function laufOptionenBinden(w) {
   merk('#lssp-averband', 'ksVerband');
   w.querySelectorAll('input[name=lsspmode]').forEach(r => r.onchange = e => {
     S.opts.strict = e.target.value === 'strict'; store.set(KEY_OPTS, S.opts);
+  });
+  w.querySelectorAll('input[name=lsspraeume]').forEach(r => r.onchange = e => {
+    S.opts.raeumeModus = e.target.value; store.set(KEY_OPTS, S.opts);
+  });
+  w.querySelector('#lssp-hpreis')?.addEventListener('change', e => {
+    S.opts.hoechstpreis = Math.max(0, Math.min(10000, parseInt(e.target.value, 10) || 0));
+    e.target.value = S.opts.hoechstpreis; store.set(KEY_OPTS, S.opts);
+  });
+  w.querySelector('#lssp-bedarfkopie')?.addEventListener('click', async () => {
+    const wachen = (w.querySelector('#lssp-bedarfkopie').dataset.wachen || '').split(',')
+      .map(Number).map(id => S.byId.get(id)).filter(Boolean);
+    const txt = bedarfText(wachen, ausbildenZiel());
+    try { await navigator.clipboard.writeText(txt); log('In der Zwischenablage:\n' + txt, 'good'); }
+    catch { log('Kopieren nicht möglich. Zum Herausnehmen:\n' + txt, 'warn'); }
   });
   w.querySelectorAll('input[name=lsspausbziel]').forEach(r => r.onchange = e => {
     S.opts.ausbildenZiel = e.target.value; store.set(KEY_OPTS, S.opts);
@@ -7592,6 +7619,46 @@ function gestartetVermerken(fahrt, zaehl, key, tage) {
     `jeWache` > 0: so viele je Wache. Sonst: was laut Plan noch fehlt
     (gegen den Umschalter Mindestbesatzung/alle Sitze). */
 /** `freigeben`: Sekunden aus FREIGABE_DAUERN, 0 = ohne Freigabe. */
+/* Offene Verbandslehrgänge zuerst (Sasha, 22.10., D-120): was schon offen ist,
+   wird belegt, bevor ein neuer Raum aufgeht — das spart Räume, und wer keine
+   Rechte zum Öffnen hat, kommt so überhaupt an Lehrgänge. Quelle ist die
+   Übersicht `/schoolings`, Tabelle `#schooling_opened_table` (SPIELSEITEN.md);
+   angemeldet wird wie im zweiten Schritt eines Verbandsstarts. */
+const raeumeNurOffen = () => S.opts.raeumeModus === 'offen';
+const hoechstpreis = () => Math.max(0, parseInt(S.opts.hoechstpreis, 10) || 0);
+/** Der Preis aus der Spalte „Kosten" — ohne Ziffern (etwa „Kostenlos") gilt 0.
+    ASSUMPTION(D-120-kosten): der Wert gilt je Person, wie die Spalte ihn nennt;
+    das genaue Format der Spalte ist noch nicht nachgemessen. */
+const kostenAus = text => (/\d/.test(String(text)) ? parseInt(String(text).replace(/[^\d]/g, ''), 10) : 0);
+async function offeneLehrgaenge(key) {
+  const d = new DOMParser().parseFromString(await getText('/schoolings', true), 'text/html');
+  return [...d.querySelectorAll('#schooling_opened_table tr[data-education-key]')]
+    .filter(tr => tr.getAttribute('data-education-key') === key)
+    .map(tr => {
+      const a = tr.querySelector('a[href^="/schoolings/"]'), tds = tr.querySelectorAll('td');
+      const kostenText = (tds[2]?.textContent || '').replace(/\s+/g, ' ').trim();
+      return { url: a?.getAttribute('href'), titel: a?.textContent.trim() || key, kostenText, kosten: kostenAus(kostenText) };
+    })
+    .filter(l => l.url);
+}
+
+/** Kurzer Text für den Verbandschat: welche Lehrgänge den Wachen noch fehlen. */
+function bedarfText(wachen, feld) {
+  const summe = new Map();
+  let unerfasst = 0;
+  for (const b of wachen) {
+    if (!quals.by[b.id]) { unerfasst++; continue; }
+    for (const key of Object.keys(courseNeed(b, feld))) {
+      const f = kursPosten(b, key, feld).fehlt || 0;
+      if (f > 0) summe.set(key, (summe.get(key) || 0) + f);
+    }
+  }
+  const teile = [...summe].sort((x, y) => y[1] - x[1]).map(([k, n]) => `${n}× ${kursNamen(k)[0] || k}`);
+  return `Lehrgangsbedarf (${wachen.length} ${wachen.length === 1 ? 'Wache' : 'Wachen'}): `
+    + (teile.length ? teile.join(', ') : 'nichts offen')
+    + (unerfasst ? ` — ${unerfasst} ohne erfaßten Ausbildungsstand` : '');
+}
+
 /** `wahl`: eigene Auswahl `(b, leute) => Personen` statt Bedarf und Kandidatenregel —
     für die Doppelausbildung (D-118). */
 async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry, feld = kursZiel(), wahl = null) {
@@ -7634,6 +7701,44 @@ async function lehrgangStarten(key, sel, jeWache, freigeben, mitVerband, dry, fe
     ...(mitFilter ? [['dispatch_center_filter', '']] : [])   // gibt es nur an eigenen Schulen
   ];
   let n = 0;
+
+  // ── Offene Verbandslehrgänge zuerst (D-120) ──
+  let offeneListe = [];
+  try { offeneListe = await offeneLehrgaenge(key); }
+  catch (e) { log(`Offene Lehrgänge nicht lesbar (${e.message}) — weiter ohne sie.`, 'warn'); }
+  for (const ol of offeneListe) {
+    if (!offen()) break;
+    if (abgebrochen()) { log('Abgebrochen.', 'warn'); return n; }
+    if (ol.kosten > hoechstpreis()) {
+      log(`${ol.titel} (offen): ${ol.kostenText || ol.kosten + ' Credits'} — über deinem Höchstpreis von `
+        + `${hoechstpreis()} Credits je Person, übergangen`);
+      continue;
+    }
+    // Frisch lesen: freie Plätze und welche Wachen der Lehrgang nimmt, ändern sich laufend
+    const seite = new DOMParser().parseFromString(await getText(ol.url, true), 'text/html');
+    const frei = parseInt(seite.querySelector('#schooling_free')?.textContent || '', 10);
+    if (!(frei > 0)) continue;                   // läuft schon oder ist voll
+    const nimmt = new Set([...seite.querySelectorAll('.building_list[building_id]')]
+      .map(e => Number(e.getAttribute('building_id'))));
+    const { fahrt, zaehl } = reihum(proWache, frei, b2 => nimmt.has(b2.id));
+    if (!fahrt.length) continue;
+    log(`${ol.titel} (offen, ${ol.kostenText || 'kostenlos'}): ${fahrt.length} von ${frei} freien Plätzen`, 'good');
+    for (const [b2, z] of zaehl) log(`   ${b2.caption}: ${z}`);
+    if (!dry) {
+      const token = seite.querySelector('form[action$="/education"] input[name="authenticity_token"]')?.value || csrf();
+      const r = await schulPost(`${ol.url}/education`, [['utf8', '✓'], ['authenticity_token', token]], fahrt);
+      if (!r.ok) { log(`   abgelehnt: HTTP ${r.status} — nichts vermerkt`, 'err'); continue; }
+    }
+    await abmeldenNachSenden(fahrt, sel, dry);
+    if (!dry) gestartetVermerken(fahrt, zaehl, key, null);   // Dauer unbekannt: Verfall nach Voreinstellung
+    else alsInAusbildungVermerken(fahrt, key);
+    n += fahrt.length;
+  }
+  if (raeumeNurOffen()) {
+    if (offen()) log(`${offen()} Personen bleiben — kein passender offener Lehrgang mit freien Plätzen. `
+      + 'Neue Räume öffnet der Lauf in der Einstellung „nur offene Lehrgänge" nicht.', 'warn');
+    return n;
+  }
 
   // ── Eigene Schulen: ein Formular, Personen gleich dabei ──
   for (const sc of await schulenFuer(key)) {
