@@ -64,6 +64,8 @@ Der Planer vergleicht, wie deine Wachen **aussehen sollen**, mit dem, was **wirk
 | 🟡 | genug Leute zum Ausrücken, aber nicht voll |
 | 🔴 | zu wenig Leute oder ein Lehrgang fehlt |
 
+**Verpflegung und Betreuung** (GW-Verpflegung, GW-Küche, MTW-Verpflegung, Bt-Kombi, GW-Bt, Bt LKW) sind erst 🟢, wenn jede Person dort **beide** Lehrgänge hat: Verpflegungshelfer plus Feuerwehr-Verpflegungseinheit bzw. plus Betreuung. Ausrücken und besetzt werden sie schon mit einem.
+
 Anhänger und Abrollbehälter sind 🟢, sobald ein passendes Zugfahrzeug der Wache mit genug ausgebildeten Leuten ausrücken kann. Gekoppelt müssen sie dafür nicht sein.
 
 **Ein 🟢 schützt das Fahrzeug.** Der Planer nimmt ihm nichts weg, benennt es nicht um und zerstört es nicht, außer du setzt **„Grüne freigeben“**. Etwas dazugeben darf er trotzdem, zum Beispiel freie Sitze füllen.
@@ -178,7 +180,7 @@ Beides kostet nichts.
 
 Zusätzlich stellt dieser Lauf alle **Abrollbehälter** ein: zufälliges WLF, auch von anderen Wachen, und das WLF fährt danach heim.
 
-**„Personal ausbilden“** zeigt beim Wählen zuerst eine **Übersicht**: je Lehrgang, wie viele ausgebildet sind, wie viele gerade lernen und wie viele fehlen. Erst „▶ ausführen“ startet die Lehrgänge — **Lehrgang für Lehrgang über alle gewählten Wachen**, der mit den meisten Lücken zuerst, — erst in deinen Schulen, dann auf Wunsch in Schulen des Verbands. Einstellungen: **„Ausbilden bis“** — **Mindestbesetzung** (nur so viele, dass jedes Fahrzeug ausrücken kann; das Richtige bei Personalmangel) oder **alle Sitze** —, **Freigabe für den Verband** (nicht, 1 Stunde, 12 Stunden, 1 Tag oder 2 Tage) und **„auch Schulen des Verbands“**. Übersicht und Zahl am Knopf rechnen gegen das gewählte Ziel. Eigene Schulen kosten Credits. Geschickt werden nur Leute ohne Lehrgang, die verfügbar sind und auf keinem Fahrzeug sitzen.
+**„Personal ausbilden“** zeigt beim Wählen zuerst eine **Übersicht**: je Lehrgang, wie viele ausgebildet sind, wie viele gerade lernen und wie viele fehlen. Erst „▶ ausführen“ startet die Lehrgänge — **Lehrgang für Lehrgang über alle gewählten Wachen**, der mit den meisten Lücken zuerst, — erst in deinen Schulen, dann auf Wunsch in Schulen des Verbands. Einstellungen: **„Ausbilden bis“** — **Mindestbesetzung** (nur so viele, dass jedes Fahrzeug ausrücken kann; das Richtige bei Personalmangel) oder **alle Sitze** —, **Freigabe für den Verband** (nicht, 1 Stunde, 12 Stunden, 1 Tag oder 2 Tage) und **„auch Schulen des Verbands“**. Übersicht und Zahl am Knopf rechnen gegen das gewählte Ziel. Eigene Schulen kosten Credits. Geschickt werden nur Leute ohne Lehrgang, die verfügbar sind und auf keinem Fahrzeug sitzen. Ausnahme: Wer auf einem Verpflegungs- oder Betreuungsfahrzeug sitzt und dort den zweiten Lehrgang braucht, wird mitgeschickt — fällt das Fahrzeug dadurch unter seine Mindestbesetzung, geht es auf Status 6.
 
 **„Anhänger koppeln“** gibt jedem Anhänger ein festes Zugfahrzeug. Abrollbehälter sind ausgenommen, die fahren mit zufälligem WLF.
 

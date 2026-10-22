@@ -1614,5 +1614,41 @@ console.log('\n40. Umrüst-Vorlage „Optimum" gilt als Sitzzahl im Wunschbild (
   delete vorlagenSitze[190]; memoK.clear();
 }
 
+console.log('\n41. Verpflegung und Betreuung doppelt ausgebildet (D-116)');
+{
+  /* Sasha, 22.10.: jeder Sitz auf GW-Verpflegung, GW-Küche, MTW-Verpflegung braucht
+     Feuerwehr-Verpflegungseinheit UND Verpflegungshelfer; auf Bt-Kombi, GW-Bt, Bt LKW
+     Betreuung UND Verpflegungshelfer. Ausbildungsziel, keine Spielregel. */
+  const b = ziel(42, 0, { 140: 1, 131: 1 });     // MTW-Verpflegung (6), Bt-Kombi (9)
+  S.byBuilding = new Map([[42, []]]); memoK.clear();
+  const n = courseNeed(b, 'max');
+  pruefe('MTW-Verpflegung: Feuerwehr-Verpflegung auf jedem Sitz', n.fire_care_service, 6);
+  pruefe('Verpflegungshelfer für MTW-Verpflegung und Bt-Kombi (6 + 9)', n.care_service_equipment, 15);
+  pruefe('Bt-Kombi: Betreuung auf jedem Sitz', n.care_service, 9);
+
+  const kombi = fz(131);
+  const nurBetreuung = Array.from({ length: 9 }, () => new Set(['care_service']));
+  const doppelt = Array.from({ length: 9 }, () => new Set(['care_service', 'care_service_equipment']));
+  pruefe('voll besetzt, aber einfach ausgebildet: gelb', fahrzeugStand(kombi, nurBetreuung).art, 'teil');
+  pruefe('die Meldung nennt den Grund', /doppelt/.test(fahrzeugStand(kombi, nurBetreuung).grund), true);
+  pruefe('alle doppelt: grün', fahrzeugStand(kombi, doppelt).art, 'voll');
+  pruefe('ein HLF bleibt unberührt', fahrzeugStand(fz(30), Array.from({ length: 9 }, () => new Set())).art, 'voll');
+
+  // Zuweisen bleibt beim Spiel-Minimum: einfach Ausgebildete besetzen den Bt-Kombi
+  const w = wache([kombi]);
+  const plan = planeWache(w, { people: Array.from({ length: 9 }, (_, i) => person(i + 1, 'care_service')) }, true);
+  pruefe('Bt-Kombi wird mit einfach Ausgebildeten besetzt, nicht lahm', plan.lahm.length, 0);
+
+  // Wer auf der MTW-Verpflegung sitzt, darf zum Verpflegungshelfer; vom HLF nicht
+  const mtw = fz(140), hlf = fz(30);
+  const w2 = wache([mtw, hlf]);
+  const r = lehrgangsKandidaten(w2, 'care_service_equipment',
+    [lp(1, ['fire_care_service'], mtw.id), lp(2, ['fire_care_service'], hlf.id), lp(3)]);
+  pruefe('vom MTW-Verpflegung in den Verpflegungshelfer, vor den Ungelernten',
+         r.liste.map(x => x.id), ['1', '3']);
+  pruefe('Feuerwehr-Verpflegung + Verpflegungshelfer ist ein gewolltes Paar',
+         lehrgangsKandidaten(wache([]), 'fire_care_service', [lp(4, ['care_service_equipment'])]).liste.length, 1);
+}
+
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');
 process.exit(fehler ? 1 : 0);

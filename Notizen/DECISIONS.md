@@ -3180,3 +3180,28 @@ Einstellungen (ein Fahrzeug je Typ, rein lesend).
 **Verworfen:** die Sitzzahl jedes einzelnen Fahrzeugs (`custom_personal_max`)
 als Quelle fürs Wunschbild — geplante, noch nicht gekaufte Fahrzeuge haben keine,
 und ein halb umgerüsteter Bestand gäbe je Wache eine andere Zahl.
+
+## D-116 Verpflegung und Betreuung: jeder Sitz doppelt ausgebildet (v0.70.1)
+
+**Entscheidung (Sasha, 22.10.2026).** GW-Verpflegung, GW-Küche, MTW-Verpflegung:
+jeder Sitz Feuerwehr-Verpflegungseinheit **und** Verpflegungshelfer. Bt-Kombi,
+GW-Bt, Bt LKW: jeder Sitz Betreuung **und** Verpflegungshelfer. Wer schon auf
+diesen Fahrzeugen sitzt, darf in den zweiten Lehrgang — auch wenn das Fahrzeug
+dadurch auf Status 6 fällt.
+
+**Umsetzung.** `DOPPEL_ZIEL` je Fahrzeugtyp ist ein **Ausbildungsziel, keine
+Spielregel**: es zählt in `courseNeedIntern`/`bedarfDerWache` (über `planKurse`)
+und in `fahrzeugStand` (grün erst, wenn alle doppelt ausgebildet sind — Sasha
+ausdrücklich so gewählt), aber **nicht** in `anforderung`/`besetze`/`fehltAn`:
+zugewiesen und auf Status 2 gestellt wird weiter nach dem Spiel-Minimum, ein
+einfach ausgebildeter Bt-Kombi rückt also aus. `DOPPEL_ERWUENSCHT` um das Paar
+Feuerwehr-Verpflegung + Verpflegungshelfer ergänzt; `lehrgangsKandidaten`
+erlaubt den Abzug vom Fahrzeug, wenn dessen Doppelziel den Kurs enthält.
+
+**Verworfen:** die Kurse in `PB` auf „alle" stellen. Dann hätte der Zuweiser
+die Fahrzeuge mit einfach Ausgebildeten nicht mehr besetzen können — sie
+wären lahm gewesen, bis alle doppelt geschult sind.
+
+**Folge, gewollt:** heute grüne Verpflegungs- und Betreuungsfahrzeuge werden
+beim nächsten Namenslauf gelb. Erst danach gibt der Planer ihr Personal für
+den zweiten Lehrgang her — grüne Fahrzeuge sind ohne „Grüne freigeben" geschützt.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.70.0
+// @version      0.70.1
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.70.0';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.70.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2445,6 +2445,9 @@ function fahrzeugStand(v, besatzung) {
   const sitze = sitzeVon(v);
   if (besatzung.length < sitze)
     return { art: 'teil', grund: `${besatzung.length} von ${sitze} Sitzen besetzt` };
+  const einfach = (DOPPEL_ZIEL[v.vehicle_type] || []).filter(k => !besatzung.every(kann => kann.has(k)));
+  if (einfach.length)
+    return { art: 'teil', grund: `noch nicht alle doppelt ausgebildet (${einfach.map(k => kursNamen(k)[0] || k).join(', ')})` };
   return { art: 'voll', grund: '' };
 }
 
@@ -2475,7 +2478,24 @@ function fahrzeugStand(v, besatzung) {
    prüfbar, und Regel 2 kannte nur Paare, die jeder Sitz eines Fahrzeugs
    verlangt; „1× Betreuung, 2× Verpflegungshelfer" fiel durch. Jetzt: die
    Zuweisungsseite (`readRoster`). */
-const DOPPEL_ERWUENSCHT = [['elw2', 'fire_drone'], ['care_service', 'care_service_equipment']];
+const DOPPEL_ERWUENSCHT = [['elw2', 'fire_drone'], ['care_service', 'care_service_equipment'],
+                           ['fire_care_service', 'care_service_equipment']];
+
+/* Verpflegung und Betreuung: jeder Sitz trägt **beide** Lehrgänge (Sasha,
+   22.10., D-116). Das Spiel verlangt weniger — dies ist ein Ausbildungsziel,
+   keine Spielregel: es zählt beim Lehrgangsbedarf und beim grünen Punkt, aber
+   nicht beim Zuweisen und nicht beim Status. Ein Fahrzeug mit Spiel-Minimum
+   rückt aus; grün wird es erst, wenn alle doppelt ausgebildet sind. */
+const DOPPEL_ZIEL = {
+  138: ['fire_care_service', 'care_service_equipment'],   // GW-Verpflegung
+  139: ['fire_care_service', 'care_service_equipment'],   // GW-Küche
+  140: ['fire_care_service', 'care_service_equipment'],   // MTW-Verpflegung
+  130: ['care_service', 'care_service_equipment'],        // GW-Bt
+  131: ['care_service', 'care_service_equipment'],        // Bt-Kombi
+  133: ['care_service', 'care_service_equipment']         // Bt LKW
+};
+/** Lehrgänge, die ein Fahrzeugtyp im Plan auf jedem Sitz braucht: Katalog plus Doppelziel. */
+const planKurse = (id, meta) => [...new Set([...(meta?.kurse || []).map(k => k.k), ...(DOPPEL_ZIEL[id] || [])])];
 
 /* Ausnahme zu Regel 3, wieder Sasha am 06.10.: ein **Doppelkandidat** darf
    von seinem Fahrzeug, wenn genau dieses Fahrzeug die neue Ausbildung
@@ -2504,7 +2524,8 @@ function lehrgangsKandidaten(b, key, leute, { vomFahrzeug = true } = {}) {
     return partner.size && q.every(k => partner.has(k)) ? 'doppel' : null;
   };
   const fz = new Map(echteVon(b).map(v => [String(v.id), v]));
-  const brauchtKurs = v => { const a = anforderung(v); return a.alle.includes(key) || a.mind.has(key); };
+  const brauchtKurs = v => { const a = anforderung(v);
+    return a.alle.includes(key) || a.mind.has(key) || (DOPPEL_ZIEL[v.vehicle_type] || []).includes(key); };
   const darfVom = p => {
     const v = vomFahrzeug && fz.get(String(p.assignedTo));
     return !!v && !geschuetzt(v) && brauchtKurs(v);
@@ -3889,11 +3910,11 @@ function courseNeed(b, feld = kursZiel()) {
 function courseNeedIntern(b, feld) {
   const tgt = T.soll(b), out = {};
   for (const [id, n] of Object.entries(tgt.vehicles || {})) {
-    const meta = T.vehPlan(id); if (!meta?.kurse?.length) continue;
+    const meta = T.vehPlan(id); const kurse = planKurse(id, meta); if (!kurse.length) continue;
     const seats = sitzeFuerKurs(meta, feld) * (Number(n) || 0);
     if (!seats) continue;
-    for (const k of meta.kurse)
-      if (anhaengerZaehlt(meta, k.k, tgt)) out[k.k] = (out[k.k] || 0) + seats;
+    for (const k of kurse)
+      if (anhaengerZaehlt(meta, k, tgt)) out[k] = (out[k] || 0) + seats;
   }
   return out;
 }
@@ -7103,7 +7124,7 @@ function bedarfDerWache(b, key) {
   let min = 0, max = 0;
   for (const [id, n] of Object.entries(tgt?.vehicles || {})) {
     const meta = T.vehPlan(id);
-    if (!meta?.kurse?.some(k => k.k === key)) continue;
+    if (!planKurse(id, meta).includes(key)) continue;
     if (!anhaengerZaehlt(meta, key, tgt)) continue;
     const anz = Number(n) || 0;
     max += sitzeFuerKurs(meta, 'max') * anz;
