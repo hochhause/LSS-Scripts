@@ -1701,6 +1701,25 @@ console.log('\n43. Doppelausbildung je Person (D-118)');
   pruefe('Wache ohne solche Fahrzeuge: niemand',
     doppelErgaenzung(wache([fz(30)]), 'care_service_equipment', [lp(9, ['care_service'])]).length, 0);
 }
+{
+  /* D-119: ELW2 Drohne — wer Drohne hat, bekommt ELW 2; nicht umgekehrt. */
+  const b = wache([fz(129)]);
+  const leute = [lp(1, ['fire_drone']), lp(2, ['elw2']), lp(3, ['fire_drone', 'elw2'])];
+  pruefe('Drohne → ELW 2', doppelErgaenzung(b, 'elw2', leute).map(p => p.id), ['1']);
+  pruefe('ELW 2 → Drohne nicht', doppelErgaenzung(b, 'fire_drone', leute).length, 0);
+  pruefe('ohne ELW2 Drohne an der Wache: keine Regel',
+    doppelErgaenzung(wache([fz(34)]), 'elw2', [lp(4, ['fire_drone'])]).length, 0);
+}
+{
+  /* D-119: WLF — wer Wechsellader hat, bekommt die Kurse der Abrollbehälter der Wache. */
+  const b = wache([fz(46), fz(54), fz(71)]);           // WLF, AB-Dekon-P, AB-MZB
+  const leute = [lp(1, ['wechsellader']), lp(2, ['dekon_p']), lp(3, ['wechsellader', 'dekon_p'])];
+  pruefe('WLF-Fahrer → Dekon-P', doppelErgaenzung(b, 'dekon_p', leute).map(p => p.id), ['1']);
+  pruefe('WLF-Fahrer → Wasserrettung (AB-MZB)', doppelErgaenzung(b, 'gw_wasserrettung', leute).map(p => p.id), ['1', '3']);
+  pruefe('Dekon-P → Wechsellader nicht', doppelErgaenzung(b, 'wechsellader', leute).length, 0);
+  pruefe('ohne Abrollbehälter mit Kurs: nichts',
+    doppelErgaenzung(wache([fz(46), fz(48)]), 'dekon_p', [lp(5, ['wechsellader'])]).length, 0);
+}
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');
 process.exit(fehler ? 1 : 0);

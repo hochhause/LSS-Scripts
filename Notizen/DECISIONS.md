@@ -3253,3 +3253,20 @@ Fahrzeug sitzt — Zugewiesene kommen mit (`vomFahrzeug`, Status 6 über
 **Messung SEG #2 (22.10.):** 4 freie Verpflegungshelfer würden sofort in die
 Betreuung gehen; 42 weitere sitzen auf grünen Bt-Fahrzeugen. Die werden mit
 v0.70.1 beim nächsten „Namen abgleichen" gelb (D-116) und sind danach dran.
+
+## D-119 Ergänzungsausbildung in eine Richtung: Drohne → ELW 2, WLF → Abrollbehälter (v0.71.2)
+
+**Entscheidung (Sasha, 22.10.2026).** Wie D-118, aber gerichtet:
+- Wache mit **ELW2 Drohne**: wer Drohne hat, bekommt ELW 2 — wer ELW 2 hat, nicht Drohne.
+- Wache mit **WLF**: wer Wechsellader hat, bekommt die Lehrgänge jedes dort
+  geplanten Abrollbehälters (AB-Dekon-P, AB-Gefahrgut, AB-Einsatzleitung, AB-MZB,
+  AB-Waldbrand, AB-NEA200 …) — der WLF-Fahrer bedient den Behälter.
+
+`ergaenzungsRegeln(b)` liefert je Zielkurs die auslösenden Kurse (Paare aus
+`DOPPEL_ZIEL` in beide Richtungen, die beiden neuen gerichtet); `doppelErgaenzung`
+und der zweite Schritt in `ausbildungenStarten` laufen darüber.
+
+**ASSUMPTION(D-119-gruen):** Der grüne Punkt ändert sich hier nicht — ein WLF wird
+grün, ohne dass seine Fahrer alle Behälterkurse haben. Das ELW2 Drohne verlangt
+beide Kurse ohnehin schon vom Spiel. Gesagt hat Sasha nur „jeder bekommt"; ein
+strengeres Grün wäre wie bei D-116 nachrüstbar.

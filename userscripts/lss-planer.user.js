@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.71.1
+// @version      0.71.2
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.71.1';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.71.2';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2559,14 +2559,31 @@ const DOPPEL_ZIEL = {
    nach Köpfen, nicht nach Sitzen: SEG #2 hatte 46 Betreuer und 45
    Verpflegungshelfer bei 45 Sitzen, aber nur 16 mit beidem — je Lehrgang
    gezählt sah das gedeckt aus. */
-function partnerFuer(b, key) {
-  const partner = new Set();
-  for (const id of Object.keys(T.soll(b).vehicles || {})) {
+/* Seit v0.71.2 auch in eine Richtung (Sasha, 22.10., D-119):
+   - ELW2 Drohne an der Wache: wer Drohne hat, bekommt ELW 2 — nicht umgekehrt.
+   - WLF an der Wache: wer Wechsellader hat, bekommt die Lehrgänge der
+     Abrollbehälter, die dort geplant sind — der WLF-Fahrer bedient sie. */
+const WLF = 46, ELW2_DROHNE = 129;
+/** Je Lehrgang an Wache `b`: welche Lehrgänge ihn nach sich ziehen. */
+function ergaenzungsRegeln(b) {
+  const regeln = new Map();
+  const add = (von, zu) => { if (von !== zu) (regeln.get(zu) || regeln.set(zu, new Set()).get(zu)).add(von); };
+  const typen = Object.keys(T.soll(b).vehicles || {}).map(Number);
+  for (const id of typen) {
     const paar = DOPPEL_ZIEL[id] || [];
-    if (paar.includes(key)) paar.forEach(k => k !== key && partner.add(k));
+    for (const a of paar) for (const z of paar) add(a, z);        // Paare gelten in beide Richtungen
   }
-  return partner;
+  if (typen.includes(ELW2_DROHNE)) add('fire_drone', 'elw2');
+  if (typen.includes(WLF)) {
+    for (const id of typen) {
+      const meta = T.veh(id);
+      if (meta?.max === 0 && (meta.zug || []).includes(WLF))
+        for (const k of meta.kurse || []) add('wechsellader', k.k);
+    }
+  }
+  return regeln;
 }
+const partnerFuer = (b, key) => ergaenzungsRegeln(b).get(key) || new Set();
 /** Wer an Wache `b` den Partnerlehrgang hat und `key` noch nicht. Zugewiesene
     kommen mit (ihr Fahrzeug fällt dann ggf. auf Status 6), grüne Fahrzeuge
     geben niemanden her — wie überall ohne „Grüne freigeben". */
@@ -5416,7 +5433,8 @@ async function ausbildungenStarten(sel, dry) {
   /* Danach die Doppelausbildung je Person (D-118) — nicht bei „Mindestbesetzung":
      dort geht es um Ausrücken bei Personalmangel, nicht um den zweiten Kurs. */
   if (feld === 'max') {
-    for (const key of [...new Set(Object.values(DOPPEL_ZIEL).flat())]) {
+    const schluessel = new Set(sel.flatMap(b => [...ergaenzungsRegeln(b).keys()]));
+    for (const key of schluessel) {
       if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
       const wachen = sel.filter(b => quals.by[b.id] && partnerFuer(b, key).size);
       if (!wachen.length) continue;
