@@ -3333,3 +3333,28 @@ Proben in `test-planung.js`: vier Ungelernte auf MTW-O (4) / GW-Tierrettung (2) 
 2× KTW (1) → nur der MTW-O bleibt lahm; eine Fachkraft geht auf das Fahrzeug mit
 Auflage, nicht auf den KTW. Beide Proben fallen, wenn man den jeweiligen
 Sortierschlüssel entfernt.
+
+## D-122 — Personal ausbilden: kleinste Lücke je Wache zuerst (v0.71.6)
+
+**Sasha, 06.11.:** „Personal ausbilden" soll zuerst die Lehrgänge belegen, die einer
+Wache nur wenige Leute fehlen, und die großen Brocken (etwa zwölf für Waldbrand)
+danach. Mit knappem Personal werden so mehr Wachen bei mehr Lehrgängen fertig.
+(Die erste Lesart dieses Wunsches landete als D-121 bei „Personal zuweisen".)
+
+**Umgesetzt** in `kursReihenfolge` (rein, in `test-planung.js` geprüft):
+1. offener Verbandslehrgang zuerst (D-120, unverändert);
+2. kleinste **mittlere Lücke je Wache** zuerst;
+3. bei Gleichstand die kleinere Gesamtlücke.
+
+**Ersetzt** die bisherige Regel „meiste Lücken zuerst, er braucht die meisten Plätze"
+(v0.69). Räume teilen sich weiter alle Wachen eines Lehrgangs.
+
+**Verworfen:** die Gesamtlücke über alle Wachen als Maß. Ein Lehrgang, der sechs
+Wachen je einen Platz fehlt (Summe 6), käme dann hinter einen, der einer Wache
+vier fehlt — obwohl er mit sechs Leuten sechs Wachen fertig macht.
+
+**Grenze:** Die Reihenfolge gilt für alle Wachen gemeinsam, das Personal aber
+gehört je Wache. Weicht eine Wache stark vom Mittel ab (ihr fehlen bei einem
+„kleinen" Lehrgang zehn), bekommt sie ihn trotzdem früh. Eine Reihenfolge je
+Wache hieße, den Lauf je Lehrgang aufzubrechen, und gäbe die gemeinsamen Räume
+auf — erst angehen, wenn es im Spiel stört.

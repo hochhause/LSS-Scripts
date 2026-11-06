@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.71.5
+// @version      0.71.6
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.71.5';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.71.6';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -4033,6 +4033,22 @@ function courseNeedIntern(b, feld) {
   return out;
 }
 
+/** Reihenfolge der Lehrgänge in „Personal ausbilden" (D-122). `eintraege`:
+    `[{ key, luecken: [fehlende Plätze je Wache] }]`, `mitOffenemRaum`: Set der
+    Schlüssel, für die ein passender Verbandslehrgang offen ist.
+    1. Offener Raum zuerst (D-120) — sonst bliebe er leer.
+    2. Dann die kleinste Lücke je Wache (Sasha, 06.11.): ein Lehrgang, der einer
+       Wache nur ein, zwei Leute fehlt, macht sie mit wenig des knappen Personals
+       fertig. Großer Bedarf (zwölf Leute für Waldbrand) kommt danach und nimmt,
+       was übrig ist.
+    3. Bei Gleichstand die kleinere Gesamtlücke. */
+function kursReihenfolge(eintraege, mitOffenemRaum = new Set()) {
+  const summe = e => e.luecken.reduce((a, n) => a + n, 0);
+  const jeWache = e => summe(e) / Math.max(1, e.luecken.length);
+  const offen = e => (mitOffenemRaum.has(e.key) ? 1 : 0);
+  return [...eintraege].sort((x, y) => (offen(y) - offen(x)) || (jeWache(x) - jeWache(y)) || (summe(x) - summe(y)));
+}
+
 /* Das Spiel nennt „N in Ausbildung“ nur für den gerade gewählten Kurs.
    Was einmal sichtbar war, wird deshalb gemerkt — mit Verfallsdatum, denn
    nach Kursende zählen die Leute als ausgebildet und dürfen nicht doppelt
@@ -5425,20 +5441,17 @@ async function ausbildungenStarten(sel, dry) {
   if (unerfasst) log(`${unerfasst} Wachen ohne erfaßten Ausbildungsstand übergangen — erst „Aktualisieren".`, 'warn');
   if (!offen.size) log('Kein Lehrgang fehlt laut Plan.', 'good');
   /* Je Lehrgang ein Durchgang über alle Wachen, nicht je Wache alle Lehrgänge
-     (Sasha, 16.10.): so teilt sich ein Kurs die Räume aller Wachen. Der
-     Lehrgang mit den meisten Lücken zuerst — er braucht die meisten Plätze. */
-  const lueckeVon = ([key, wachen]) => wachen.reduce((s2, b) => s2 + kursPosten(b, key, feld).fehlt, 0);
-  /* Wer einen offenen Raum hat, kommt zuerst (Sasha, 22.10., D-120): fehlen X und
-     Y und nur für X ist ein Lehrgang offen, wird X zuerst gefüllt — sonst
-     verbrauchte Y die Leute, und der offene Raum bliebe leer. */
+     (Sasha, 16.10.): so teilt sich ein Kurs die Räume aller Wachen. Die
+     Reihenfolge legt `kursReihenfolge` fest (D-120, D-122). */
   const mitOffenemRaum = new Set();
   try {
     for (const ol of await offeneLehrgaenge())
       if (ol.frei > 0 && ol.kosten <= hoechstpreis()) mitOffenemRaum.add(ol.key);
   } catch (e) { log(`Offene Lehrgänge nicht lesbar (${e.message}) — Reihenfolge nur nach Lücke.`, 'warn'); }
-  const offenZuerst = ([key]) => (mitOffenemRaum.has(key) ? 1 : 0);
+  const reihe = kursReihenfolge([...offen].map(([key, wachen]) =>
+    ({ key, wachen, luecken: wachen.map(b => kursPosten(b, key, feld).fehlt) })), mitOffenemRaum);
   let n = 0;
-  for (const [key, wachen] of [...offen].sort((x, y) => offenZuerst(y) - offenZuerst(x) || lueckeVon(y) - lueckeVon(x))) {
+  for (const { key, wachen } of reihe) {
     if (abgebrochen()) { log('Abgebrochen.', 'warn'); break; }
     log(`── ${kursNamen(key)[0] || key}: ${wachen.length} Wachen ──`);
     n += await lehrgangStarten(key, wachen, 0, freigabeSek(), S.opts.ksVerband !== false, dry, feld);

@@ -74,14 +74,14 @@ const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, bes
            verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
            anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN: PB,
            MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
-           nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken };`)();
+           nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken, kursReihenfolge };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze, zeichenSatz, doppelErgaenzung,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
         verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
         anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN,
         MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
-        nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken } = kern;
+        nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken, kursReihenfolge } = kern;
 
 let fehler = 0;
 const pruefe = (name, ist, soll) => {
@@ -1739,6 +1739,21 @@ console.log('\n43. Doppelausbildung je Person (D-118)');
   const wr = fz(64), ktw = fz(58);
   const plan = planeWache(wache([ktw, wr]), { people: [person(1, 'gw_wasserrettung')] }, false);
   pruefe('Fachkraft geht auf das Fahrzeug mit Auflage', (plan.zuweisung.get(wr.id) || []).map(p => p.id), ['1']);
+}
+
+{
+  /* D-122: Personal ausbilden — kleine Lücken je Wache zuerst, große danach. */
+  const e = (key, ...luecken) => ({ key, luecken });
+  const reihe = (liste, offen) => kursReihenfolge(liste, new Set(offen)).map(x => x.key);
+  pruefe('ein Fehlender vor zwölf (Waldbrand zuletzt)',
+    reihe([e('waldbrand', 12), e('elw2', 1), e('gw_messtechnik', 3)]), ['elw2', 'gw_messtechnik', 'waldbrand']);
+  pruefe('je Wache zählt, nicht die Summe über viele Wachen',
+    reihe([e('a', 1, 1, 1, 1, 1, 1), e('b', 4)]), ['a', 'b']);
+  pruefe('Gleichstand je Wache: kleinere Gesamtlücke zuerst',
+    reihe([e('a', 2, 2), e('b', 2)]), ['b', 'a']);
+  pruefe('offener Raum bleibt vorn (D-120)',
+    reihe([e('klein', 1), e('gross', 10)], ['gross']), ['gross', 'klein']);
+  pruefe('verändert die Eingabe nicht', (() => { const l = [e('x', 5), e('y', 1)]; kursReihenfolge(l); return l[0].key; })(), 'x');
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');
