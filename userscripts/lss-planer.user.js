@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.71.4
+// @version      0.71.5
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.71.4';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.71.5';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2272,18 +2272,22 @@ function planeWache(b, roster, vollBesetzen = S.opts.vollBesetzen !== false, gel
   }
   const festeLeute = new Set([...fest.values()].flat());
 
-  /* Reihenfolge: erst Fahrzeuge mit harten Auflagen, dann der Rest.
-     Innerhalb dessen zuerst die, die schon einsatzbereit stehen — so
-     landet ein Engpass bei einem ohnehin abgestellten Fahrzeug. */
+  /* Reihenfolge: erst Fahrzeuge mit Lehrgangsauflagen, dann der Rest — sonst
+     nähme ein kleines Fahrzeug ohne Auflage die einzige Fachkraft, sobald die
+     Ungelernten aufgebraucht sind. Innerhalb jeder Gruppe die **kleinste
+     Mindestbesatzung zuerst** (Sasha, 06.11., D-121): wenig Personal deckt so
+     mehr Fahrzeuge — vier Leute machen zwei KTW und ein GW-Tierrettung
+     einsatzbereit statt eines MTW-O. Bei Gleichstand die, die schon
+     einsatzbereit stehen, damit ein Engpass ein abgestelltes Fahrzeug trifft. */
   const fahrzeuge = echteVon(b)
     .filter(v => (T.veh(v.vehicle_type)?.max || 0) > 0 && !fest.has(v.id))
     .map(v => ({ v, a: anforderung(v) }))
     .sort((x, y) => {
-      const hart = z => z.a.alle.length * 100 + z.a.mind.size * 10;
       // Wahrheitswerte ausdrücklich in Zahlen wandeln, statt sie stillschweigend
       // rechnen zu lassen — das liest sich als Absicht und nicht als Versehen.
+      const kurs = z => (z.a.alle.length || z.a.mind.size) ? 1 : 0;
       const abgestellt = z => z.v.fms_real === 6 ? 1 : 0;
-      return (hart(y) - hart(x)) || (abgestellt(x) - abgestellt(y));
+      return (kurs(y) - kurs(x)) || (x.a.min - y.a.min) || (abgestellt(x) - abgestellt(y));
     });
 
   /* Jeder Lehrgang, den diese Wache irgendwo verlangt — auch auf Fahrzeugen,

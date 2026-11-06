@@ -1721,5 +1721,25 @@ console.log('\n43. Doppelausbildung je Person (D-118)');
     doppelErgaenzung(wache([fz(46), fz(48)]), 'dekon_p', [lp(5, ['wechsellader'])]).length, 0);
 }
 
+{
+  /* D-121: knappes Personal — kleinste Mindestbesatzung zuerst, damit mehr
+     Fahrzeuge einsatzbereit werden. Die große steht absichtlich vorn. */
+  const gross = fz(93), mittel = fz(185), k1 = fz(58), k2 = fz(58);
+  const mins = [gross, mittel, k1].map(v => anforderung(v).min);
+  console.log(`   Mindestbesatzung MTW-O/GW-Tierrettung/KTW: ${mins.join('/')}`);
+  pruefe('Annahme: MTW-O braucht mehr als GW-Tierrettung, der mehr als KTW', mins[0] > mins[1] && mins[1] > mins[2], true);
+  const leute = [1, 2, 3, 4].map(i => person(i));
+  const plan = planeWache(wache([gross, mittel, k1, k2]), { people: leute }, false);
+  pruefe('vier Leute: nur MTW-O bleibt lahm', plan.lahm.map(x => x.v.id), [gross.id]);
+  pruefe('drei Fahrzeuge besetzt', plan.zuweisung.size, 3);
+}
+{
+  /* D-121: Fahrzeuge mit Lehrgangsauflage bleiben vorn — sonst nähme das
+     kleinere Fahrzeug ohne Auflage die einzige Fachkraft. */
+  const wr = fz(64), ktw = fz(58);
+  const plan = planeWache(wache([ktw, wr]), { people: [person(1, 'gw_wasserrettung')] }, false);
+  pruefe('Fachkraft geht auf das Fahrzeug mit Auflage', (plan.zuweisung.get(wr.id) || []).map(p => p.id), ['1']);
+}
+
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');
 process.exit(fehler ? 1 : 0);

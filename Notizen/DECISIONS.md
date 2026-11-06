@@ -3306,3 +3306,30 @@ offenen kostenpflichtigen Lehrgang nachmessen.
   Kursauswahl der Schule (`KEY_SCHULE`, gelesen mit „Lehrgangsnamen lesen").
   Biete mehrere Schularten denselben Kurs an, zählt die, die für die Wache
   zuständig ist (`zustaendigFuer`).
+
+## D-121 — Personal zuweisen: kleinste Mindestbesatzung zuerst (v0.71.5)
+
+**Sasha, 06.11.:** Ist Personal knapp, soll die Zuweisung bei den Fahrzeugen mit
+der kleinsten Mindestbesatzung beginnen — so macht dasselbe Personal mehr
+Fahrzeuge einsatzbereit.
+
+**Umgesetzt** in der Sortierung des ersten Durchgangs von `planeWache`:
+1. Fahrzeuge mit Lehrgangsauflage (`a.alle` oder `a.mind`) vor denen ohne.
+2. Darin die kleinste Mindestbesatzung (`a.min`) zuerst.
+3. Bei Gleichstand einsatzbereite vor Status 6 (wie bisher).
+
+Der zweite Durchgang (bis Höchstbesatzung auffüllen) und die Kostenrechnung in
+`besetze`, die Fachkräfte schont, bleiben unverändert.
+
+**Verworfen:** die Mindestbesatzung als *alleinigen* Schlüssel. Dann käme ein
+KTW (1 Sitz, keine Auflage) vor einen GW-Wasserrettung und könnte die einzige
+Wasserretterin nehmen, sobald die Ungelernten aufgebraucht sind. Ebenfalls
+verworfen: die bisherige Gewichtung nach *Anzahl* der Auflagen
+(`alle·100 + mind·10`) — sie hätte große Spezialfahrzeuge mit vielen Auflagen vor
+kleine mit einer gesetzt, genau gegen den Wunsch. Ob ein Fahrzeug überhaupt eine
+Auflage hat, genügt, damit Fachkräfte dort landen.
+
+Proben in `test-planung.js`: vier Ungelernte auf MTW-O (4) / GW-Tierrettung (2) /
+2× KTW (1) → nur der MTW-O bleibt lahm; eine Fachkraft geht auf das Fahrzeug mit
+Auflage, nicht auf den KTW. Beide Proben fallen, wenn man den jeweiligen
+Sortierschlüssel entfernt.

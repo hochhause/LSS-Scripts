@@ -171,7 +171,7 @@ Beides kostet nichts.
 
 > **Vorher alle Fahrzeuge einrücken lassen.** Den Status ändern kann der Planer nur bei Fahrzeugen, die auf der Wache stehen. Alles andere holt er beim nächsten Lauf nach.
 
-**„Personal zuweisen“** verteilt die Leute auf die Fahrzeuge: zuerst die Ausgebildeten auf die Fahrzeuge, die ihren Lehrgang brauchen, dann den Rest. Danach gehen Fahrzeuge ohne genug Leute auf Status 6 und besetzte zurück auf Status 2.
+**„Personal zuweisen“** verteilt die Leute auf die Fahrzeuge: zuerst die Ausgebildeten auf die Fahrzeuge, die ihren Lehrgang brauchen, dann den Rest. Innerhalb dessen kommen die Fahrzeuge mit der kleinsten Mindestbesatzung zuerst: Ist Personal knapp, werden so mit denselben Leuten mehr Fahrzeuge einsatzbereit (vier Leute reichen für zwei KTW und einen GW-Tierrettung statt für einen MTW-O). Danach gehen Fahrzeuge ohne genug Leute auf Status 6 und besetzte zurück auf Status 2.
 
 | Einstellung (erscheint, wenn der Lauf gewählt ist) | Was sie tut |
 |---|---|
