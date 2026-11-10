@@ -3358,3 +3358,33 @@ gehört je Wache. Weicht eine Wache stark vom Mittel ab (ihr fehlen bei einem
 „kleinen" Lehrgang zehn), bekommt sie ihn trotzdem früh. Eine Reihenfolge je
 Wache hieße, den Lauf je Lehrgang aufzubrechen, und gäbe die gemeinsamen Räume
 auf — erst angehen, wenn es im Spiel stört.
+
+## D-123 — Anhänger ohne gemessene Stärke zählen in der Ausbildung mit ihrer Auflage (v0.71.7)
+
+**Befund (Sasha, 10.11., BergRet #3):** Der Reiter „Ausbildung" meldete genug
+Höhenretter, „Personal zuweisen" ließ trotzdem Fahrzeuge rot. Zwei Rechnungen für
+denselben Anhänger: `anforderung` verlangt am Zugfahrzeug des
+`155 Anh Höhenrettung` die Auflage „min 4 Höhenretter", `courseNeed` zählte den
+Anhänger mit `est` — und das ist dort `null` (D-80), also 0. Ausgebildet wurde nur
+für den GW-Höhenrettung (4), gebraucht werden 8.
+
+**Umgesetzt:** `vehMeta` trägt `estOffen` (= `est: null` in `PB`), weil `est`
+selbst schon zu 0 eingeebnet wird. `sitzeFuerKurs(meta, feld, key)` nimmt bei
+`estOffen` die Zahl aus der Lehrgangsauflage `min n` des Schlüssels.
+`anhaengerZaehlt` (D-19) bleibt davor: verlangt ein zugelassenes Zugfahrzeug
+des Plans denselben Kurs, zählt der Anhänger weiter nicht.
+
+Betroffen sind nur `est: null`-Anhänger, deren Zugfahrzeuge den Kurs nicht
+selbst fordern: 155 immer, 101/102 (Anh SwPu, Anh 7) nur ohne MLW 4 im Plan.
+174, 175, 183 ändern sich nicht (D-19).
+
+**Verworfen:** `est` in `vehMeta` als `null` durchreichen. Es geht an mehreren
+Stellen in Rechnungen (`anforderung`, `besetze`, Meldungen); ein eigenes Feld
+ändert nur die eine Stelle, die die Lücke kennen muß.
+
+**Nebenbefund, nicht geändert:** Ein Anhänger auf „zufälliges Zugfahrzeug"
+vererbt seine Auflage an *jedes* zulässige Zugfahrzeug (D-88). An der
+Bergrettung legte das alle acht GW-Bergrettung auf 4 Höhenretter — sieben blieben
+rot. Abhilfe im Spiel: Anhänger fest koppeln (von Hand oder „Anhänger koppeln";
+grüne Anhänger überspringt der Lauf ohne „Grüne freigeben"). Ob die Regel selbst
+angepaßt wird, ist offen.

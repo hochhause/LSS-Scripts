@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.71.6
+// @version      0.71.7
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.71.6';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.71.7';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -512,7 +512,10 @@ function vehMeta(id) {
   if (_vehCache.has(k)) return _vehCache.get(k);
   const pb = PB[k] || null;
   const meta = pb ? { name: pb.c, min: pb.min, max: pb.max, kurse: pb.kurse || [],
-                      est: pb.est || 0, zug: pb.zug || null } : null;
+                      est: pb.est || 0, zug: pb.zug || null,
+                      // `est: null` heißt „nachgesehen, nicht bekannt" (D-80) — `est` selbst
+                      // rechnet als 0 weiter, die Lücke merkt sich dieses Feld (D-123).
+                      estOffen: pb.est === null } : null;
   _vehCache.set(k, meta);
   return meta;
 }
@@ -3970,10 +3973,16 @@ async function learnAllCourses(onProgress = null) {
     Anhänger haben keine eigene Besatzung — ihre Ausbildung muss auf dem
     Zugfahrzeug sitzen, sonst rückt es nicht aus. Also zählt dort die an
     der Einsatzstelle geforderte Zahl. */
-function sitzeFuerKurs(meta, feld = 'max') {
+/* `key`: für Anhänger ohne gemessene Einsatzstellen-Stärke (`est: null`, D-80)
+   gilt dann die Zahl aus der Lehrgangsauflage selbst — dieselbe, die
+   „Personal zuweisen" am Zugfahrzeug verlangt (`anforderung`). Sonst bildete
+   der Lauf für den Anh Höhenrettung niemanden aus, während die Zuweisung vier
+   Höhenretter auf dem Zugfahrzeug forderte (Sasha, 10.11., D-123). */
+function sitzeFuerKurs(meta, feld = 'max', key = null) {
   const max = meta.max || 0;
   if (max > 0) return feld === 'min' ? (meta.min ?? max) : max;
-  return meta.est || 0;
+  if (!meta.estOffen || !key) return meta.est || 0;
+  return (meta.kurse || []).find(k => k.k === key && k.art === 'min')?.n || 0;
 }
 
 /* Ein Anhänger hat keine eigenen Sitze — seine Leute fahren auf dem
@@ -4025,10 +4034,10 @@ function courseNeedIntern(b, feld) {
   const tgt = T.soll(b), out = {};
   for (const [id, n] of Object.entries(tgt.vehicles || {})) {
     const meta = T.vehPlan(id); const kurse = planKurse(id, meta); if (!kurse.length) continue;
-    const seats = sitzeFuerKurs(meta, feld) * (Number(n) || 0);
-    if (!seats) continue;
-    for (const k of kurse)
-      if (anhaengerZaehlt(meta, k, tgt)) out[k] = (out[k] || 0) + seats;
+    for (const k of kurse) {
+      const seats = sitzeFuerKurs(meta, feld, k) * (Number(n) || 0);
+      if (seats && anhaengerZaehlt(meta, k, tgt)) out[k] = (out[k] || 0) + seats;
+    }
   }
   return out;
 }

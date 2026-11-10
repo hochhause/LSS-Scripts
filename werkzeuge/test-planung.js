@@ -1756,5 +1756,22 @@ console.log('\n43. Doppelausbildung je Person (D-118)');
   pruefe('verändert die Eingabe nicht', (() => { const l = [e('x', 5), e('y', 1)]; kursReihenfolge(l); return l[0].key; })(), 'x');
 }
 
+{
+  /* D-123: Anhänger ohne gemessene Stärke zählen in der Ausbildung mit ihrer
+     Lehrgangsauflage — Bergrettung: 4 für den GW-Höhenrettung + 4 für den Anhänger. */
+  const anh = fz(155), zug = fz(150);
+  anh.zugfahrzeug = zug.id;
+  const b = wache([fz(158), anh, zug]);
+  memoK.clear();
+  pruefe('Höhenretter min: 4 GW + 4 Anhänger', courseNeed(b, 'min').mountain_height_rescue, 8);
+  pruefe('Höhenretter max ebenso', courseNeed(b, 'max').mountain_height_rescue, 8);
+  /* Verlangt das Zugfahrzeug denselben Kurs, bleibt es bei dessen Sitzen (D-19). */
+  const tesi = fz(174), gw = fz(171);
+  tesi.zugfahrzeug = gw.id;
+  const b2 = wache([gw, tesi]); memoK.clear();
+  pruefe('Anh TeSi am GW TeSi: nur die Sitze des GW', courseNeed(b2, 'max').disaster_response_technology,
+    vehMeta(171).max);
+}
+
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');
 process.exit(fehler ? 1 : 0);
