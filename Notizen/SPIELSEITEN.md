@@ -714,3 +714,18 @@ Bearbeiten-Formular (`/vehicles/<id>` PATCH, `vehicle[caption]`) mit U+200B,
 U+200C, U+2060, U+2063 vorn gesetzt und über `/api/v2/vehicles/<id>` zurückgelesen
 (`result.caption`): **alle vier unverändert gespeichert.** Danach der alte Name
 wiederhergestellt. Für Wachennamen nicht eigens gemessen.
+
+## Personal übernehmen (gemessen 12.11.2026, BePol)
+
+- Ort: Werbeseite der **Zielwache** `/buildings/<ziel>/hire`, Formular
+  `form[action="/buildings/<ziel>/adopt"]`, Überschrift „Personal übernehmen".
+  Je Quellwache ein Panel, nachgeladen aus `/buildings/<quelle>/schooling_personal_select`
+  (dieselben `input.schooling_checkbox[name="personal_ids[]"]` wie beim Lehrgang).
+- Absenden: `POST /buildings/<ziel>/adopt` mit `utf8=✓`, `authenticity_token`,
+  `personal_ids[]` (beliebig viele, auch aus mehreren Quellwachen), `commit=Personal übernehmen`.
+  Antwort 302 → `/buildings/<ziel>`.
+- Lehrgänge bleiben erhalten (geprüft an einer Person). Laut Seite **nicht rückgängig zu machen**.
+- Bereitschaftspolizei: Panel zeigt „Mindestens: 0", `free_space_for_personnel_selection()`
+  liefert `MAX_SAFE_INTEGER` — keine Mengengrenze. Andere Wachen zeigen „Mindestens: 2";
+  dort gilt laut Sasha höchstens 10 je Woche über alle Wachen (nicht nachgemessen).
+- Die Personen-Bearbeitung `/personals/<id>/edit` kann nur Name und Fahrzeugbindung — nicht verlegen.
