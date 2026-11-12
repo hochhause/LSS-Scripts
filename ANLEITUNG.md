@@ -107,6 +107,7 @@ Rechts steht alles zu der angeklickten Wache:
 - **Fahrzeuge:** jeder Typ mit „da von geplant“. Rot heißt: es fehlt eins. Ein Klick auf den Typ zeigt alle Wachen, an denen er fehlt.
 - **Überzählig:** was der Plan nicht vorsieht, und welches Fahrzeug beim Zerstören fallen würde.
 - **Ausbauten fehlen**, **Personal** und **Lehrgänge**.
+- Unter **Lehrgänge** steht an Wachen mit ELW2 Drohne, WLF und Abrollbehältern oder Verpflegungs- und Betreuungsfahrzeugen der Unterabschnitt **„Mehrfachausbildung“**. Er zählt Köpfe statt Plätze: wie viele Leute mit Drohnen-Schulung auch ELW 2 haben, wie viele WLF-Fahrer die Lehrgänge der Abrollbehälter, wie viele bei Verpflegung und Betreuung beide Lehrgänge. „(+N)“ sind die, denen nur noch ein laufender Lehrgang fehlt. Die Zahlen kommen beim nächsten „Aktualisieren“ oder Personallauf; die Lücken schließt „Personal ausbilden“ mit „Ausbilden bis: alle Sitze“.
 - **Fahrzeuge**, **Ausbauten**, **Personal** und **Lehrgänge** klappst du mit einem Klick auf die Überschrift zu oder auf. Ausbauten sind von Haus aus zu, weil viele sie mit dem Erweiterungsmanager pflegen. Der Planer merkt sich, was offen ist.
 - **Aktionen:** die Knöpfe aus [Kapitel 5](#5-die-knöpfe-einer-wache), nur für diese Wache.
 

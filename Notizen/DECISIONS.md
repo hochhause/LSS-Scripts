@@ -3388,3 +3388,25 @@ Bergrettung legte das alle acht GW-Bergrettung auf 4 Höhenretter — sieben bli
 rot. Abhilfe im Spiel: Anhänger fest koppeln (von Hand oder „Anhänger koppeln";
 grüne Anhänger überspringt der Lauf ohne „Grüne freigeben"). Ob die Regel selbst
 angepaßt wird, ist offen.
+
+## D-124 — Unterabschnitt „Mehrfachausbildung" auf der Wachenkarte (v0.71.8)
+
+**Befund (Sasha, 12.11., Fire #1):** Die Lehrgangsliste zählt je Kurs. ELW 2
+„13 von 12" und Drohne „8 von 6" sahen fertig aus, beides hatten vier; GW-Gefahrgut
+„4 von 4" zählte niemanden, der Wechsellader hat; Verpflegung 10/9 und 9/9 mit
+null Doppelten. Der Lauf „Personal ausbilden" sah es (D-118/D-119), die Karte nicht.
+
+**Umgesetzt:** `mehrfachStand(b, boxen)` zählt je Regel aus `ergaenzungsRegeln`
+Köpfe — Paare als eine Zeile („mit beiden von allen mit einem"), gerichtete
+Regeln als „mit Zielkurs von allen mit dem auslösenden". `zaehleAus` legt das
+Ergebnis als `quals.by[id]._mehrfach` ab, denn nur dort liegen die einzelnen
+Personen vor; `readRoster` gibt dafür die laufenden Lehrgänge mit (`lernt`).
+Die Karte zeigt es als aufklappbaren Unterabschnitt unter „Lehrgänge", nur an
+Wachen mit einer Regel.
+
+**Entschieden von Claude:** reine Anzeige. Der grüne Punkt, „fertig" und die
+X/Y-Zahl am Knopf rechnen wie bisher (ASSUMPTION D-119-gruen bleibt offen).
+Sasha hat „mitzählen" gesagt, nicht „strenger bewerten".
+
+**Verworfen:** die Zahlen aus `courseNeed`/`kursPosten` ableiten — die kennen
+nur Summen je Kurs, „dieselbe Person hat beides" ist daraus nicht zu gewinnen.

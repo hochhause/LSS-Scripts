@@ -74,14 +74,14 @@ const kern = new Function(`${stub}\n${teile}\nreturn { vehMeta, anforderung, bes
            verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
            anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN: PB,
            MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
-           nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken, kursReihenfolge };`)();
+           nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken, kursReihenfolge, mehrfachStand };`)();
 const { vehMeta, anforderung, besetze, planeWache, mindestBedarf,
         bedarfKeys, doppelKombis, zaehleAus, quals, S, vorlagenSitze, zeichenSatz, doppelErgaenzung,
         courseNeed, bedarfDerWache, memoK, fehltAn, sitzplanSchritte,
         verkaufsKandidaten, verkaufsRang, verkaufsNamen, bestandGegenSoll,
         anhaengerAn, fahrzeugStand, punkteFuerWache, sitzeVon, sicherungPruefen, lehrgangsKandidaten, zuWenigLeute, PB_TYPEN,
         MARKEN, MARKEN_FZ, MARKEN_WACHE, markenFuer, roemisch, typZaehler, wachenZaehler,
-        nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken, kursReihenfolge } = kern;
+        nameAus, mitPunkt, wachsendeVorlage, MUSTER_KONTEXT, HAKEN, ohneHaken, kursReihenfolge, mehrfachStand } = kern;
 
 let fehler = 0;
 const pruefe = (name, ist, soll) => {
@@ -1771,6 +1771,26 @@ console.log('\n43. Doppelausbildung je Person (D-118)');
   const b2 = wache([gw, tesi]); memoK.clear();
   pruefe('Anh TeSi am GW TeSi: nur die Sitze des GW', courseNeed(b2, 'max').disaster_response_technology,
     vehMeta(171).max);
+}
+
+{
+  /* D-124: Mehrfachausbildung zählt Köpfe mit beiden Lehrgängen — Fire #1 im Kleinen. */
+  const b = wache([fz(129), fz(46), fz(77), fz(138)]);     // ELW2 Drohne, WLF, AB-Gefahrgut, GW-Verpflegung
+  const k = (kurse, lernt = []) => ({ kurse, lernt });
+  const leute = [
+    k(['fire_drone', 'elw2']), k(['fire_drone']), k(['fire_drone'], ['elw2']), k(['elw2']),
+    k(['wechsellader']), k(['wechsellader', 'gw_gefahrgut']), k(['gw_gefahrgut']),
+    k(['fire_care_service']), k(['care_service_equipment']), k(['fire_care_service', 'care_service_equipment']), k([])
+  ];
+  const st = mehrfachStand(b, leute);
+  const zeile = f => { const r = st.find(f); return r && [r.basis, r.mit, r.lauf]; };
+  pruefe('Drohne → ELW 2: 3 Drohnen-Leute, 1 mit beidem, 1 lernt', zeile(r => r.ziel === 'elw2'), [3, 1, 1]);
+  pruefe('ELW 2 allein zählt nicht als Basis', st.some(r => r.ziel === 'fire_drone'), false);
+  pruefe('WLF → AB-Gefahrgut: 2 WLF-Fahrer, 1 mit GW-Gefahrgut', zeile(r => r.ziel === 'gw_gefahrgut'), [2, 1, 0]);
+  pruefe('Verpflegung als ein Paar: 3 mit einem, 1 mit beiden',
+    zeile(r => r.art === 'paar'), [3, 1, 0]);
+  pruefe('Paar nur einmal gelistet', st.filter(r => r.art === 'paar').length, 1);
+  pruefe('Wache ohne Regel: leer', mehrfachStand(wache([fz(30)]), leute).length, 0);
 }
 
 console.log(fehler ? `\n${fehler} Fehler\n` : '\nalle Proben bestanden\n');

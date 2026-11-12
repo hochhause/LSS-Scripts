@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.71.7
+// @version      0.71.8
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.71.7';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.71.8';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2611,6 +2611,42 @@ function doppelErgaenzung(b, key, leute) {
   });
 }
 
+/** Stand der Mehrfachausbildung an Wache `b` (Sasha, 12.11., D-124). Die
+    Zählung je Lehrgang kann „dieselbe Person braucht beide" nicht zeigen — an
+    Fire #1 standen ELW 2 „13 von 12" und Drohne „8 von 6", aber nur vier hatten
+    beides. Je Regel aus `ergaenzungsRegeln` darum Köpfe:
+    - Paar (gilt in beide Richtungen, Verpflegung/Betreuung): `mit` beiden von
+      `basis` mit mindestens einem;
+    - gerichtet (Drohne → ELW 2, Wechsellader → Abrollbehälter): `mit` dem
+      Zielkurs von `basis` mit dem auslösenden.
+    `lauf`: aus `basis`, wem nur noch ein laufender Lehrgang fehlt.
+    `boxen`: `[{ kurse, lernt? }]`, wie `zaehleAus` sie bekommt. */
+function mehrfachStand(b, boxen) {
+  const regeln = ergaenzungsRegeln(b);
+  const aus = [], paare = new Set();
+  const hat = (p, k) => (p.kurse || []).includes(k);
+  const lernt = (p, k) => (p.lernt || []).includes(k);
+  for (const [ziel, von] of regeln) {
+    const gerichtet = [];
+    for (const v of von) {
+      if (!regeln.get(v)?.has(ziel)) { gerichtet.push(v); continue; }
+      const kurse = [v, ziel].sort(), marke = kurse.join('+');
+      if (paare.has(marke)) continue;
+      paare.add(marke);
+      const basis = boxen.filter(p => kurse.some(k => hat(p, k)));
+      const mit = basis.filter(p => kurse.every(k => hat(p, k))).length;
+      const lauf = basis.filter(p => kurse.some(k => !hat(p, k)) && kurse.every(k => hat(p, k) || lernt(p, k))).length;
+      aus.push({ art: 'paar', kurse, basis: basis.length, mit, lauf });
+    }
+    if (!gerichtet.length) continue;
+    const basis = boxen.filter(p => gerichtet.some(k => hat(p, k)));
+    aus.push({ art: 'gerichtet', ziel, von: gerichtet, basis: basis.length,
+               mit: basis.filter(p => hat(p, ziel)).length,
+               lauf: basis.filter(p => !hat(p, ziel) && lernt(p, ziel)).length });
+  }
+  return aus;
+}
+
 /** Lehrgänge, die ein Fahrzeugtyp im Plan auf jedem Sitz braucht: Katalog plus Doppelziel. */
 const planKurse = (id, meta) => [...new Set([...(meta?.kurse || []).map(k => k.k), ...(DOPPEL_ZIEL[id] || [])])];
 
@@ -3401,7 +3437,7 @@ async function readRoster(b) {
      offenbar nicht: an Wachen, deren Ausgebildete alle auf ihren Fahrzeugen
      saßen, meldete sie null. Wer nur einen Lehrgang hat, kann durch keine
      Verteilung verlorengehen — also lag es an der Quelle, nicht an D-46. */
-  zaehleAus(b.id, people.map(p => ({ id: p.id, kurse: p.quals })));
+  zaehleAus(b.id, people.map(p => ({ id: p.id, kurse: p.quals, lernt: p.inAusbildung })));
 
   return { people, courses };
 }
@@ -5752,13 +5788,13 @@ function kursUebersicht(sel, feld = kursZiel()) {
 /* Fahrzeuge, Ausbauten, Personal und Lehrgänge lassen sich zuklappen (Sasha, 16.10.).
    Ausbauten von Haus aus zu: viele pflegen sie mit dem Erweiterungsmanager
    von caddy12. Der Zustand gilt für alle Karten und bleibt gemerkt. */
-const TEIL_OFFEN = { fz: true, ausbau: false, personal: true, kurs: true };
+const TEIL_OFFEN = { fz: true, ausbau: false, personal: true, kurs: true, mehrfach: true };
 const teilOffen = id => (ui.teile || {})[id] ?? TEIL_OFFEN[id];
-const kTeilZu = (id, titel, zeilen, leer) =>
+const kTeilZu = (id, titel, zeilen, leer, darin = '') =>
   `<details class="kteil" data-teil="${id}"${teilOffen(id) ? ' open' : ''}>
     <summary class="abschnitt" style="cursor:pointer"><b>${titel}</b>
       <span style="color:var(--lp-dim2);font-size:11px">${zeilen.length || ''}</span></summary>
-    ${dListe(zeilen, leer)}</details>`;
+    ${dListe(zeilen, leer)}${darin}</details>`;
 
 /** Teil der Karte: Überschrift mit Zähler und darunter eine Liste. */
 const kTeil = (titel, zeilen, leer, rechts = '') =>
@@ -5813,6 +5849,24 @@ function wachenKarte(b) {
         : `${p.ist} von ${p.soll}${p.lauf ? ` (+${p.lauf})` : ''}${p.fehlt ? ` — ${p.fehlt} fehlen` : ''}`,
       p.fehlt === null ? 'warn' : p.fehlt ? 'gap' : 'ok', `data-kurs="${escA(key)}"`));
 
+  /* Unterabschnitt „Mehrfachausbildung" (D-124): nur an Wachen mit einer Regel
+     aus `ergaenzungsRegeln`. Zählt Köpfe, nicht Plätze — reine Anzeige, der
+     grüne Punkt und „fertig" rechnen wie bisher. */
+  const mfStand = quals.by[b.id]?._mehrfach;
+  const kn = k => kursNamen(k)[0] || k;
+  const mehrfach = (mfStand || []).map(r => {
+    const fehlt = Math.max(0, r.basis - r.mit - r.lauf);
+    return dZeile(r.art === 'paar' ? r.kurse.map(kn).join(' + ')
+                                   : `${kn(r.ziel)} — für alle mit ${r.von.map(kn).join(' / ')}`,
+      `${r.mit} von ${r.basis}${r.lauf ? ` (+${r.lauf})` : ''}${fehlt ? ` — ${fehlt} fehlen` : ''}`,
+      fehlt ? 'gap' : 'ok');
+  });
+  const mehrfachTeil = ergaenzungsRegeln(b).size
+    ? `<div style="margin-left:12px">${kTeilZu('mehrfach', 'Mehrfachausbildung', mehrfach,
+        mfStand ? 'Niemand hat einen der auslösenden Lehrgänge.'
+                : 'Noch nicht erfaßt — erst „Aktualisieren".')}</div>`
+    : '';
+
   const personal = [
     dZeile('Personal an der Wache', `${a.staffIst} von ${a.staffSoll}`, a.hire ? 'gap' : 'ok'),
     dZeile('Fahrzeuge unter Mindestbesetzung', String(f.personal), f.personal ? 'gap' : 'ok'),
@@ -5856,7 +5910,7 @@ function wachenKarte(b) {
         dZeile(e.caption, e.n > 1 ? `${e.n}×` : '', 'gap', `data-ausbau="${escA(e.caption)}"`)),
         'Alle geplanten Ausbauten sind gebaut.')}
     ${kTeilZu('personal', 'Personal', personal, '')}
-    ${kTeilZu('kurs', 'Lehrgänge', kurse, 'Kein Fahrzeug hier verlangt einen Lehrgang.')}
+    ${kTeilZu('kurs', 'Lehrgänge', kurse, 'Kein Fahrzeug hier verlangt einen Lehrgang.', mehrfachTeil)}
     <div class="abschnitt" style="margin-top:16px"><b>Aktionen</b>
       <span style="color:var(--lp-dim2);font-size:11px">nur für diese Wache</span></div>
     ${aktionsKnoepfe([b])}`;
@@ -7354,6 +7408,8 @@ function zaehleAus(buildingId, boxen) {
       for (const k of p.kurse) kandidaten.set(k, (kandidaten.get(k) || 0) - 1);
     }
   }
+  // Köpfe mit mehreren Lehrgängen gibt es nur hier, solange die Personen vorliegen (D-124)
+  if (b) z._mehrfach = mehrfachStand(b, boxen);
   quals.by[buildingId] = z;
   quals.ts = Date.now();
   saveQuals();
