@@ -1547,22 +1547,24 @@ const lp = (id, quals = [], assignedTo = null, inAusbildung = [], verfuegbar = t
     lp(5, [], lf.id), lp(6, [], lf.id), lp(7, [], null, [], false), lp(8)
   ];
   const r = lehrgangsKandidaten(b, 'wildfire', leute);
-  pruefe('nur verfuegbare Ungelernte ohne Fahrzeug', ids(r), ['1', '8']);
-  pruefe('von Fahrzeugen niemand, aber gezaehlt', r.amFahrzeug, 2);
+  /* D-125: das HLF braucht einen — der zweite Ungelernte darf, vom Fahrzeug gelöst. */
+  pruefe('freie Ungelernte zuerst, dann der überzählige vom HLF', ids(r), ['1', '8', '5']);
+  pruefe('der überzählige wird gelöst', r.liste.find(x => x.id === '5').loesen, String(lf.id));
+  pruefe('der für die Mindestbesatzung bleibt, gezählt', r.amFahrzeug, 1);
   pruefe('wer unterwegs ist, gezaehlt fuer die Meldung', r.unterwegs, 1);
 }
 {
-  /* Doppelausbildung: der freie Drohnenpilot zuerst, dann der vom ELW2
-     Drohne — dieses Fahrzeug braucht den ELW-2-Lehrgang selbst. Der
-     Drohnenpilot auf dem HLF bleibt sitzen: sein Fahrzeug braucht ihn nicht. */
+  /* Doppelausbildung: der freie Drohnenpilot zuerst, dann die von Fahrzeugen.
+     Seit D-125 auch der vom HLF — er bleibt zugewiesen, das HLF geht auf 6. */
   const lf = fz(30), drohne = fz(129);                 // ELW2 Drohne: fire_drone + elw2 auf jedem Sitz
   const b = wache([lf, drohne]);
   const leute = [lp(1), lp(2, ['fire_drone']), lp(3, ['fire_drone'], lf.id),
                  lp(4, ['fire_drone', 'gw_messtechnik']), lp(5, ['fire_drone'], drohne.id)];
   const r = lehrgangsKandidaten(b, 'elw2', leute);
-  pruefe('frei vor Fahrzeug vor Ungelernt', r.liste.map(x => x.id), ['2', '5', '1']);
+  pruefe('frei vor Fahrzeug vor Ungelernt', r.liste.map(x => x.id), ['2', '3', '5', '1']);
   pruefe('wer vom Fahrzeug kommt, traegt es', r.liste.find(x => x.id === '5').vomFahrzeug, String(drohne.id));
-  pruefe('der Drohnenpilot auf dem HLF bleibt dort', r.amFahrzeug, 1);
+  pruefe('Doppelkandidat bleibt zugewiesen (nicht gelöst)', r.liste.find(x => x.id === '3').loesen, undefined);
+  pruefe('niemand mehr am Fahrzeug übrig', r.amFahrzeug, 0);
   pruefe('wer mehr als den Partner hat, bleibt draussen', r.liste.some(x => x.id === '4'), false);
   pruefe('auf der Schulseite niemand vom Fahrzeug',
          lehrgangsKandidaten(b, 'elw2', leute, { vomFahrzeug: false }).liste.map(x => x.id), ['2', '1']);
@@ -1573,8 +1575,28 @@ const lp = (id, quals = [], assignedTo = null, inAusbildung = [], verfuegbar = t
   const b = wache([drohne]);
   const r = lehrgangsKandidaten(b, 'elw2', [lp(1, ['fire_drone'], drohne.id)]);
   pruefe('gruenes Fahrzeug: niemand', r.liste.length, 0);
-  pruefe('ein Ungelernter vom Fahrzeug wird nie genommen',
+  pruefe('ein Ungelernter von einem fremden Fahrzeug wird nie genommen',
          lehrgangsKandidaten(wache([fz(129)]), 'elw2', [lp(9, [], 'x')]).liste.length, 0);
+}
+{
+  /* D-125: GruKw (min 1) mit 9 Ungelernten — acht dürfen, einer bleibt. */
+  const gru = fz(50);
+  const leute = Array.from({ length: 9 }, (_, i) => lp(i + 1, [], gru.id));
+  const r = lehrgangsKandidaten(wache([gru]), 'police_sek', leute);
+  pruefe('8 von 9 dürfen vom GruKw', r.liste.length, 8);
+  pruefe('alle acht werden gelöst', r.liste.every(p => p.loesen === String(gru.id)), true);
+  pruefe('einer bleibt für die Mindestbesatzung', r.amFahrzeug, 1);
+  // Wer schon lernt, sitzt nur auf dem Papier und zählt nicht als Besatzung.
+  const z = [lp(1, [], gru.id, ['police_mek']), lp(2, [], gru.id)];
+  pruefe('Lernender zählt nicht — der andere bleibt', lehrgangsKandidaten(wache([gru]), 'police_sek', z).liste.length, 0);
+  // Doppelkandidat und Ungelernter am selben Fahrzeug teilen sich den Überschuß.
+  const hlf = fz(30);
+  const y = [lp(1, ['care_service'], hlf.id), lp(2, [], hlf.id)];
+  pruefe('Überschuß 1: nur der Doppelkandidat',
+         lehrgangsKandidaten(wache([hlf]), 'care_service_equipment', y).liste.map(p => p.id), ['1']);
+  const gruen = fz(50, { caption: HAKEN + ' GruKw' });
+  pruefe('grüner GruKw gibt niemanden', lehrgangsKandidaten(wache([gruen]), 'police_sek',
+    Array.from({ length: 5 }, (_, i) => lp(i + 1, [], gruen.id))).liste.length, 0);
 }
 {
   /* Die Meldung nennt den Ausweg. */
@@ -1640,13 +1662,13 @@ console.log('\n41. Verpflegung und Betreuung doppelt ausgebildet (D-116)');
   const plan = planeWache(w, { people: Array.from({ length: 9 }, (_, i) => person(i + 1, 'care_service')) }, true);
   pruefe('Bt-Kombi wird mit einfach Ausgebildeten besetzt, nicht lahm', plan.lahm.length, 0);
 
-  // Wer auf der MTW-Verpflegung sitzt, darf zum Verpflegungshelfer; vom HLF nicht
+  // Wer auf der MTW-Verpflegung sitzt, darf zum Verpflegungshelfer; seit D-125 auch vom HLF
   const mtw = fz(140), hlf = fz(30);
   const w2 = wache([mtw, hlf]);
   const r = lehrgangsKandidaten(w2, 'care_service_equipment',
     [lp(1, ['fire_care_service'], mtw.id), lp(2, ['fire_care_service'], hlf.id), lp(3)]);
   pruefe('vom MTW-Verpflegung in den Verpflegungshelfer, vor den Ungelernten',
-         r.liste.map(x => x.id), ['1', '3']);
+         r.liste.map(x => x.id), ['1', '2', '3']);
   pruefe('Feuerwehr-Verpflegung + Verpflegungshelfer ist ein gewolltes Paar',
          lehrgangsKandidaten(wache([]), 'fire_care_service', [lp(4, ['care_service_equipment'])]).liste.length, 1);
 }

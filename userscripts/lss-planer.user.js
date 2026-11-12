@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Planer — Soll/Ist Umsetzung
 // @namespace    https://leitstellenspiel.de/
-// @version      0.71.8
+// @version      0.71.9
 // @description  Setzt den exportierten Soll-Plan um: Ausbauten, Fahrzeuge, Anhänger, Personal, Lehrgänge
 // @match        https://www.leitstellenspiel.de/*
 // @match        https://polizei.leitstellenspiel.de/*
@@ -15,7 +15,7 @@
 
 (function () {
 'use strict';
-const VERSION = '0.71.8';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
+const VERSION = '0.71.9';   // im Fensterkopf sichtbar, damit der Stand erkennbar ist
 // Gebäudeseiten öffnet das Spiel in einer Lightbox, also in einem Iframe.
 // Das schwebende Panel darf dort nicht nochmal erscheinen, das Modul für die
 // Lehrgangsseite muss aber gerade dort laufen.
@@ -2650,12 +2650,18 @@ function mehrfachStand(b, boxen) {
 /** Lehrgänge, die ein Fahrzeugtyp im Plan auf jedem Sitz braucht: Katalog plus Doppelziel. */
 const planKurse = (id, meta) => [...new Set([...(meta?.kurse || []).map(k => k.k), ...(DOPPEL_ZIEL[id] || [])])];
 
-/* Ausnahme zu Regel 3, wieder Sasha am 06.10.: ein **Doppelkandidat** darf
-   von seinem Fahrzeug, wenn genau dieses Fahrzeug die neue Ausbildung
-   braucht — der Drohnenpilot auf dem ELW2 Drohne geht in den ELW-2-Lehrgang.
-   Fällt die Besatzung dadurch unter ihr Minimum, kommt das Fahrzeug auf
-   Status 6 (`nachAbzugAbmelden`). Grüne Fahrzeuge bleiben auch hier
-   unberührt, wie überall, wo etwas weggenommen würde (`geschuetzt`).
+/* Wer von einem Fahrzeug in die Schule darf (Sasha, 12.11., D-125 — vorher
+   06.10.: nur Doppelkandidaten vom Fahrzeug, das den Kurs selbst braucht):
+   - **Doppelkandidaten** von jedem nicht grünen Fahrzeug. Sie bleiben ihm
+     zugewiesen; fällt die Besatzung unter ihr Minimum, kommt es auf Status 6
+     (`nachAbzugAbmelden`).
+   - **Ungelernte**, die ihr Fahrzeug für die Mindestbesatzung nicht braucht —
+     etwa der zweite bis neunte Mann eines GruKw. Sie werden vom Fahrzeug
+     gelöst (`p.loesen`, in `schulPost`), das Fahrzeug bleibt einsatzbereit.
+     Ohne das schickte der Lauf an einer voll besetzten BePol niemanden: alle
+     87 Ungelernten von BePol #4 saßen auf Fahrzeugen.
+   Grüne Fahrzeuge bleiben unberührt, wie überall, wo etwas weggenommen würde
+   (`geschuetzt`).
 
    Nur in Läufen, die selbst abschicken. Auf der Schulseite hakt der Planer
    nur an und weiß nicht, ob danach wirklich abgeschickt wird — Status 6 im
@@ -2677,23 +2683,38 @@ function lehrgangsKandidaten(b, key, leute, { vomFahrzeug = true } = {}) {
     return partner.size && q.every(k => partner.has(k)) ? 'doppel' : null;
   };
   const fz = new Map(echteVon(b).map(v => [String(v.id), v]));
-  const brauchtKurs = v => { const a = anforderung(v);
-    return a.alle.includes(key) || a.mind.has(key) || (DOPPEL_ZIEL[v.vehicle_type] || []).includes(key); };
   const darfVom = p => {
     const v = vomFahrzeug && fz.get(String(p.assignedTo));
-    return !!v && !geschuetzt(v) && brauchtKurs(v);
+    return !!v && !geschuetzt(v);
   };
-  const frei = [], vomWagen = [], neu = [];
+  /* Sitze über der Mindestbesatzung je Fahrzeug. Wer schon lernt, sitzt nur
+     auf dem Papier und zählt nicht. Doppelkandidaten, die vom selben Fahrzeug
+     kommen, gehen davon ab — sie fehlen ihm ebenso, solange sie lernen. */
+  const ueber = new Map();
+  for (const [vid, v] of fz) {
+    const drauf = leute.filter(p => String(p.assignedTo) === vid && !(p.inAusbildung || []).length).length;
+    ueber.set(vid, drauf - anforderung(v).min);
+  }
+  const frei = [], vomWagen = [], neu = [], neuVomWagen = [];
   let amFahrzeug = 0, unterwegs = 0;
+  const spaeter = [];
   for (const p of leute) {
     const a = art(p);
     if (!a) continue;
     if (p.verfuegbar === false) { unterwegs++; continue; }
     if (!p.assignedTo) { (a === 'doppel' ? frei : neu).push(p); continue; }
-    if (a === 'doppel' && darfVom(p)) { p.vomFahrzeug = String(p.assignedTo); vomWagen.push(p); continue; }
-    amFahrzeug++;
+    if (!darfVom(p)) { amFahrzeug++; continue; }
+    const vid = String(p.assignedTo);
+    if (a === 'doppel') { p.vomFahrzeug = vid; vomWagen.push(p); ueber.set(vid, ueber.get(vid) - 1); continue; }
+    spaeter.push(p);
   }
-  return { liste: [...frei, ...vomWagen, ...neu], amFahrzeug, unterwegs };
+  for (const p of spaeter) {
+    const vid = String(p.assignedTo);
+    if (!(ueber.get(vid) > 0)) { amFahrzeug++; continue; }
+    ueber.set(vid, ueber.get(vid) - 1);
+    p.vomFahrzeug = vid; p.loesen = vid; neuVomWagen.push(p);
+  }
+  return { liste: [...frei, ...vomWagen, ...neu, ...neuVomWagen], amFahrzeug, unterwegs };
 }
 
 /** Nach einem Abzug vom Fahrzeug: wer jetzt unter der Mindestbesatzung
@@ -7673,6 +7694,13 @@ function reihum(proWache, plaetze, darf = () => true) {
 
 /** Ein Formular an die Schule schicken; Antwort samt Endadresse. */
 async function schulPost(pfad, felder, leute = []) {
+  /* Erst vom Fahrzeug lösen, wen `lehrgangsKandidaten` dafür vorgesehen hat
+     (D-125). Vorher, weil gemessen ist, daß `zuweisungDo` bei verfügbaren
+     Leuten umschaltet — bei jemandem in der Schule ist es das nicht. */
+  for (const p of leute.filter(x => x.loesen)) {
+    await postForm(`/vehicles/${p.loesen}/zuweisungDo/${p.id}`);
+    p.assignedTo = null;
+  }
   const body = new URLSearchParams();
   for (const [k, v] of felder) body.append(k, v);
   leute.forEach(p => body.append('personal_ids[]', p.id));
@@ -7688,6 +7716,9 @@ async function schulPost(pfad, felder, leute = []) {
     ob ein Fahrzeug durch einen Abzug unter seine Mindestbesatzung fiel.
     Die Leute stammen aus `rosterImLauf`, daran erkennt man ihre Wache. */
 async function abmeldenNachSenden(fahrt, wachen, dry) {
+  const geloest = fahrt.filter(p => p.loesen).length;
+  if (geloest) log(`   ${geloest} ${dry ? 'würden vom Fahrzeug gelöst' : 'vom Fahrzeug gelöst'} — `
+    + 'sie saßen über der Mindestbesatzung, das Fahrzeug bleibt einsatzbereit');
   if (!fahrt.some(p => p.vomFahrzeug)) return 0;
   let n = 0;
   for (const b of wachen) {

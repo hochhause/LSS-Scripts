@@ -3410,3 +3410,33 @@ Sasha hat „mitzählen" gesagt, nicht „strenger bewerten".
 
 **Verworfen:** die Zahlen aus `courseNeed`/`kursPosten` ableiten — die kennen
 nur Summen je Kurs, „dieselbe Person hat beides" ist daraus nicht zu gewinnen.
+
+## D-125 — Personal ausbilden nimmt auch Leute von Fahrzeugen (v0.71.9)
+
+**Befund (Sasha, 12.11., BePol #4):** Der Lauf schickte niemanden. Alle 87
+Ungelernten saßen auf Fahrzeugen — „Personal zuweisen" mit „voll besetzen" hatte
+jeden GruKw auf 9 gebracht —, und `lehrgangsKandidaten` nahm Ungelernte nur ohne
+Fahrzeug. Eine voll besetzte Wache konnte so nie ausbilden.
+
+**Entscheidung (Sasha):** zwei Wege vom Fahrzeug in die Schule, beide nur von
+nicht grünen Fahrzeugen (`geschuetzt`):
+1. **Ungelernte über der Mindestbesatzung** werden vom Fahrzeug **gelöst**
+   (`p.loesen`). Je Fahrzeug höchstens so viele, wie über `anforderung(v).min`
+   sitzen; Leute in Ausbildung zählen dabei nicht als Besatzung.
+2. **Doppelkandidaten** (Partnerlehrgang einer Mehrfachausbildung) dürfen von
+   **jedem** Fahrzeug, nicht mehr nur von dem, das den Kurs selbst braucht. Sie
+   bleiben **zugewiesen**; fällt das Fahrzeug unter sein Minimum, geht es auf
+   Status 6 (`nachAbzugAbmelden`, wie bisher). Sie gehen vom Überschuß ab, den
+   Weg 1 nutzen darf.
+
+Reihenfolge der Kandidaten: Doppelkandidaten ohne Fahrzeug, Doppelkandidaten
+vom Fahrzeug, Ungelernte ohne Fahrzeug, Ungelernte vom Fahrzeug.
+
+**Gelöst wird vor dem Absenden, in `schulPost`:** gemessen ist, daß
+`zuweisungDo` bei verfügbaren Leuten umschaltet (`zuweisungenLoeschen`); bei
+jemandem, der schon in der Schule sitzt, nicht. Lehnt die Schule danach ab, ist
+die Person trotzdem gelöst — sie saß ohnehin über dem Minimum.
+
+**Verworfen:** Ungelernte zugewiesen lassen wie die Doppelkandidaten. Sasha will
+sie gelöst; außerdem säße sonst auf dem GruKw auf dem Papier eine Besatzung, die
+in der Schule ist.
